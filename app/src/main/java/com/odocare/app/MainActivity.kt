@@ -29,6 +29,9 @@ import androidx.navigation.compose.*
 import com.odocare.app.data.*
 import com.odocare.app.domain.*
 import com.odocare.app.notif.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import com.odocare.app.ui.*
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -37,15 +40,17 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 
+object ThemeState { var mode by mutableStateOf("Gelap") }
+
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NotificationHelper.createChannels(this)
+        ThemeState.mode = Prefs.getStr(this, "theme", "Gelap")
         handle(intent)
         setContent {
-            val dark = androidx.compose.foundation.isSystemInDarkTheme()
-            MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) { App(vm) }
+            OdoCareTheme(ThemeState.mode) { App(vm) }
         }
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handle(intent) }
@@ -97,7 +102,7 @@ fun FormDialog(title: String, confirm: String = "Simpan", onDismiss: () -> Unit,
 
 @Composable
 fun Field(label: String, value: String, onChange: (String) -> Unit, numeric: Boolean = false) =
-    OutlinedTextField(value, { onChange(if (numeric) digits(it) else it) }, label = { Text(label) }, singleLine = true,
+    OutlinedTextField(value, { onChange(if (numeric) digits(it) else it) }, label = { Text(label) }, singleLine = true, shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth(),
         keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text))
 
@@ -105,7 +110,7 @@ fun Field(label: String, value: String, onChange: (String) -> Unit, numeric: Boo
 fun Dropdown(label: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { open = true }, Modifier.fillMaxWidth()) { Text("$label: $selected") }
+        SecondaryButton(onClick = { open = true }, Modifier.fillMaxWidth()) { Text("$label: $selected") }
         DropdownMenu(open, { open = false }) { options.forEach { o -> DropdownMenuItem(text = { Text(o) }, onClick = { onSelect(o); open = false }) } }
     }
 }
@@ -126,10 +131,8 @@ fun HomeScreen(vm: MainViewModel) {
         vm.saveOdometer(cur!!, km, note); vm.showOdo.value = false; Toast.makeText(ctx, "Odometer diperbarui", Toast.LENGTH_SHORT).show() }
 
     if (cur == null) {
-        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-            Text("Belum ada kendaraan", style = MaterialTheme.typography.headlineSmall)
-            Text("Tambahkan kendaraan pertama Anda untuk mulai mencatat kilometer dan jadwal servis.")
-            Spacer(Modifier.height(16.dp)); Button(onClick = { addVehicle = true }) { Text("Tambah Kendaraan") }
+        Box(Modifier.fillMaxSize(), Alignment.Center) {
+            EmptyState(Icons.Default.Home, "Belum ada kendaraan", "Tambahkan kendaraan pertama Anda untuk mulai mencatat kilometer dan jadwal servis.", "Tambah Kendaraan") { addVehicle = true }
         }
         return
     }
@@ -138,8 +141,8 @@ fun HomeScreen(vm: MainViewModel) {
         .sortedByDescending { it.second.status.urgency }
     val month = LocalDate.now().withDayOfMonth(1).toEpochDay(); val year = LocalDate.now().withDayOfYear(1).toEpochDay()
     val vs = services.filter { it.vehicleId == v.id }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text("Halo! 👋", style = MaterialTheme.typography.headlineSmall) }
+    LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Column { Text("OdoCare", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary); Text("Pantau kilometer, servis, dan dokumen kendaraan Anda.", color = MaterialTheme.colorScheme.onSurfaceVariant) } }
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(vehicles) { x -> FilterChip(x.id == v.id, { vm.selectedId.value = x.id }, { Text(x.name) }) }
@@ -147,27 +150,27 @@ fun HomeScreen(vm: MainViewModel) {
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(v.name, style = MaterialTheme.typography.titleLarge)
                 Text("${v.brand} ${v.model} • ${v.plate}".trim())
-                Text(fmtKm(v.currentKm), style = MaterialTheme.typography.headlineMedium)
+                OdometerValue(v.currentKm?.let { nf.format(it) } ?: "—")
                 Text("Update terakhir: ${fmtTs(v.lastOdoAt)}")
                 Text("Kilometer hanya berubah dari input Anda.", style = MaterialTheme.typography.bodySmall)
-                Button(onClick = { vm.showOdo.value = true }) { Text("Update Odometer") }
+                PrimaryButton(onClick = { vm.showOdo.value = true }) { Text("Update Odometer") }
             } }
         }
         item {
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
+            OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
                 Text("Ringkasan Servis", style = MaterialTheme.typography.titleMedium)
                 listOf(ServiceStatus.NORMAL, ServiceStatus.SEGERA_SERVIS, ServiceStatus.JATUH_TEMPO, ServiceStatus.TERLAMBAT).forEach { st ->
-                    Text("${st.label}: ${mine.count { it.second.status == st }}") }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { StatusBadge(st.label, statusTone(st)); Text("${mine.count { it.second.status == st }}", style = MaterialTheme.typography.titleMedium) } }
             } }
         }
         item { Text("Jadwal Terdekat", style = MaterialTheme.typography.titleMedium) }
         if (mine.isEmpty()) item { Text("Belum ada jadwal servis. Buka tab Jadwal untuk menambahkan.") }
         items(mine.take(3)) { (s, r) -> ScheduleCard(s, r) }
         item {
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
+            OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
                 Text("Pengeluaran Servis", style = MaterialTheme.typography.titleMedium)
                 Text("Bulan ini: ${fmtRp(vs.filter { it.epochDay >= month }.sumOf { it.cost })}")
                 Text("Tahun ini: ${fmtRp(vs.filter { it.epochDay >= year }.sumOf { it.cost })}")
@@ -176,17 +179,24 @@ fun HomeScreen(vm: MainViewModel) {
         item { Text("Pengingat Dokumen", style = MaterialTheme.typography.titleMedium) }
         val dl = docs.map { it to DocumentEngine.status(it.dueEpochDay?.let { d -> LocalDate.ofEpochDay(d) }, LocalDate.now()) }
         if (dl.isEmpty()) item { Text("Belum ada dokumen.") }
-        items(dl.take(3)) { (d, st) -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text(d.name); Text("${st.label} • ${fmtDay(d.dueEpochDay)}") } } }
+        items(dl.take(3)) { (d, st) -> OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text(d.name); Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { StatusBadge(st.label, docTone(st)); Text(fmtDay(d.dueEpochDay)) } } } }
     }
 }
 
 @Composable
 fun ScheduleCard(s: MaintenanceSchedule, r: ServiceResult, extra: @Composable ColumnScope.() -> Unit = {}) =
-    Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(s.name, style = MaterialTheme.typography.titleMedium); Text("${s.category} • ${r.status.label}")
+    OdoCareOdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(s.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            StatusBadge(r.status.label, statusTone(r.status))
+        }
+        Text(s.category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         r.targetKm?.let { Text("Servis berikutnya pada ${fmtKm(it)}") }
-        r.remainingKm?.let { Text(if (it >= 0) "Perkiraan sisa ${fmtKm(it)}" else "Terlambat ${fmtKm(-it)}") }
-        r.targetDate?.let { Text("Tanggal target: ${it.format(dfmt)}") }
+        r.remainingKm?.let { Text(if (it >= 0) "Sisa ${fmtKm(it)}" else "Terlambat ${fmtKm(-it)}") }
+        r.targetDate?.let { Text("Jatuh tempo ${it.format(dfmt)}") }
+        r.remainingDays?.let { Text(if (it >= 0) "Sisa $it hari" else "Terlambat ${-it} hari") }
+        val rem = r.remainingKm; val iv = s.intervalKm
+        if (rem != null && iv != null && iv > 0) LinearProgressIndicator(progress = { (1f - rem.toFloat() / iv).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
         if (r.status == ServiceStatus.KM_BELUM_DIPERBARUI) Text("Kilometer perlu diperbarui.")
         extra()
     } }
@@ -249,13 +259,13 @@ fun ServiceTab(vm: MainViewModel) {
     val shown = all.filter { it.vehicleId == v.id && it.name.contains(q, true) }
         .map { it to ServiceEngine.evaluate(it.input(), v.currentKm, LocalDate.now()) }
         .filter { filter == "Semua" || it.second.status.label.contains(filter) }.sortedByDescending { it.second.status.urgency }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item { Button(onClick = { add = true }) { Text("Tambah Jadwal") } }
+    LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { PrimaryButton(onClick = { add = true }) { Text("Tambah Jadwal") } }
         item { Field("Cari jadwal", q, { q = it }) }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { items(listOf("Semua", "Normal", "Segera Servis", "Jatuh Tempo", "Terlambat")) { f -> FilterChip(filter == f, { filter = f }, { Text(f) }) } } }
-        if (shown.isEmpty()) item { Text("Belum ada jadwal servis.") }
+        if (shown.isEmpty()) item { EmptyState(Icons.Default.DateRange, "Belum ada jadwal servis", "Buat jadwal pertama agar Anda dapat memantau perawatan kendaraan.", "Tambah Jadwal") { add = true } }
         items(shown) { (s, r) -> ScheduleCard(s, r) { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { log = s }) { Text("Catat Servis") }; OutlinedButton(onClick = { del = s }) { Text("Arsipkan") } } } }
+            PrimaryButton(onClick = { log = s }) { Text("Catat Servis") }; SecondaryButton(onClick = { del = s }) { Text("Arsipkan") } } } }
     }
 }
 
@@ -279,7 +289,7 @@ fun ScheduleDialog(v: Vehicle, onDismiss: () -> Unit, onSave: (MaintenanceSchedu
         Dropdown("Kategori", listOf("Mesin", "Ban", "Rem", "Kelistrikan", "Umum"), cat) { cat = it }
         Field("Interval kilometer (kosongkan jika tidak dipakai)", ik, { ik = it }, true)
         Field("Interval bulan (kosongkan jika tidak dipakai)", im, { im = it.filter(Char::isDigit).take(3) })
-        Field("Kilometer servis terakhir", lk, { lk = it }, true); Field("Tanggal servis terakhir (yyyy-MM-dd)", ld, { ld = it })
+        Field("Kilometer servis terakhir", lk, { lk = it }, true); DateField("Tanggal servis terakhir", ld) { ld = it }
         Field("Ingatkan saat sisa (km)", warn, { warn = it }, true)
         Text("Interval hanya contoh; sesuaikan dengan buku manual kendaraan.", style = MaterialTheme.typography.bodySmall)
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -293,7 +303,7 @@ fun LogServiceDialog(s: MaintenanceSchedule, v: Vehicle, onDismiss: () -> Unit, 
     FormDialog("Catat Servis — ${s.name}", onDismiss = onDismiss, onOk = {
         val k = km.toLongOrNull(); val d = parseDate(date)
         if (k == null) err = "Kilometer tidak valid." else if (d == null) err = "Tanggal harus berformat yyyy-MM-dd." else onSave(k, d.toEpochDay(), cost.toLongOrNull() ?: 0)
-    }) { Field("Kilometer saat servis", km, { km = it }, true); Field("Tanggal (yyyy-MM-dd)", date, { date = it }); Field("Biaya aktual (Rp)", cost, { cost = it }, true)
+    }) { Field("Kilometer saat servis", km, { km = it }, true); DateField("Tanggal servis", date) { date = it }; Field("Biaya aktual (Rp)", cost, { cost = it }, true)
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) } }
 }
 
@@ -305,18 +315,18 @@ fun DocumentTab(vm: MainViewModel) {
     var add by remember { mutableStateOf(false) }; var renew by remember { mutableStateOf<LegalDocument?>(null) }
     if (add) DocDialog(vehicles, { add = false }) { vm.saveDocument(it); add = false }
     renew?.let { d -> RenewDialog(d, { renew = null }) { due, amt -> vm.renewDocument(d, due, amt); renew = null } }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item { Button(onClick = { add = true }) { Text("Tambah Dokumen") } }
+    LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { PrimaryButton(onClick = { add = true }) { Text("Tambah Dokumen") } }
         item { Text("OdoCare hanya mencatat data yang Anda masukkan; tidak memverifikasi status resmi dokumen.", style = MaterialTheme.typography.bodySmall) }
-        if (docs.isEmpty()) item { Text("Belum ada dokumen.") }
+        if (docs.isEmpty()) item { EmptyState(Icons.Default.Menu, "Belum ada dokumen", "Catat pajak, STNK, SIM, atau asuransi agar Anda diingatkan sebelum jatuh tempo.", "Tambah Dokumen") { add = true } }
         items(docs.sortedBy { it.dueEpochDay ?: Long.MAX_VALUE }) { d ->
             val st = DocumentEngine.status(d.dueEpochDay?.let { LocalDate.ofEpochDay(it) }, LocalDate.now())
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
-                Text(d.name, style = MaterialTheme.typography.titleMedium); Text("${d.type} • ${st.label}")
+            OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Text(d.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f)); StatusBadge(st.label, docTone(st)) }; Text(d.type, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Jatuh tempo: ${fmtDay(d.dueEpochDay)}"); Text("Pembayaran/perpanjangan terakhir: ${fmtDay(d.lastPaidEpochDay)}")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { renew = d }) { Text("Catat Perpanjangan") }
-                    OutlinedButton(onClick = { vm.archiveDocument(d.id) }) { Text("Arsipkan") } }
+                    PrimaryButton(onClick = { renew = d }) { Text("Catat Perpanjangan") }
+                    SecondaryButton(onClick = { vm.archiveDocument(d.id) }) { Text("Arsipkan") } }
             } }
         }
     }
@@ -338,10 +348,10 @@ fun DocDialog(vehicles: List<Vehicle>, onDismiss: () -> Unit, onSave: (LegalDocu
     }) {
         Field("Nama dokumen", name, { name = it }); Dropdown("Jenis", docTypes, type) { type = it }
         Dropdown("Kendaraan", listOf("Tanpa kendaraan") + vehicles.map { it.name }, veh) { veh = it }
-        Field("Tanggal jatuh tempo (yyyy-MM-dd) — sesuai dokumen Anda", due, { due = it })
+        DateField("Tanggal jatuh tempo (sesuai dokumen)", due) { due = it }
         Text("Pengingat", style = MaterialTheme.typography.titleSmall)
         Field("Jumlah waktu", ra, { ra = it }, true); Dropdown("Satuan", ReminderUnit.values().map { it.label }, ru.label) { l -> ru = ReminderUnit.values().first { it.label == l } }
-        Field("Jam (0-23)", hh, { hh = digits(it).take(2) }, true); Field("Menit (0-59)", mm, { mm = digits(it).take(2) }, true)
+        TimeField("Jam notifikasi", hh, mm) { h, m -> hh = h; mm = m }
         Text("Pengingat dikirim $ra ${ru.label.lowercase()} sebelum jatuh tempo pukul ${hh.padStart(2, '0')}.${mm.padStart(2, '0')}.")
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
@@ -352,7 +362,7 @@ fun RenewDialog(d: LegalDocument, onDismiss: () -> Unit, onSave: (LocalDate, Lon
     var due by remember { mutableStateOf("") }; var amt by remember { mutableStateOf("") }; var err by remember { mutableStateOf<String?>(null) }
     FormDialog("Catat Perpanjangan — ${d.name}", onDismiss = onDismiss, onOk = {
         val date = parseDate(due); if (date == null) err = "Masukkan tanggal jatuh tempo baru (yyyy-MM-dd)." else onSave(date, amt.toLongOrNull())
-    }) { Field("Tanggal jatuh tempo baru (yyyy-MM-dd)", due, { due = it }); Field("Nominal (opsional)", amt, { amt = it }, true)
+    }) { DateField("Tanggal jatuh tempo baru", due) { due = it }; Field("Nominal (opsional)", amt, { amt = it }, true)
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) } }
 }
 
@@ -364,22 +374,22 @@ fun HistoryScreen(vm: MainViewModel) {
     var delLog by remember { mutableStateOf<OdometerLog?>(null) }
     delLog?.let { l -> AlertDialog(onDismissRequest = { delLog = null }, title = { Text("Hapus catatan?") }, text = { Text("Catatan ${fmtKm(l.km)} akan dihapus.") },
         confirmButton = { TextButton(onClick = { vm.deleteLog(l.id); delLog = null }) { Text("Hapus") } }, dismissButton = { TextButton(onClick = { delLog = null }) { Text("Batal") } }) }
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item { Text("Riwayat Servis", style = MaterialTheme.typography.titleMedium) }
         if (services.isEmpty()) item { Text("Belum ada riwayat servis.") }
-        items(services) { s -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("${s.name} • ${name(s.vehicleId)}"); Text("${fmtDay(s.epochDay)} • ${fmtKm(s.km)} • ${fmtRp(s.cost)}") } } }
+        items(services) { s -> OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("${s.name} • ${name(s.vehicleId)}"); Text("${fmtDay(s.epochDay)} • ${fmtKm(s.km)} • ${fmtRp(s.cost)}") } } }
         item { Text("Riwayat Odometer", style = MaterialTheme.typography.titleMedium) }
         if (logs.isEmpty()) item { Text("Belum ada catatan odometer.") }
         items(logs) { l ->
             val prev = logs.filter { it.vehicleId == l.vehicleId && it.recordedAt < l.recordedAt }.maxByOrNull { it.recordedAt }
-            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
+            OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
                 Text("${name(l.vehicleId)} • ${fmtKm(l.km)}"); Text("${fmtTs(l.recordedAt)} ${l.note}")
                 prev?.let { Text("Jarak sejak catatan sebelumnya: ${fmtKm(l.km - it.km)}") }
                 TextButton(onClick = { delLog = l }) { Text("Hapus") } } }
         }
         item { Text("Riwayat Perpanjangan Dokumen", style = MaterialTheme.typography.titleMedium) }
         if (hist.isEmpty()) item { Text("Belum ada perpanjangan tercatat.") }
-        items(hist) { h -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("${fmtDay(h.actionEpochDay)}: ${fmtDay(h.oldDueEpochDay)} → ${fmtDay(h.newDueEpochDay)}"); h.amount?.let { Text(fmtRp(it)) } } } }
+        items(hist) { h -> OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("${fmtDay(h.actionEpochDay)}: ${fmtDay(h.oldDueEpochDay)} → ${fmtDay(h.newDueEpochDay)}"); h.amount?.let { Text(fmtRp(it)) } } } }
     }
 }
 
@@ -396,10 +406,13 @@ fun SettingsScreen(vm: MainViewModel) {
     var err by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Tampilan", style = MaterialTheme.typography.titleLarge)
+        Dropdown("Tema", listOf("Ikuti sistem", "Gelap", "Terang"), ThemeState.mode) { ThemeState.mode = it; Prefs.put(c, "theme", it) }
+        HorizontalDivider()
         Text("Notifikasi", style = MaterialTheme.typography.titleLarge)
-        if (!granted) { Text("Izin notifikasi belum diberikan."); Button(onClick = { if (Build.VERSION.SDK_INT >= 33) launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text("Beri Izin Notifikasi") } }
+        if (!granted) { Text("Izin notifikasi belum diberikan."); PrimaryButton(onClick = { if (Build.VERSION.SDK_INT >= 33) launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text("Beri Izin Notifikasi") } }
         else Text("Izin notifikasi aktif.")
-        Button(onClick = { val ok = NotificationHelper.show(c, 1, NotificationHelper.CH_SERVIS, "Uji notifikasi OdoCare", "Notifikasi berfungsi.", null)
+        PrimaryButton(onClick = { val ok = NotificationHelper.show(c, 1, NotificationHelper.CH_SERVIS, "Uji notifikasi OdoCare", "Notifikasi berfungsi.", null)
             Toast.makeText(c, if (ok) "Notifikasi uji dikirim" else "Tidak dapat mengirim: periksa izin/pengaturan kategori", Toast.LENGTH_SHORT).show() }) { Text("Uji Notifikasi") }
         listOf(NotificationHelper.CH_SERVIS to "Pengingat Servis", NotificationHelper.CH_DOKUMEN to "Pengingat Dokumen", NotificationHelper.CH_ODO to "Pengingat Odometer").forEach { (k, l) ->
             var on by remember { mutableStateOf(NotificationHelper.enabled(c, k)) }
@@ -410,10 +423,10 @@ fun SettingsScreen(vm: MainViewModel) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Aktif"); Switch(odoOn, { odoOn = it }) }
         Field("Setiap (jumlah)", amt, { amt = digits(it) }, true)
         Dropdown("Satuan", ReminderUnit.values().map { it.label }, unit.label) { l -> unit = ReminderUnit.values().first { it.label == l } }
-        Field("Jam (0-23)", hh, { hh = digits(it).take(2) }, true); Field("Menit (0-59)", mm, { mm = digits(it).take(2) }, true)
+        TimeField("Jam notifikasi", hh, mm) { h, m -> hh = h; mm = m }
         Text("Pengingat dikirim setiap $amt ${unit.label.lowercase()} sejak update terakhir, pukul ${hh.padStart(2, '0')}.${mm.padStart(2, '0')}.")
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = {
+        PrimaryButton(onClick = {
             err = ReminderEngine.validate(amt, unit, hh.toIntOrNull() ?: -1, mm.toIntOrNull() ?: -1)
             if (err == null) {
                 Prefs.put(c, "odo_on", odoOn); Prefs.put(c, "odo_amount", amt.toInt()); Prefs.put(c, "odo_unit", unit.name)
