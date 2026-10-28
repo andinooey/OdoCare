@@ -185,7 +185,7 @@ fun HomeScreen(vm: MainViewModel) {
 
 @Composable
 fun ScheduleCard(s: MaintenanceSchedule, r: ServiceResult, extra: @Composable ColumnScope.() -> Unit = {}) =
-    OdoCareOdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    OdoCareCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(s.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             StatusBadge(r.status.label, statusTone(r.status))
