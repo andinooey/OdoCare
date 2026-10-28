@@ -78,6 +78,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         Rescheduler.rescheduleAll(app)
     }
 
+    fun addRecommended(v: Vehicle, items: List<RecommendedService>) = io {
+        val today = LocalDate.now().toEpochDay()
+        items.forEach { r ->
+            dao.upsertSchedule(MaintenanceSchedule(vehicleId = v.id, name = r.name, category = r.category,
+                intervalKm = r.intervalKm, intervalMonths = r.intervalMonths, lastKm = v.currentKm, lastEpochDay = today))
+        }
+    }
+
     fun saveDocument(d: LegalDocument) = io { dao.upsertDocument(d); Rescheduler.rescheduleAll(app) }
     fun archiveDocument(id: String) = io { dao.archiveDocument(id); Rescheduler.rescheduleAll(app) }
 

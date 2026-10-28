@@ -247,12 +247,13 @@ fun ScheduleScreen(vm: MainViewModel) {
 @Composable
 fun ServiceTab(vm: MainViewModel) {
     val cur by vm.current.collectAsState(); val all by vm.schedules.collectAsState()
-    var add by remember { mutableStateOf(false) }; var log by remember { mutableStateOf<MaintenanceSchedule?>(null) }
+    var add by remember { mutableStateOf(false) }; var rec by remember { mutableStateOf(false) }; var log by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     var del by remember { mutableStateOf<MaintenanceSchedule?>(null) }; var q by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf("Semua") }
     val v = cur
     if (v == null) { Text("Tambahkan kendaraan di Beranda terlebih dahulu.", Modifier.padding(16.dp)); return }
     if (add) ScheduleDialog(v, { add = false }) { vm.saveSchedule(it); add = false }
+    if (rec) RecommendDialog(v, all.filter { it.vehicleId == v.id }.map { it.name }.toSet(), { rec = false }) { vm.addRecommended(v, it); rec = false }
     log?.let { s -> LogServiceDialog(s, v, { log = null }) { km, day, cost -> vm.logService(s, v, km, day, cost); log = null } }
     del?.let { s -> AlertDialog(onDismissRequest = { del = null }, title = { Text("Arsipkan jadwal?") }, text = { Text("${s.name} diarsipkan. Riwayat servis tetap tersimpan.") },
         confirmButton = { TextButton(onClick = { vm.archiveSchedule(s.id); del = null }) { Text("Arsipkan") } }, dismissButton = { TextButton(onClick = { del = null }) { Text("Batal") } }) }
@@ -260,7 +261,7 @@ fun ServiceTab(vm: MainViewModel) {
         .map { it to ServiceEngine.evaluate(it.input(), v.currentKm, LocalDate.now()) }
         .filter { filter == "Semua" || it.second.status.label.contains(filter) }.sortedByDescending { it.second.status.urgency }
     LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item { PrimaryButton(onClick = { add = true }) { Text("Tambah Jadwal") } }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PrimaryButton(onClick = { add = true }) { Text("Tambah Jadwal") }; SecondaryButton(onClick = { rec = true }) { Text("Rekomendasi") } } }
         item { Field("Cari jadwal", q, { q = it }) }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { items(listOf("Semua", "Normal", "Segera Servis", "Jatuh Tempo", "Terlambat")) { f -> FilterChip(filter == f, { filter = f }, { Text(f) }) } } }
         if (shown.isEmpty()) item { EmptyState(Icons.Default.DateRange, "Belum ada jadwal servis", "Buat jadwal pertama agar Anda dapat memantau perawatan kendaraan.", "Tambah Jadwal") { add = true } }
@@ -438,5 +439,27 @@ fun SettingsScreen(vm: MainViewModel) {
         HorizontalDivider()
         Text("Tentang", style = MaterialTheme.typography.titleLarge)
         Text("OdoCare 1.0.0 — data disimpan lokal di perangkat. Anda bertanggung jawab atas pencadangan data.")
+    }
+}
+
+@Composable
+fun RecommendDialog(v: Vehicle, existing: Set<String>, onDismiss: () -> Unit, onAdd: (List<RecommendedService>) -> Unit) {
+    val list = remember(v.type) { MaintenanceCatalog.forType(v.type) }
+    val checked = remember { mutableStateListOf<String>() }
+    FormDialog("Rekomendasi — ${v.type}", "Tambahkan", onDismiss, { onAdd(list.filter { it.name in checked }) }) {
+        Text("Interval umum dari pabrikan dan bengkel. Cocokkan dengan buku manual Anda; interval bisa diubah setelah ditambahkan. Dihitung mulai dari odometer dan tanggal hari ini.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        list.forEach { r ->
+            val dup = r.name in existing
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = r.name in checked, enabled = !dup,
+                    onCheckedChange = { if (it) checked.add(r.name) else checked.remove(r.name) })
+                Column {
+                    Text(r.name, style = MaterialTheme.typography.titleSmall)
+                    Text(r.intervalText() + (if (dup) " • sudah ada" else ""), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
