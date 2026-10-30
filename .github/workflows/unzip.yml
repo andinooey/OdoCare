@@ -1,23 +1,44 @@
 name: Unzip Project
-on: workflow_dispatch
-permissions:
-  contents: write
+
+on:
+  workflow_dispatch:
+
 jobs:
   unzip:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Ekstrak dan commit
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Extract ZIP file
         run: |
-          Z=""
-          [ -f OdoCare.zip ] && Z="OdoCare.zip"
-          [ -z "$Z" ] && [ -f .github/workflows/OdoCare.zip ] && Z=".github/workflows/OdoCare.zip"
-          if [ -z "$Z" ]; then echo "OdoCare.zip tidak ditemukan"; exit 1; fi
-          echo "Memakai $Z"
-          unzip -q "$Z" -d _tmp
-          rsync -a --exclude='.github' _tmp/OdoCare/ ./
-          rm -rf _tmp "$Z"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --quiet && echo "Tidak ada perubahan" || (git commit -m "Ekstrak proyek OdoCare" && git push)
+          if [ -f OdoCare.zip ]; then
+            echo "File OdoCare.zip ditemukan. Mengekstrak..."
+            unzip -o OdoCare.zip -d temp_extract
+            
+            # Pindahkan isi folder ke root repository
+            if [ -d "temp_extract/OdoCare" ]; then
+              cp -r temp_extract/OdoCare/* .
+              cp -r temp_extract/OdoCare/.github . 2>/dev/null || true
+            else
+              cp -r temp_extract/* .
+              cp -r temp_extract/.github . 2>/dev/null || true
+            fi
+            
+            # Hapus file zip dan folder temporary
+            rm -rf temp_extract OdoCare.zip
+            echo "Ekstraksi selesai!"
+          else
+            echo "❌ OdoCare.zip tidak ditemukan di root repository!"
+            exit 1
+          fi
+
+      - name: Commit and Push Hasil Ekstrak
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          git commit -m "Ekstrak kode sumber OdoCare" || echo "Tidak ada perubahan"
+          git push
