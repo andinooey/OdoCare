@@ -14,24 +14,20 @@ jobs:
 
       - name: Extract ZIP file
         run: |
-          if [ -f OdoCare.zip ]; then
-            echo "File OdoCare.zip ditemukan. Mengekstrak..."
-            unzip -o OdoCare.zip -d temp_extract
+          # Membaca file zip dari dalam folder .github/workflows
+          ZIP_PATH=".github/workflows/OdoCare.zip"
+          
+          if [ -f "$ZIP_PATH" ]; then
+            echo "File ditemukan di $ZIP_PATH. Mengekstrak..."
             
-            # Pindahkan isi folder ke root repository
-            if [ -d "temp_extract/OdoCare" ]; then
-              cp -r temp_extract/OdoCare/* .
-              cp -r temp_extract/OdoCare/.github . 2>/dev/null || true
-            else
-              cp -r temp_extract/* .
-              cp -r temp_extract/.github . 2>/dev/null || true
-            fi
+            # Ekstrak isi zip ke halaman paling depan (root)
+            unzip -o "$ZIP_PATH" -d .
             
-            # Hapus file zip dan folder temporary
-            rm -rf temp_extract OdoCare.zip
+            # Hapus file zip agar repository bersih
+            rm "$ZIP_PATH"
             echo "Ekstraksi selesai!"
           else
-            echo "❌ OdoCare.zip tidak ditemukan di root repository!"
+            echo "❌ OdoCare.zip tidak ditemukan di $ZIP_PATH!"
             exit 1
           fi
 
@@ -40,5 +36,5 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add .
-          git commit -m "Ekstrak kode sumber OdoCare" || echo "Tidak ada perubahan"
+          git commit -m "Auto-extract OdoCare.zip ke root"
           git push
