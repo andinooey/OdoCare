@@ -1,3 +1,4 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
 package com.odocare.app.ui.screens
 
 import androidx.compose.foundation.background
@@ -106,7 +107,7 @@ fun HomeScreen(vm: MainViewModel, onNavigateToSchedule: () -> Unit) {
         }
         Spacer(Modifier.height(24.dp))
 
-        Row(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Dokumen & Pajak", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
             Spacer(Modifier.weight(1f))
             Text("Kelola", color = LavenderPrimary, fontSize = 14.sp)
@@ -124,7 +125,7 @@ fun HomeScreen(vm: MainViewModel, onNavigateToSchedule: () -> Unit) {
         }
         Spacer(Modifier.height(24.dp))
 
-        Row(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Status Perawatan Komponen", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
             Spacer(Modifier.weight(1f))
             Text("Lihat Semua", color = LavenderPrimary, fontSize = 14.sp)
@@ -241,7 +242,7 @@ fun ScheduleScreen(vm: MainViewModel) {
     }) { pad ->
         if (schedules.isEmpty()) { Column(Modifier.padding(pad).padding(16.dp)) { Text("Belum ada jadwal.", color = TextGray) } }
         else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 12.dp, bottom = 120.dp)) {
+            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp)) {
                 items(schedules, key = { it.id }) { s ->
                     val view = Engines.scheduleView(s, km)
                     val colors = serviceColor(view.status)
