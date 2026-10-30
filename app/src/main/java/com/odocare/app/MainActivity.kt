@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable // <--- INI YANG KETINGGALAN
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,11 +63,14 @@ private fun OdoCareRoot(vm: MainViewModel) {
             Surface(
                 color = SurfaceDark, 
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), 
-                // FIX: Tambahkan navigationBarsPadding agar tidak tertutup menu bawaan HP
-                modifier = Modifier.fillMaxWidth().navigationBarsPadding() 
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding() 
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp, start = 8.dp, end = 8.dp), 
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 12.dp, start = 8.dp, end = 8.dp), 
                     horizontalArrangement = Arrangement.SpaceEvenly, 
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -77,7 +81,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
                             modifier = Modifier
                                 .weight(1f)
                                 .background(if (selected) LavenderPrimary.copy(alpha = 0.2f) else Color.Transparent, RoundedCornerShape(50))
-                                .clickable { // Tambahkan clickable untuk memastikan bisa diklik
+                                .clickable { 
                                     nav.navigate(tab.route) {
                                         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true
