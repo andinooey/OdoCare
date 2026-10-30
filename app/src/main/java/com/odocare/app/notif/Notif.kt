@@ -15,7 +15,6 @@ import com.odocare.app.data.AppDb
 import java.time.*
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.runBlocking
 
 object Notif {
     const val CH_SERVICE = "odocare_service"; const val CH_DOCUMENTS = "odocare_documents"; const val CH_ODOMETER = "odocare_odometer"
@@ -32,8 +31,8 @@ object Notif {
     fun show(ctx: Context, channel: String, title: String, body: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val pi = PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val notif = NotificationCompat.Builder(ctx, channel).setSmallIcon(R.drawable.ic_launcher).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body)).setAutoCancel(true).setContentIntent(pi).build()
-        try { NotificationManagerCompat.from(ctx).notify(System.currentTimeMillis().toInt(), notif) } catch (_: SecurityException) {}
+        val notif = NotificationCompat.Builder(ctx, channel).setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body)).setAutoCancel(true).setContentIntent(pi).build()
+        try { NotificationManagerCompat.from(ctx).notify((title + body).hashCode(), notif) } catch (_: SecurityException) {}
     }
 
     fun scheduleDaily(ctx: Context) {
@@ -41,11 +40,11 @@ object Notif {
     }
 }
 
-class ReminderWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
-    override fun doWork(): Result {
+class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
         val db = AppDb.get(applicationContext)
         val today = LocalDate.now()
-        runBlocking {
+        run {
             db.documentDao().all().forEach { d ->
                 val days = ChronoUnit.DAYS.between(today, Instant.ofEpochMilli(d.expiryDate).atZone(ZoneId.systemDefault()).toLocalDate())
                 if (days in 0..30) Notif.show(applicationContext, Notif.CH_DOCUMENTS, "Dokumen mendekati jatuh tempo", "${d.type.replace('_', ' ')} jatuh tempo dalam $days hari")

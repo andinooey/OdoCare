@@ -19,7 +19,7 @@ object Engines {
         if (s.intervalKm != null && s.lastServiceKm != null && currentKm != null) kmTrigger = (s.lastServiceKm + s.intervalKm) - currentKm
         var dayTrigger: Long? = null
         if (s.intervalMonths != null && s.lastServiceDate != null) dayTrigger = ChronoUnit.DAYS.between(today, millisToLocalDate(s.lastServiceDate).plusMonths(s.intervalMonths.toLong()))
-        if (s.intervalKm != null && currentKm == null) return ScheduleView(s, ServiceStatus.NO_ODOMETER, null, dayTrigger)
+        if (s.intervalKm != null && currentKm == null && dayTrigger == null) return ScheduleView(s, ServiceStatus.NO_ODOMETER, null, dayTrigger)
         val kmRank = kmTrigger?.let { k -> when { k < 0 -> 3; k <= 500 -> 2; k <= 2000 -> 1; else -> 0 } } ?: 0
         val dayRank = dayTrigger?.let { d -> when { d < 0 -> 3; d == 0L -> 2; d <= 30 -> 1; else -> 0 } } ?: 0
         val worst = maxOf(kmRank, dayRank)
