@@ -14,20 +14,13 @@ jobs:
 
       - name: Extract ZIP file
         run: |
-          # Membaca file zip dari dalam folder .github/workflows
           ZIP_PATH=".github/workflows/OdoCare.zip"
-          
           if [ -f "$ZIP_PATH" ]; then
-            echo "File ditemukan di $ZIP_PATH. Mengekstrak..."
-            
-            # Ekstrak isi zip ke halaman paling depan (root)
+            echo "Mengekstrak..."
             unzip -o "$ZIP_PATH" -d .
-            
-            # Hapus file zip agar repository bersih
             rm "$ZIP_PATH"
-            echo "Ekstraksi selesai!"
           else
-            echo "❌ OdoCare.zip tidak ditemukan di $ZIP_PATH!"
+            echo "❌ OdoCare.zip tidak ditemukan!"
             exit 1
           fi
 
@@ -35,6 +28,12 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add .
-          git commit -m "Auto-extract OdoCare.zip ke root"
+          
+          # HANYA tambahkan file proyek, jangan folder .github
+          git add app/ build.gradle.kts settings.gradle.kts gradle.properties
+          
+          # Lakukan commit
+          git commit -m "Auto-extract OdoCare files ke root" || echo "Tidak ada perubahan"
+          
+          # Push ke repository
           git push
