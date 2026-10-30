@@ -56,15 +56,35 @@ private fun OdoCareRoot(vm: MainViewModel) {
     val currentRoute = backStack?.destination?.route
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxSize(), 
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            Surface(color = SurfaceDark, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 16.dp, start = 8.dp, end = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                color = SurfaceDark, 
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), 
+                // FIX: Tambahkan navigationBarsPadding agar tidak tertutup menu bawaan HP
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding() 
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp, start = 8.dp, end = 8.dp), 
+                    horizontalArrangement = Arrangement.SpaceEvenly, 
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     tabs.forEach { tab ->
                         val selected = currentRoute == tab.route
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f).background(if (selected) LavenderPrimary.copy(alpha = 0.2f) else Color.Transparent, RoundedCornerShape(50)).padding(vertical = 8.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(if (selected) LavenderPrimary.copy(alpha = 0.2f) else Color.Transparent, RoundedCornerShape(50))
+                                .clickable { // Tambahkan clickable untuk memastikan bisa diklik
+                                    nav.navigate(tab.route) {
+                                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                                .padding(vertical = 8.dp)
                         ) {
                             Icon(tab.icon, tab.label, tint = if (selected) LavenderPrimary else Color.Gray)
                             Spacer(Modifier.height(4.dp))
@@ -76,7 +96,13 @@ private fun OdoCareRoot(vm: MainViewModel) {
         }
     ) { padding ->
         NavHost(navController = nav, startDestination = "home", modifier = Modifier.padding(padding)) {
-            composable("home") { HomeScreen(vm, onNavigateToSchedule = { nav.navigate("schedule") { popUpTo(nav.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } }) }
+            composable("home") { HomeScreen(vm, onNavigateToSchedule = { 
+                nav.navigate("schedule") { 
+                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true 
+                } 
+            }) }
             composable("odometer") { OdometerScreen(vm) }
             composable("schedule") { ScheduleScreen(vm) }
             composable("documents") { DocumentsScreen(vm) }
