@@ -70,12 +70,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- Dokumen ----
-    fun addDocument(type: String, expiryMillis: Long, number: String?, lastRenewed: Long?, intervalValue: Int?, intervalUnit: String?, reminders: String, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) = viewModelScope.launch {
-        activeVehicle.value?.let { repo.addDocument(LegalDocument(vehicleId = it.id, type = type, number = number, expiryDate = expiryMillis, lastRenewedDate = lastRenewed, intervalValue = intervalValue, intervalUnit = intervalUnit, reminders = reminders, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute)) }
+    fun addDocument(type: String, expiryMillis: Long, number: String?, lastRenewed: Long?, intervalValue: Int?, intervalUnit: String?, reminders: String, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int, attachmentPath: String?, attachmentName: String?) = viewModelScope.launch {
+        activeVehicle.value?.let { repo.addDocument(LegalDocument(vehicleId = it.id, type = type, number = number, expiryDate = expiryMillis, lastRenewedDate = lastRenewed, intervalValue = intervalValue, intervalUnit = intervalUnit, reminders = reminders, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute, attachmentPath = attachmentPath, attachmentName = attachmentName)) }
     }
     fun updateDocument(d: LegalDocument) = viewModelScope.launch { repo.updateDocument(d) }
     fun renewDocument(doc: LegalDocument, renewedDate: Long, newExpiry: Long) = viewModelScope.launch { repo.renewDocument(doc, renewedDate, newExpiry) }
-    fun deleteDocument(id: String) = viewModelScope.launch { repo.deleteDocument(id) }
+    fun deleteDocument(id: String) = viewModelScope.launch {
+        val old = documents.value.firstOrNull { it.id == id }?.attachmentPath
+        repo.deleteDocument(id)
+        ImageStore.delete(old)
+    }
+
+    /** Tab tujuan layar Servis (0 Semua, 1 Lewat, 2 Segera, 3 Aman), diisi dari kotak ringkasan di Home. Dibaca sekali. */
+    var pendingScheduleTab: Int = 0
 
     // ---- Master kategori (tidak mengubah kendaraan yang sudah ada) ----
     fun addMaster(name: String, type: String, km: Int, months: Int, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int, warnKm: Int, warnDays: Int) = viewModelScope.launch {

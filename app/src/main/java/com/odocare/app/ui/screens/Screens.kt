@@ -87,7 +87,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(10.dp))
             }
 
-            Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Surface(onClick = { showAddKm = true }, color = SurfaceVariantDark, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(StatusBlueBg), contentAlignment = Alignment.Center) {
@@ -101,12 +101,14 @@ fun HomeScreen(
                         if (v.plate.isNotBlank()) PlateView(v.plate)
                     }
                     Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(onClick = onNavigateToOdometer), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         OdometerDigits(km)
                         Spacer(Modifier.width(8.dp))
                         Text("km", color = TextGray, fontSize = 12.sp)
                         Spacer(Modifier.weight(1f))
-                        Icon(Icons.Default.ChevronRight, null, tint = TextGray, modifier = Modifier.size(18.dp))
+                        Text("Ketuk untuk update", color = TextGray, fontSize = 11.sp)
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Default.Edit, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -122,9 +124,9 @@ fun HomeScreen(
             SectionHeader("Ringkasan Perawatan")
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.LATE }}", "Lewat", Icons.Default.Error, StatusRedBg, StatusRedText, Modifier.weight(1f))
-                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.SOON || it.status == ServiceStatus.DUE }}", "Segera", Icons.Default.Warning, StatusYellowBg, StatusYellowText, Modifier.weight(1f))
-                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }}", "Aman", Icons.Default.CheckCircle, StatusGreenBg, StatusGreenText, Modifier.weight(1f))
+                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.LATE }}", "Lewat", Icons.Default.Error, StatusRedBg, StatusRedText, Modifier.weight(1f)) { vm.pendingScheduleTab = 1; onNavigateToSchedule() }
+                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.SOON || it.status == ServiceStatus.DUE }}", "Segera", Icons.Default.Warning, StatusYellowBg, StatusYellowText, Modifier.weight(1f)) { vm.pendingScheduleTab = 2; onNavigateToSchedule() }
+                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }}", "Aman", Icons.Default.CheckCircle, StatusGreenBg, StatusGreenText, Modifier.weight(1f)) { vm.pendingScheduleTab = 3; onNavigateToSchedule() }
             }
             Spacer(Modifier.height(18.dp))
 
@@ -190,9 +192,7 @@ fun HomeScreen(
     }
 }
 
-/**
- * Kartu Status Komponen di Home: nama + status (ikon sama dengan tab Servis), progress, lalu Terakhir / Berikutnya / Sisa (km / hari).
- */
+/** Kartu Status Komponen di Home, sengaja ringkas: nama + status, progress, lalu target berikutnya dan sisa. */
 @Composable
 private fun HomeComponentCard(view: ScheduleView) {
     val s = view.schedule
@@ -203,29 +203,21 @@ private fun HomeComponentCard(view: ScheduleView) {
     val nextKm: Int? = if (ik != null && lk != null) lk + ik else null
     val nextDate: Long? = if (im != null && ld != null) localDateToMillis(msToLocalDate(ld).plusMonths(im.toLong())) else null
     val statusColor = serviceColor(view.status).second
-    val conditionColor = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor
+    val next = nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) }
 
     Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        Column(Modifier.padding(14.dp)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(s.name, color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    val interval = intervalLabel(ik, im)
-                    if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, color = TextGray, fontSize = 11.sp)
-                }
+                Text(s.name, Modifier.weight(1f), color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.width(8.dp))
                 StatusChip(view.status)
             }
             Spacer(Modifier.height(8.dp))
             ProgressBar(view.progress, statusColor)
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth()) {
-                InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(0.9f))
-                InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
-                Column(Modifier.weight(1.6f), horizontalAlignment = Alignment.End) {
-                    Text("Sisa", fontSize = 10.sp, color = TextGray)
-                    Text(conditionText(view), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = conditionColor, textAlign = TextAlign.End)
-                }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (next != null) "Berikutnya $next" else "", Modifier.weight(1f), color = TextGray, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(conditionText(view), color = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
             }
         }
     }
@@ -306,8 +298,8 @@ private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = 
 }
 
 @Composable
-private fun SummaryCard(value: String, label: String, icon: ImageVector, bgColor: Color, textColor: Color, modifier: Modifier = Modifier) {
-    Surface(color = bgColor, shape = CardShape, modifier = modifier) {
+private fun SummaryCard(value: String, label: String, icon: ImageVector, bgColor: Color, textColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(onClick = onClick, color = bgColor, shape = CardShape, modifier = modifier) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = textColor, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(8.dp))
@@ -376,7 +368,8 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     var recordTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     var editTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     var deleteTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
-    var tab by remember { mutableStateOf(0) }
+    // Tab awal bisa dipilih dari kotak ringkasan di Home (Lewat / Segera / Aman)
+    var tab by remember { mutableStateOf(vm.pendingScheduleTab.also { vm.pendingScheduleTab = 0 }) }
     // Paling mendesak di atas
     val views = schedules.map { Engines.scheduleView(it, km) }.sortedByDescending { it.progress }
     val late = views.filter { it.status == ServiceStatus.LATE }

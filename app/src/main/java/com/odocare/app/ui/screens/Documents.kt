@@ -2,7 +2,19 @@
 
 package com.odocare.app.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import com.odocare.app.data.AttachmentStore
+import com.odocare.app.data.ImageStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,7 +44,8 @@ import com.odocare.app.ui.*
 private data class DocForm(
     val type: String, val expiry: Long, val number: String?,
     val lastRenewed: Long?, val intervalValue: Int?, val intervalUnit: IntervalUnit?, val reminders: String,
-    val notifyEnabled: Boolean, val notifyHour: Int, val notifyMinute: Int
+    val notifyEnabled: Boolean, val notifyHour: Int, val notifyMinute: Int,
+    val attachmentPath: String?, val attachmentName: String?
 )
 
 @Composable
@@ -72,6 +85,15 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         d.lastRenewedDate?.let { meta += "Diperpanjang ${fmtDate(it)}" }
                         if (d.intervalValue != null && unit != null) meta += "Berlaku ${d.intervalValue} ${unit.label.lowercase()}"
                         if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 11.sp, color = TextGray)
+                        if (d.attachmentPath != null) {
+                            val ctx = LocalContext.current
+                            var openFailed by remember { mutableStateOf(false) }
+                            Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { openFailed = !AttachmentStore.open(ctx, d.attachmentPath) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(if (AttachmentStore.isImage(d.attachmentPath)) Icons.Default.Image else Icons.Default.AttachFile, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 11.sp, color = if (openFailed) DangerText else LavenderPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(if (d.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray, modifier = Modifier.size(12.dp))
                             Spacer(Modifier.width(4.dp))
@@ -89,11 +111,12 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     if (showAdd) DocumentFormDialog("Tambah Dokumen", null, { showAdd = false }) { f ->
-        vm.addDocument(f.type, f.expiry, f.number, f.lastRenewed, f.intervalValue, f.intervalUnit?.name, f.reminders, f.notifyEnabled, f.notifyHour, f.notifyMinute); showAdd = false
+        vm.addDocument(f.type, f.expiry, f.number, f.lastRenewed, f.intervalValue, f.intervalUnit?.name, f.reminders, f.notifyEnabled, f.notifyHour, f.notifyMinute, f.attachmentPath, f.attachmentName); showAdd = false
     }
     editTarget?.let { d ->
         DocumentFormDialog("Edit Dokumen", d, { editTarget = null }) { f ->
-            vm.updateDocument(d.copy(type = f.type, expiryDate = f.expiry, number = f.number, lastRenewedDate = f.lastRenewed, intervalValue = f.intervalValue, intervalUnit = f.intervalUnit?.name, reminders = f.reminders, notifyEnabled = f.notifyEnabled, notifyHour = f.notifyHour, notifyMinute = f.notifyMinute))
+            vm.updateDocument(d.copy(type = f.type, expiryDate = f.expiry, number = f.number, lastRenewedDate = f.lastRenewed, intervalValue = f.intervalValue, intervalUnit = f.intervalUnit?.name, reminders = f.reminders, notifyEnabled = f.notifyEnabled, notifyHour = f.notifyHour, notifyMinute = f.notifyMinute, attachmentPath = f.attachmentPath, attachmentName = f.attachmentName))
+            if (d.attachmentPath != null && d.attachmentPath != f.attachmentPath) ImageStore.delete(d.attachmentPath)   // lampiran lama diganti / dihapus
             editTarget = null
         }
     }
@@ -129,6 +152,20 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss
     var notifyOn by remember { mutableStateOf(initial?.notifyEnabled ?: true) }
     var notifyHour by remember { mutableStateOf(initial?.notifyHour ?: 9) }
     var notifyMinute by remember { mutableStateOf(initial?.notifyMinute ?: 0) }
+    var attachPath by remember { mutableStateOf(initial?.attachmentPath) }
+    var attachName by remember { mutableStateOf(initial?.attachmentName) }
+    var newFiles by remember { mutableStateOf(listOf<String>()) }   // file baru yang dibuat selama form terbuka
+    var attachError by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) scope.launch {
+            val saved = withContext(Dispatchers.IO) { AttachmentStore.save(ctx, uri) }
+            if (saved != null) { attachPath = saved.first; attachName = saved.second; newFiles = newFiles + saved.first; attachError = false } else attachError = true
+        }
+    }
+    // Bersihkan file baru yang tidak jadi dipakai (dibatalkan / diganti / dihapus)
+    fun cleanup(keep: String?) { newFiles.filter { it != keep }.forEach { ImageStore.delete(it) } }
 
     // Jatuh tempo otomatis = tanggal terakhir perpanjang + interval (mis. 1/1/2026 + 1 tahun = 1/1/2027)
     val lr = lastRenewed
@@ -138,11 +175,36 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss
     val expiry: Long? = computed ?: manualExpiry
 
     FormDialog(
-        title = title, icon = Icons.Default.Description, onDismiss = onDismiss, confirmEnabled = expiry != null,
-        onConfirm = { expiry?.let { e -> onSave(DocForm(type, e, number.ifBlank { null }, lastRenewed, iv, if (iv != null) intervalUnit else null, Reminders.encode(reminders), notifyOn, notifyHour, notifyMinute)) } }
+        title = title, icon = Icons.Default.Description, onDismiss = { cleanup(null); onDismiss() }, confirmEnabled = expiry != null,
+        onConfirm = { expiry?.let { e -> cleanup(attachPath); onSave(DocForm(type, e, number.ifBlank { null }, lastRenewed, iv, if (iv != null) intervalUnit else null, Reminders.encode(reminders), notifyOn, notifyHour, notifyMinute, attachPath, attachName)) } }
     ) {
         DropdownField("Jenis dokumen", docTypeLabel(type), Icons.Default.Description, docTypes) { type = it }
         AppTextField(number, { number = it }, "Nomor dokumen (opsional)", Icons.Default.Pin)
+
+        FormGroupLabel("Foto / dokumen")
+        val path = attachPath
+        if (path == null) {
+            PickerField("Lampiran (opsional)", null, Icons.Default.AttachFile, placeholder = "Pilih foto atau file (PDF, dll)") { picker.launch("*/*") }
+        } else {
+            if (AttachmentStore.isImage(path)) StoredImage(path, Modifier.fillMaxWidth().height(130.dp).clip(RoundedCornerShape(12.dp)), maxSide = 800)
+            else Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.InsertDriveFile, null, tint = LavenderPrimary, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(attachName ?: "Lampiran", fontSize = 13.sp, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { AttachmentStore.open(ctx, path) }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.height(34.dp), border = BorderStroke(1.dp, FieldBorder)) {
+                    Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(6.dp)); Text("Buka", fontSize = 12.sp)
+                }
+                OutlinedButton(onClick = { picker.launch("*/*") }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.height(34.dp), border = BorderStroke(1.dp, FieldBorder)) {
+                    Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(6.dp)); Text("Ganti", fontSize = 12.sp)
+                }
+                TextButton(onClick = { attachPath = null; attachName = null }, modifier = Modifier.height(34.dp)) { Text("Hapus", color = DangerText, fontSize = 12.sp) }
+            }
+        }
+        if (attachError) FormNote("Gagal membaca file (maks. 20 MB).", DangerText)
 
         FormGroupLabel("Masa berlaku")
         DateField("Terakhir diperpanjang", lastRenewed) { lastRenewed = it }

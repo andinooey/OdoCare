@@ -83,6 +83,7 @@ class Repo(private val ctx: Context) {
     suspend fun setActive(id: String) = db.withTransaction { vDao.clearActive(); vDao.setActive(id) }
     suspend fun deleteVehicle(id: String) = db.withTransaction {
         srDao.imagePathsForVehicle(id).forEach { ImageStore.delete(it) }
+        dDao.attachmentPathsForVehicle(id).forEach { ImageStore.delete(it) }
         vDao.deleteById(id)
         if (vDao.activeId() == null) { vDao.firstId()?.let { vDao.setActive(it) } }
     }

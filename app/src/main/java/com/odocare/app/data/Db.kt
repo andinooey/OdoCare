@@ -54,7 +54,9 @@ data class LegalDocument(
     // Pengingat notifikasi per dokumen, mis. "30:DAY,15:DAY,1:MONTH"
     val reminders: String = "30:DAY,15:DAY",
     // Notifikasi per dokumen: hidup/mati + jam tampil
-    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0
+    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0,
+    // Lampiran foto / dokumen (disalin ke penyimpanan internal aplikasi)
+    val attachmentPath: String? = null, val attachmentName: String? = null
 )
 
 @Entity(tableName = "document_history", foreignKeys = [ForeignKey(entity = LegalDocument::class, parentColumns = ["id"], childColumns = ["documentId"], onDelete = ForeignKey.CASCADE)], indices = [Index("documentId")])
@@ -136,6 +138,7 @@ interface ServiceRecordDao {
 interface DocumentDao {
     @Query("SELECT * FROM legal_documents WHERE vehicleId = :vid ORDER BY expiryDate ASC") fun observeForVehicle(vid: String): Flow<List<LegalDocument>>
     @Query("SELECT * FROM legal_documents") suspend fun all(): List<LegalDocument>
+    @Query("SELECT attachmentPath FROM legal_documents WHERE vehicleId = :vid AND attachmentPath IS NOT NULL") suspend fun attachmentPathsForVehicle(vid: String): List<String>
     @Query("SELECT * FROM legal_documents ORDER BY expiryDate ASC") fun observeAll(): Flow<List<LegalDocument>>
     @Query("UPDATE legal_documents SET notifyEnabled = :enabled, notifyHour = :hour, notifyMinute = :minute") suspend fun setAllNotify(enabled: Boolean, hour: Int, minute: Int)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(d: LegalDocument)
@@ -172,7 +175,7 @@ interface VehicleTypeDao {
     @Query("DELETE FROM vehicle_types") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class], version = 6, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class], version = 7, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -185,7 +188,7 @@ abstract class AppDb : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build().also { INSTANCE = it }
         }
     }
 }
@@ -234,5 +237,12 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL("ALTER TABLE legal_documents ADD COLUMN notifyHour INTEGER NOT NULL DEFAULT 9")
         db.execSQL("ALTER TABLE legal_documents ADD COLUMN notifyMinute INTEGER NOT NULL DEFAULT 0")
         db.execSQL("CREATE TABLE IF NOT EXISTS vehicle_types (code TEXT NOT NULL, name TEXT NOT NULL, icon TEXT NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(code))")
+    }
+}
+
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN attachmentPath TEXT")
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN attachmentName TEXT")
     }
 }
