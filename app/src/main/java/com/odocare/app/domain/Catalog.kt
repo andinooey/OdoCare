@@ -1,5 +1,6 @@
 package com.odocare.app.domain
 
+import com.odocare.app.data.DocumentType
 import com.odocare.app.data.MasterCategory
 import com.odocare.app.data.VehicleType
 
@@ -12,6 +13,18 @@ object Catalog {
     fun defaultTypes(): List<VehicleType> = listOf(
         VehicleType(code = "MOTOR", name = "Motor", icon = "MOTOR", createdAt = 1L),
         VehicleType(code = "MOBIL", name = "Mobil", icon = "CAR", createdAt = 2L)
+    )
+
+    /** Jenis dokumen bawaan. Kode lama (PAJAK_TAHUNAN, SIM_A, dst) dipertahankan agar dokumen yang sudah ada tetap cocok. */
+    fun defaultDocTypes(): List<DocumentType> = listOf(
+        DocumentType("PAJAK_TAHUNAN", "Pajak Tahunan", "ALL", 1, "YEAR", 1L),
+        DocumentType("GANTI_PLAT", "Ganti Plat 5 Tahunan", "ALL", 5, "YEAR", 2L),
+        DocumentType("STNK_5_TAHUNAN", "STNK 5 Tahunan", "ALL", 5, "YEAR", 3L),
+        DocumentType("SIM_A", "SIM A", "MOBIL", 5, "YEAR", 4L),
+        DocumentType("SIM_C", "SIM C", "MOTOR", 5, "YEAR", 5L),
+        DocumentType("ASURANSI", "Asuransi", "ALL", 1, "YEAR", 6L),
+        DocumentType("GARANSI", "Garansi", "ALL", 0, "YEAR", 7L),
+        DocumentType("LAINNYA", "Lainnya", "ALL", 0, "YEAR", 8L)
     )
 
     fun seed(): List<MasterCategory> = listOf(

@@ -102,11 +102,13 @@ fun AppTextField(
 
 /** Field angka bulat dengan pemisah ribuan. currency = true menambahkan awalan "Rp". */
 @Composable
-fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null, icon: ImageVector? = null, allowZero: Boolean = false) {
+fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null, icon: ImageVector? = null, allowZero: Boolean = false, error: String? = null) {
     val prefixSlot: (@Composable () -> Unit)? = if (currency) { { Text("Rp ", fontSize = 14.sp) } } else null
     val iconSlot: (@Composable () -> Unit)? = if (icon != null) { { Icon(icon, null, modifier = Modifier.size(18.dp)) } } else null
-    val hintSlot: (@Composable () -> Unit)? = if (hint != null) { { Text(hint, fontSize = 11.sp) } } else null
+    // Pesan error menggantikan hint dan mewarnai kotak merah
+    val hintSlot: (@Composable () -> Unit)? = if (error != null) { { Text(error, fontSize = 11.sp) } } else if (hint != null) { { Text(hint, fontSize = 11.sp) } } else null
     OutlinedTextField(
+        isError = error != null,
         value = value, onValueChange = { raw ->
             val digits = raw.filter(Char::isDigit).take(12)
             // allowZero: nol tunggal ("0") dipertahankan, selain itu nol di depan dibuang

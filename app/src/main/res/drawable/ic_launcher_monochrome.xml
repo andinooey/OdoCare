@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Versi satu warna untuk ikon bertema (Android 13+) -->
+    <path android:pathData="M36.3,67.7 A25,25 0 1,1 71.7,67.7"
+        android:strokeColor="#FF000000" android:strokeWidth="7" android:strokeLineCap="round" android:fillColor="#00000000"/>
+    <path android:pathData="M54,50 L67.4,36.6" android:strokeColor="#FF000000" android:strokeWidth="4" android:strokeLineCap="round" android:fillColor="#00000000"/>
+    <path android:fillColor="#FF000000" android:pathData="M54,50m-5.5,0a5.5,5.5 0,1 1,11 0a5.5,5.5 0,1 1,-11 0"/>
+    <path android:fillColor="#FF000000" android:pathData="M38.1,74h33.8v7h-33.8z"/>
+</vector>

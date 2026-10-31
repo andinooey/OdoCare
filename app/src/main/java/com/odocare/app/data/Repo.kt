@@ -12,12 +12,13 @@ class Repo(private val ctx: Context) {
     val prefs = ctx.getSharedPreferences("odocare", Context.MODE_PRIVATE)
     private val vDao = db.vehicleDao(); private val oDao = db.odometerDao()
     private val sDao = db.scheduleDao(); private val srDao = db.serviceRecordDao()
-    private val dDao = db.documentDao(); private val dhDao = db.docHistoryDao(); private val mDao = db.masterDao(); private val vtDao = db.vehicleTypeDao()
+    private val dDao = db.documentDao(); private val dhDao = db.docHistoryDao(); private val mDao = db.masterDao(); private val vtDao = db.vehicleTypeDao(); private val dtDao = db.documentTypeDao()
 
     val vehicles: Flow<List<Vehicle>> = vDao.observeAll()
     val activeVehicle: Flow<Vehicle?> = vDao.observeActive()
     val masters: Flow<List<MasterCategory>> = mDao.observeAll()
     val vehicleTypes: Flow<List<VehicleType>> = vtDao.observeAll()
+    val documentTypes: Flow<List<DocumentType>> = dtDao.observeAll()
     val allOdometer: Flow<List<OdometerLog>> = oDao.observeAll()
     val allSchedules: Flow<List<MaintenanceSchedule>> = sDao.observeAllActive()
     val allRecords: Flow<List<ServiceRecord>> = srDao.observeAll()
@@ -41,6 +42,13 @@ class Repo(private val ctx: Context) {
         if (prefs.getBoolean("vtype_seeded", false)) return
         Catalog.defaultTypes().forEach { vtDao.insertIgnore(it) }
         prefs.edit().putBoolean("vtype_seeded", true).apply()
+    }
+
+    /** Isi jenis dokumen bawaan sekali saja. IGNORE: baris yang sudah ada (mis. hasil restore) tidak ditimpa. */
+    suspend fun seedDocTypesIfNeeded() {
+        if (prefs.getBoolean("doctype_seeded", false)) return
+        Catalog.defaultDocTypes().forEach { dtDao.insertIgnore(it) }
+        prefs.edit().putBoolean("doctype_seeded", true).apply()
     }
 
     /** Sekali saja: pengaturan notifikasi dokumen yang dulu global (Pengaturan) disalin ke tiap dokumen yang sudah ada. */
@@ -129,6 +137,14 @@ class Repo(private val ctx: Context) {
     /** false = masih dipakai kendaraan, tidak dihapus. Master kategori jenis itu ikut dihapus. */
     suspend fun deleteVehicleType(code: String): Boolean = db.withTransaction {
         if (vDao.countByType(code) > 0) false else { mDao.deleteByType(code); vtDao.deleteByCode(code); true }
+    }
+
+    // ---- Master jenis dokumen ----
+    suspend fun addDocType(t: DocumentType) = dtDao.insert(t)
+    suspend fun updateDocType(t: DocumentType) = dtDao.update(t)
+    /** false = masih dipakai dokumen, tidak dihapus. */
+    suspend fun deleteDocType(code: String): Boolean = db.withTransaction {
+        if (dDao.countByType(code) > 0) false else { dtDao.deleteByCode(code); true }
     }
 
     suspend fun allDocuments(): List<LegalDocument> = dDao.all()

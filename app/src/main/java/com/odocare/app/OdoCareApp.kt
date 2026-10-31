@@ -15,6 +15,7 @@ class OdoCareApp : Application() {
             val repo = Repo(this@OdoCareApp)
             repo.seedMasterIfNeeded()
             repo.seedVehicleTypesIfNeeded()
+            repo.seedDocTypesIfNeeded()
             repo.migrateDocNotifPrefs()
             Notif.onDataChanged(this@OdoCareApp)   // cek sekarang + pasang alarm tepat waktu berikutnya
         }

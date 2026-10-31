@@ -47,7 +47,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTypes: () -> Unit) {
+fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTypes: () -> Unit, onOpenDocTypes: () -> Unit) {
     val ctx = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
@@ -59,7 +59,8 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<Vehicle?>(null) }
     var deleteTarget by remember { mutableStateOf<Vehicle?>(null) }
-    var kmValueText by remember { mutableStateOf(Notif.kmReminderValue(ctx).takeIf { it > 0 }?.toString() ?: "") }
+    // 0 = "hari ini saja"; kosong hanya bila pengingat belum pernah diatur
+    var kmValueText by remember { mutableStateOf(if (Notif.kmReminderEnabled(ctx) || Notif.kmReminderValue(ctx) > 0) Notif.kmReminderValue(ctx).toString() else "") }
     var kmUnit by remember { mutableStateOf(Notif.kmReminderUnit(ctx)) }
     var kmEnabled by remember { mutableStateOf(Notif.kmReminderEnabled(ctx)) }
     var kmHour by remember { mutableStateOf(Notif.kmReminderHour(ctx)) }
@@ -122,6 +123,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         SectionCard("Master Data", Icons.Default.Category) {
             ActionRow(Icons.Default.Tune, "Master kategori", subtitle = "Daftar komponen servis bawaan per jenis kendaraan", onClick = onOpenMaster)
             ActionRow(Icons.Default.DirectionsCar, "Master jenis kendaraan", subtitle = "Motor, mobil, dan jenis lain yang kamu tambahkan", onClick = onOpenVehicleTypes)
+            ActionRow(Icons.Default.Description, "Master jenis dokumen", subtitle = "Pajak, STNK, SIM, asuransi, dan jenis lain", onClick = onOpenDocTypes)
         }
 
         SectionCard("Pengingat Update KM", Icons.Default.Speed) {
@@ -132,21 +134,29 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
             if (kmEnabled) {
                 Spacer(Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NumberField(kmValueText, { kmValueText = it }, "Lama (angka)", icon = Icons.Default.Timer)
-                    UnitChips(kmUnit) { kmUnit = it }
+                    NumberField(kmValueText, { kmValueText = it }, "Lama (angka)", icon = Icons.Default.Timer, allowZero = true, hint = "Isi 0 untuk mengingatkan hari ini saja")
+                    if (kmValueText == "0") FormNote("Pengingat dikirim sekali hari ini pada jam yang dipilih, lalu mati sendiri.")
+                    else UnitChips(kmUnit) { kmUnit = it }
                     TimeField("Jam notifikasi", kmHour, kmMinute) { h, m -> kmHour = h; kmMinute = m }
                 }
             }
             Spacer(Modifier.height(10.dp))
             Button(modifier = Modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(12.dp), onClick = {
-                val v = kmValueText.toIntOrNull() ?: 0
-                if (kmEnabled && v <= 0) {
-                    message = "Isi angka interval dulu, atau matikan pengingat."
+                val v = kmValueText.toIntOrNull()
+                if (kmEnabled && v == null) {
+                    message = "Isi angkanya dulu (0 = hari ini saja), atau matikan pengingat."
                 } else {
-                    Notif.setKmReminder(ctx, kmEnabled, v, kmUnit, kmHour, kmMinute)
+                    val n = v ?: 0
+                    Notif.setKmReminder(ctx, kmEnabled, n, kmUnit, kmHour, kmMinute)
                     Notif.schedulePolling(ctx)
                     Notif.onDataChanged(ctx)   // jam baru langsung berlaku (alarm dipasang ulang)
-                    message = if (kmEnabled) "Pengingat update KM: setiap $v ${kmUnit.label.lowercase()} pukul ${fmtTime(kmHour, kmMinute)} (diulang selama KM belum diperbarui)." else "Pengingat update KM dimatikan."
+                    val nowMin = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
+                    message = when {
+                        !kmEnabled -> "Pengingat update KM dimatikan."
+                        n == 0 && nowMin >= kmHour * 60 + kmMinute -> "Jam ${fmtTime(kmHour, kmMinute)} hari ini sudah lewat, jadi pengingat dikirim sekarang. Setelah itu pengingat mati sendiri."
+                        n == 0 -> "Pengingat update KM hari ini pukul ${fmtTime(kmHour, kmMinute)}, sekali saja."
+                        else -> "Pengingat update KM tiap $n ${kmUnit.label.lowercase()} pukul ${fmtTime(kmHour, kmMinute)}, diulang sampai KM diperbarui."
+                    }
                 }
             }) { Text("Simpan", fontSize = 13.sp) }
         }
@@ -191,6 +201,8 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
             ActionRow(Icons.Default.ContentPaste, "Tempel teks untuk restore") { showPaste = true }
             ActionRow(Icons.Default.Restore, "Snapshot otomatis") { showSnapshots = true }
         }
+
+        AboutCard()
         Spacer(Modifier.height(20.dp))
     }
 
@@ -230,4 +242,29 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         }, { pendingRestore = null })
     }
     message?.let { InfoDialog(it) { message = null } }
+}
+
+/** Tentang aplikasi: penjelasan singkat + pembuat. Versi dibaca dari paket aplikasi. */
+@Composable
+private fun AboutCard() {
+    val ctx = LocalContext.current
+    val version = remember { try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "" } catch (e: Exception) { "" } }
+    SectionCard("Tentang OdoCare", Icons.Default.Info) {
+        Text("OdoCare membantu merawat kendaraanmu: catat KM odometer, pantau jadwal servis tiap komponen, dan dapat pengingat sebelum pajak atau dokumen jatuh tempo.", color = TextWhite, fontSize = 12.sp, lineHeight = 17.sp)
+        Spacer(Modifier.height(10.dp))
+        listOf(
+            Icons.Default.Speed to "Catat KM dan lihat riwayatnya",
+            Icons.Default.Build to "Status servis: Aman, Segera, Lewat",
+            Icons.Default.Description to "Pajak, STNK, SIM, dan asuransi diingatkan",
+            Icons.Default.Backup to "Data tersimpan di HP, bisa di-backup"
+        ).forEach { (icon, text) ->
+            Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(text, color = TextGray, fontSize = 12.sp)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("Dibuat oleh Andino" + if (version.isNotBlank()) " · Versi $version" else "", color = TextGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+    }
 }

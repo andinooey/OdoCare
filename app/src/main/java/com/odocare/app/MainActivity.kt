@@ -78,7 +78,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
     )
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    // Halaman non-tab (Riwayat, Odometer, Dokumen, Master) tetap menyalakan tab asalnya
+    // Halaman non-tab (Riwayat, Odometer, Master) tetap menyalakan tab asalnya
     var lastTab by remember { mutableStateOf("home") }
     LaunchedEffect(route) { if (route in tabRoutes) lastTab = route!! }
     val currentTab = if (route in tabRoutes) route else lastTab
@@ -92,7 +92,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
                         val selected = currentTab == tab.route
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { nav.navigateTab(tab.route) }.padding(vertical = 2.dp)
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { if (tab.route == "schedule") vm.serviceSection = 0; nav.navigateTab(tab.route) }.padding(vertical = 2.dp)
                         ) {
                             Box(Modifier.clip(RoundedCornerShape(50)).background(if (selected) PillSelected else Color.Transparent).padding(horizontal = 20.dp, vertical = 4.dp)) {
                                 Icon(tab.icon, tab.label, tint = if (selected) TextWhite else TextGray, modifier = Modifier.size(20.dp))
@@ -108,18 +108,22 @@ private fun OdoCareRoot(vm: MainViewModel) {
         NavHost(navController = nav, startDestination = "home", modifier = Modifier.padding(padding)) {
             composable("home") {
                 HomeScreen(vm,
-                    onNavigateToSchedule = { nav.navigateTab("schedule") },
+                    onNavigateToSchedule = { vm.serviceSection = 0; nav.navigateTab("schedule") },
                     onNavigateToHistory = { nav.navigate("history") { launchSingleTop = true } },
-                    onNavigateToDocuments = { nav.navigate("documents") { launchSingleTop = true } },
+                    onNavigateToDocuments = { vm.serviceSection = 1; nav.navigateTab("schedule") },
                     onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } })
             }
-            composable("schedule") { ScheduleScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }) }
+            composable("schedule") {
+                // Tab Servis: dropdown di judul memilih Jadwal & Komponen (default) atau Pajak & Dokumen
+                if (vm.serviceSection == 0) ScheduleScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } })
+                else DocumentsScreen(vm, onOpenDocTypes = { nav.navigate("doctypes") { launchSingleTop = true } })
+            }
             composable("report") { ReportScreen(vm, onOpenHistory = { nav.navigate("history") { launchSingleTop = true } }) }
-            composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }, onOpenVehicleTypes = { nav.navigate("vehicletypes") { launchSingleTop = true } }) }
+            composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }, onOpenVehicleTypes = { nav.navigate("vehicletypes") { launchSingleTop = true } }, onOpenDocTypes = { nav.navigate("doctypes") { launchSingleTop = true } }) }
             composable("history") { HistoryScreen(vm, onBack = { nav.popBackStack() }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }
             composable("odometer") { OdometerScreen(vm, onBack = { nav.popBackStack() }) }
-            composable("documents") { DocumentsScreen(vm, onBack = { nav.popBackStack() }) }
             composable("master") { MasterScreen(vm, onBack = { nav.popBackStack() }) }
+            composable("doctypes") { DocTypeScreen(vm, onBack = { nav.popBackStack() }) }
             composable("vehicletypes") { VehicleTypeScreen(vm, onBack = { nav.popBackStack() }) }
         }
     }

@@ -16,7 +16,7 @@ private fun nz(v: Any?): Any = v ?: JSONObject.NULL
 object Backup {
     suspend fun export(db: AppDb): String {
         val root = JSONObject()
-        root.put("app", "odocare").put("version", 4).put("exportedAt", System.currentTimeMillis())
+        root.put("app", "odocare").put("version", 5).put("exportedAt", System.currentTimeMillis())
         root.put("vehicles", JSONArray().also { a -> db.vehicleDao().all().forEach { v ->
             a.put(JSONObject().put("id", v.id).put("name", v.name).put("type", v.type).put("isActive", v.isActive).put("createdAt", v.createdAt).put("plate", v.plate).put("initialKm", v.initialKm))
         } })
@@ -46,6 +46,9 @@ object Backup {
         root.put("vehicleTypes", JSONArray().also { a -> db.vehicleTypeDao().all().forEach { t ->
             a.put(JSONObject().put("code", t.code).put("name", t.name).put("icon", t.icon).put("createdAt", t.createdAt))
         } })
+        root.put("documentTypes", JSONArray().also { a -> db.documentTypeDao().all().forEach { t ->
+            a.put(JSONObject().put("code", t.code).put("name", t.name).put("vehicleType", t.vehicleType).put("defaultValue", t.defaultValue).put("defaultUnit", t.defaultUnit).put("createdAt", t.createdAt))
+        } })
         return root.toString(2)
     }
 
@@ -66,7 +69,13 @@ object Backup {
         val types = root.optJSONArray("vehicleTypes")?.mapObjects { VehicleType(it.getString("code"), it.getString("name"), it.optString("icon", "CAR"), it.optLong("createdAt", System.currentTimeMillis())) }
             ?: Catalog.defaultTypes()
 
+        // Backup lama (versi <= 4) belum punya jenis dokumen: pakai bawaan
+        val docTypes = root.optJSONArray("documentTypes")?.mapObjects { DocumentType(it.getString("code"), it.getString("name"), it.optString("vehicleType", "ALL"), it.optInt("defaultValue", 0), it.optString("defaultUnit", "YEAR"), it.optLong("createdAt", System.currentTimeMillis())) }
+            ?: Catalog.defaultDocTypes()
+
         db.withTransaction {
+            db.documentTypeDao().deleteAll()
+            docTypes.forEach { db.documentTypeDao().insert(it) }
             db.vehicleTypeDao().deleteAll()
             types.forEach { db.vehicleTypeDao().insert(it) }
             db.vehicleDao().deleteAll()   // anak-anaknya ikut terhapus (CASCADE)

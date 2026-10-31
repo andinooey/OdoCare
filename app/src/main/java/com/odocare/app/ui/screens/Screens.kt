@@ -383,7 +383,7 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         floatingActionButton = { if (vehicle != null) AddFab { showAdd = true } }
     ) { pad ->
         Column(Modifier.padding(pad).statusBarsPadding()) {
-            ScreenTitle("Jadwal & Komponen", vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 10.dp)) {
+            ServiceSectionTitle(vm, vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 10.dp)) {
                 IconButton(onClick = onOpenMaster) { Icon(Icons.Default.Category, "Master Kategori", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
             }
             if (vehicle == null) {
@@ -569,7 +569,9 @@ private fun ScheduleFormDialog(
 fun ServiceFormDialog(
     title: String, initialKm: Int?, initialDate: Long, initialCost: Long, initialNotes: String?, initialImage: String? = null,
     onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit,
-    subtitle: String? = null
+    subtitle: String? = null,
+    /** Batas bawah KM (mis. KM odometer saat ini). null = tanpa batas, dipakai saat edit riwayat lama. */
+    minKm: Int? = null
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -591,17 +593,23 @@ fun ServiceFormDialog(
     fun cleanup(keep: String?) { newImages.filter { it != keep }.forEach { ImageStore.delete(it) } }
     fun dismiss() { cleanup(null); onDismiss() }
 
+    val kmValue = posInt(kmText)
+    val kmTooLow = minKm != null && kmValue != null && kmValue < minKm
     FormDialog(
-        title = title, subtitle = subtitle, icon = Icons.Default.Build, onDismiss = { dismiss() }, confirmEnabled = posInt(kmText) != null,
+        title = title, subtitle = subtitle, icon = Icons.Default.Build, onDismiss = { dismiss() }, confirmEnabled = kmValue != null && !kmTooLow,
         onConfirm = {
-            posInt(kmText)?.let {
+            posInt(kmText)?.takeIf { minKm == null || it >= minKm }?.let {
                 cleanup(imagePath)
                 onConfirm(it, date, costText.toLongOrNull() ?: 0L, notes.ifBlank { null }, imagePath)
             }
         }
     ) {
         DateField("Tanggal servis", date) { date = it }
-        NumberField(kmText, { kmText = it }, "KM saat servis", icon = Icons.Default.Speed)
+        NumberField(
+            kmText, { kmText = it }, "KM saat servis", icon = Icons.Default.Speed,
+            hint = minKm?.let { "Minimal ${fmtKm(it)} km (KM odometer saat ini)" },
+            error = if (kmTooLow) "KM servis tidak boleh lebih kecil dari KM saat ini (${fmtKm(minKm!!)} km)" else null
+        )
         NumberField(costText, { costText = it }, "Biaya servis", currency = true, icon = Icons.Default.Payments)
         AppTextField(notes, { notes = it }, "Catatan (opsional)", Icons.Default.EditNote, singleLine = false, minLines = 2)
         if (imagePath == null) {
@@ -621,5 +629,5 @@ fun ServiceFormDialog(
 
 @Composable
 fun RecordServiceDialog(schedule: MaintenanceSchedule?, initialKm: Int?, onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit) {
-    ServiceFormDialog("Catat Servis", initialKm, todayMillis(), 0L, null, null, onDismiss, onConfirm, subtitle = schedule?.name)
+    ServiceFormDialog("Catat Servis", initialKm, todayMillis(), 0L, null, null, onDismiss, onConfirm, subtitle = schedule?.name, minKm = initialKm)
 }

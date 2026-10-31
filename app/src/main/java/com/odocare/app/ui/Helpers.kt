@@ -84,11 +84,18 @@ fun intervalLabel(km: Int?, months: Int?): String {
     return parts.joinToString(" · ")
 }
 
-val docTypes: List<Pair<String, String>> = listOf(
-    "PAJAK_TAHUNAN" to "Pajak Tahunan", "GANTI_PLAT" to "Ganti Plat 5 Tahunan", "STNK_5_TAHUNAN" to "STNK 5 Tahunan",
-    "SIM_A" to "SIM A", "SIM_C" to "SIM C", "ASURANSI" to "Asuransi", "GARANSI" to "Garansi", "LAINNYA" to "Lainnya"
-)
-fun docTypeLabel(k: String): String = docTypes.firstOrNull { it.first == k }?.second ?: k
+/**
+ * Registri jenis dokumen (master) untuk label di seluruh layar. State Compose, jadi layar otomatis menyegarkan diri
+ * saat master berubah. Diisi MainViewModel dari database.
+ */
+object DocTypes {
+    var all by mutableStateOf(Catalog.defaultDocTypes())
+    fun find(code: String) = all.firstOrNull { it.code == code }
+    /** Jenis yang cocok untuk jenis kendaraan tertentu (ALL = untuk semua). [keep] tetap disertakan walau tidak cocok (mis. saat edit). */
+    fun forVehicle(vehicleType: String?, keep: String? = null): List<com.odocare.app.data.DocumentType> =
+        all.filter { it.vehicleType == "ALL" || vehicleType == null || it.vehicleType == vehicleType || it.code == keep }
+}
+fun docTypeLabel(k: String): String = DocTypes.find(k)?.name ?: k.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
 /** Pilihan ikon untuk master jenis kendaraan (kunci disimpan di tabel vehicle_types). */
 val vehicleIconOptions: List<Pair<String, ImageVector>> = listOf(
     "MOTOR" to Icons.Default.TwoWheeler, "CAR" to Icons.Default.DirectionsCar, "TRUCK" to Icons.Default.LocalShipping,

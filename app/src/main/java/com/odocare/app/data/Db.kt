@@ -83,6 +83,16 @@ data class VehicleType(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+/** Master jenis dokumen (Pajak Tahunan, SIM, Asuransi, dst). code dipakai di LegalDocument.type; vehicleType: ALL atau kode jenis kendaraan. */
+@Entity(tableName = "document_types")
+data class DocumentType(
+    @PrimaryKey val code: String,
+    val name: String, val vehicleType: String = "ALL",
+    // Masa berlaku bawaan (0 = tanpa bawaan), dipakai untuk mengisi form dokumen otomatis
+    val defaultValue: Int = 0, val defaultUnit: String = "YEAR",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
 @Dao
 interface VehicleDao {
     @Query("SELECT * FROM vehicles ORDER BY createdAt ASC") fun observeAll(): Flow<List<Vehicle>>
@@ -140,6 +150,7 @@ interface DocumentDao {
     @Query("SELECT * FROM legal_documents") suspend fun all(): List<LegalDocument>
     @Query("SELECT attachmentPath FROM legal_documents WHERE vehicleId = :vid AND attachmentPath IS NOT NULL") suspend fun attachmentPathsForVehicle(vid: String): List<String>
     @Query("SELECT * FROM legal_documents ORDER BY expiryDate ASC") fun observeAll(): Flow<List<LegalDocument>>
+    @Query("SELECT COUNT(*) FROM legal_documents WHERE type = :code") suspend fun countByType(code: String): Int
     @Query("UPDATE legal_documents SET notifyEnabled = :enabled, notifyHour = :hour, notifyMinute = :minute") suspend fun setAllNotify(enabled: Boolean, hour: Int, minute: Int)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(d: LegalDocument)
     @Update suspend fun update(d: LegalDocument)
@@ -175,7 +186,18 @@ interface VehicleTypeDao {
     @Query("DELETE FROM vehicle_types") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class], version = 7, exportSchema = false)
+@Dao
+interface DocumentTypeDao {
+    @Query("SELECT * FROM document_types ORDER BY createdAt ASC, name ASC") fun observeAll(): Flow<List<DocumentType>>
+    @Query("SELECT * FROM document_types") suspend fun all(): List<DocumentType>
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIgnore(t: DocumentType)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(t: DocumentType)
+    @Update suspend fun update(t: DocumentType)
+    @Query("DELETE FROM document_types WHERE code = :code") suspend fun deleteByCode(code: String)
+    @Query("DELETE FROM document_types") suspend fun deleteAll()
+}
+
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class], version = 8, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -185,10 +207,11 @@ abstract class AppDb : RoomDatabase() {
     abstract fun docHistoryDao(): DocHistoryDao
     abstract fun masterDao(): MasterDao
     abstract fun vehicleTypeDao(): VehicleTypeDao
+    abstract fun documentTypeDao(): DocumentTypeDao
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build().also { INSTANCE = it }
         }
     }
 }
@@ -244,5 +267,11 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE legal_documents ADD COLUMN attachmentPath TEXT")
         db.execSQL("ALTER TABLE legal_documents ADD COLUMN attachmentName TEXT")
+    }
+}
+
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS document_types (code TEXT NOT NULL, name TEXT NOT NULL, vehicleType TEXT NOT NULL, defaultValue INTEGER NOT NULL, defaultUnit TEXT NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(code))")
     }
 }

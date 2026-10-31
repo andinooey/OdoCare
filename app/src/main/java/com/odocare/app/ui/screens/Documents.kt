@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.LegalDocument
+import com.odocare.app.domain.DocStatus
 import com.odocare.app.domain.Engines
 import com.odocare.app.domain.IntervalUnit
 import com.odocare.app.domain.Reminder
@@ -48,60 +49,89 @@ private data class DocForm(
     val attachmentPath: String?, val attachmentName: String?
 )
 
+private val docFilterLabels = listOf("Semua", "Lewat", "Segera", "Aman")
+
+/** Bagian "Pajak & Dokumen" di tab Servis: dokumen kendaraan aktif + tab status seperti Jadwal & Komponen. */
 @Composable
-fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
+fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
     val docs by vm.documents.collectAsStateWithLifecycle()
     val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<LegalDocument?>(null) }
     var renewTarget by remember { mutableStateOf<LegalDocument?>(null) }
     var deleteTarget by remember { mutableStateOf<LegalDocument?>(null) }
+    var tab by remember { mutableStateOf(0) }
+
+    // Urut jatuh tempo terdekat (dari database). Jatuh tempo hari ini masuk "Segera" karena belum lewat.
+    val views = docs.map { Engines.documentView(it) }
+    val late = views.filter { it.status == DocStatus.LATE }
+    val soon = views.filter { it.status == DocStatus.SOON || it.status == DocStatus.DUE_TODAY }
+    val safe = views.filter { it.status == DocStatus.SAFE }
+    val shown = when (tab) { 1 -> late; 2 -> soon; 3 -> safe; else -> views }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = NoInsets,
-        topBar = { BackTopBar("Pajak & Dokumen", onBack) },
         floatingActionButton = { if (vehicle != null) AddFab { showAdd = true } }
     ) { pad ->
-        if (vehicle == null) {
-            NoVehicleState(vm, Modifier.padding(pad).padding(top = 48.dp))
-        } else if (docs.isEmpty()) {
-            EmptyState(Icons.Default.Description, "Belum ada dokumen", "Simpan pajak, STNK, SIM, atau asuransi agar jatuh temponya diingatkan.", Modifier.padding(pad).padding(top = 48.dp), actionLabel = "Tambah Dokumen", onAction = { showAdd = true })
-        } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
-                items(docs, key = { it.id }) { d ->
-                    val view = Engines.documentView(d)
-                    val colors = docColor(view.status)
-                    val unit = IntervalUnit.parse(d.intervalUnit)
-                    StatusStripeCard(colors.second) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(docTypeLabel(d.type), Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                            DocStatusChip(view.status)
-                            ItemMenu(onEdit = { editTarget = d }, onDelete = { deleteTarget = d })
-                        }
-                        Text("Jatuh tempo ${fmtDate(d.expiryDate)} · ${docDaysText(view.daysRemaining)}", fontSize = 12.sp, color = colors.second)
-                        val meta = mutableListOf<String>()
-                        if (!d.number.isNullOrBlank()) meta += "No. ${d.number}"
-                        d.lastRenewedDate?.let { meta += "Diperpanjang ${fmtDate(it)}" }
-                        if (d.intervalValue != null && unit != null) meta += "Berlaku ${d.intervalValue} ${unit.label.lowercase()}"
-                        if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 11.sp, color = TextGray)
-                        if (d.attachmentPath != null) {
-                            val ctx = LocalContext.current
-                            var openFailed by remember { mutableStateOf(false) }
-                            Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { openFailed = !AttachmentStore.open(ctx, d.attachmentPath) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(if (AttachmentStore.isImage(d.attachmentPath)) Icons.Default.Image else Icons.Default.AttachFile, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 11.sp, color = if (openFailed) DangerText else LavenderPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(if (d.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray, modifier = Modifier.size(12.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text(if (d.notifyEnabled) "${Reminders.summary(d.reminders)} · ${fmtTime(d.notifyHour, d.notifyMinute)}" else "Notifikasi mati", fontSize = 11.sp, color = TextGray, modifier = Modifier.weight(1f))
-                            TextButton(onClick = { renewTarget = d }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) {
-                                Icon(Icons.Default.Autorenew, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Perpanjang", color = LavenderPrimary, fontSize = 12.sp)
+        Column(Modifier.padding(pad).statusBarsPadding()) {
+            ServiceSectionTitle(vm, vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 10.dp)) {
+                IconButton(onClick = onOpenDocTypes) { Icon(Icons.Default.Category, "Master Jenis Dokumen", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
+            }
+            if (vehicle == null) {
+                NoVehicleState(vm, Modifier.padding(top = 32.dp))
+            } else {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    StatusFilterRow(
+                        docFilterLabels, listOf(views.size, late.size, soon.size, safe.size),
+                        listOf(PillSelected to TextWhite, StatusRedBg to StatusRedText, StatusYellowBg to StatusYellowText, StatusGreenBg to StatusGreenText),
+                        tab
+                    ) { tab = it }
+                }
+                if (shown.isEmpty()) {
+                    when (tab) {
+                        1 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang lewat", "Semua dokumen masih berlaku.", Modifier.padding(top = 32.dp))
+                        2 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang segera", "Belum ada dokumen yang mendekati jatuh tempo.", Modifier.padding(top = 32.dp))
+                        3 -> EmptyState(Icons.Default.Description, "Belum ada yang aman", "Dokumen yang masih lama jatuh temponya tampil di sini.", Modifier.padding(top = 32.dp))
+                        else -> EmptyState(Icons.Default.Description, "Belum ada dokumen", "Simpan pajak, STNK, SIM, atau asuransi agar jatuh temponya diingatkan.", Modifier.padding(top = 32.dp), actionLabel = "Tambah Dokumen", onAction = { showAdd = true })
+                    }
+                } else {
+                    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 10.dp, bottom = 88.dp)) {
+                        items(shown, key = { it.doc.id }) { view ->
+                            val d = view.doc
+                            val colors = docColor(view.status)
+                            val unit = IntervalUnit.parse(d.intervalUnit)
+                            StatusStripeCard(colors.second) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(docTypeLabel(d.type), Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                                    DocStatusChip(view.status)
+                                    ItemMenu(onEdit = { editTarget = d }, onDelete = { deleteTarget = d })
+                                }
+                                Text("Jatuh tempo ${fmtDate(d.expiryDate)} · ${docDaysText(view.daysRemaining)}", fontSize = 12.sp, color = colors.second)
+                                val meta = mutableListOf<String>()
+                                if (!d.number.isNullOrBlank()) meta += "No. ${d.number}"
+                                d.lastRenewedDate?.let { meta += "Diperpanjang ${fmtDate(it)}" }
+                                if (d.intervalValue != null && unit != null) meta += "Berlaku ${d.intervalValue} ${unit.label.lowercase()}"
+                                if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 11.sp, color = TextGray)
+                                if (d.attachmentPath != null) {
+                                    val ctx = LocalContext.current
+                                    var openFailed by remember { mutableStateOf(false) }
+                                    Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { openFailed = !AttachmentStore.open(ctx, d.attachmentPath) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(if (AttachmentStore.isImage(d.attachmentPath)) Icons.Default.Image else Icons.Default.AttachFile, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 11.sp, color = if (openFailed) DangerText else LavenderPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(if (d.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray, modifier = Modifier.size(12.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(if (d.notifyEnabled) "${Reminders.summary(d.reminders)} · ${fmtTime(d.notifyHour, d.notifyMinute)}" else "Notifikasi mati", fontSize = 11.sp, color = TextGray, modifier = Modifier.weight(1f))
+                                    TextButton(onClick = { renewTarget = d }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) {
+                                        Icon(Icons.Default.Autorenew, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Perpanjang", color = LavenderPrimary, fontSize = 12.sp)
+                                    }
+                                }
                             }
                         }
                     }
@@ -110,11 +140,11 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
         }
     }
 
-    if (showAdd) DocumentFormDialog("Tambah Dokumen", null, { showAdd = false }) { f ->
+    if (showAdd) DocumentFormDialog("Tambah Dokumen", null, vehicle?.type, vehicle?.name, { showAdd = false }) { f ->
         vm.addDocument(f.type, f.expiry, f.number, f.lastRenewed, f.intervalValue, f.intervalUnit?.name, f.reminders, f.notifyEnabled, f.notifyHour, f.notifyMinute, f.attachmentPath, f.attachmentName); showAdd = false
     }
     editTarget?.let { d ->
-        DocumentFormDialog("Edit Dokumen", d, { editTarget = null }) { f ->
+        DocumentFormDialog("Edit Dokumen", d, vehicle?.type, vehicle?.name, { editTarget = null }) { f ->
             vm.updateDocument(d.copy(type = f.type, expiryDate = f.expiry, number = f.number, lastRenewedDate = f.lastRenewed, intervalValue = f.intervalValue, intervalUnit = f.intervalUnit?.name, reminders = f.reminders, notifyEnabled = f.notifyEnabled, notifyHour = f.notifyHour, notifyMinute = f.notifyMinute, attachmentPath = f.attachmentPath, attachmentName = f.attachmentName))
             if (d.attachmentPath != null && d.attachmentPath != f.attachmentPath) ImageStore.delete(d.attachmentPath)   // lampiran lama diganti / dihapus
             editTarget = null
@@ -139,12 +169,15 @@ private fun ExpiryInfo(text: String) {
 }
 
 @Composable
-private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss: () -> Unit, onSave: (DocForm) -> Unit) {
-    var type by remember { mutableStateOf(initial?.type ?: docTypes.first().first) }
+private fun DocumentFormDialog(title: String, initial: LegalDocument?, vehicleType: String?, vehicleName: String?, onDismiss: () -> Unit, onSave: (DocForm) -> Unit) {
+    // Pilihan jenis mengikuti master jenis dokumen yang cocok dengan jenis kendaraan aktif
+    val typeOptions = DocTypes.forVehicle(vehicleType, keep = initial?.type)
+    val firstDefault = if (initial == null) typeOptions.firstOrNull() else null
+    var type by remember { mutableStateOf(initial?.type ?: typeOptions.firstOrNull()?.code ?: "") }
     var number by remember { mutableStateOf(initial?.number ?: "") }
     var lastRenewed by remember { mutableStateOf(initial?.lastRenewedDate) }
-    var intervalText by remember { mutableStateOf(initial?.intervalValue?.toString() ?: "") }
-    var intervalUnit by remember { mutableStateOf(IntervalUnit.parse(initial?.intervalUnit) ?: IntervalUnit.YEAR) }
+    var intervalText by remember { mutableStateOf(initial?.intervalValue?.toString() ?: firstDefault?.defaultValue?.takeIf { it > 0 }?.toString() ?: "") }
+    var intervalUnit by remember { mutableStateOf(IntervalUnit.parse(initial?.intervalUnit) ?: IntervalUnit.parse(firstDefault?.defaultUnit) ?: IntervalUnit.YEAR) }
     var manualExpiry by remember { mutableStateOf(initial?.expiryDate) }
     var reminders by remember { mutableStateOf(Reminders.parse(initial?.reminders ?: Reminders.DEFAULT)) }
     var newRemText by remember { mutableStateOf("") }
@@ -175,10 +208,19 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss
     val expiry: Long? = computed ?: manualExpiry
 
     FormDialog(
-        title = title, icon = Icons.Default.Description, onDismiss = { cleanup(null); onDismiss() }, confirmEnabled = expiry != null,
+        title = title, subtitle = vehicleName, icon = Icons.Default.Description, onDismiss = { cleanup(null); onDismiss() }, confirmEnabled = expiry != null && type.isNotBlank(),
         onConfirm = { expiry?.let { e -> cleanup(attachPath); onSave(DocForm(type, e, number.ifBlank { null }, lastRenewed, iv, if (iv != null) intervalUnit else null, Reminders.encode(reminders), notifyOn, notifyHour, notifyMinute, attachPath, attachName)) } }
     ) {
-        DropdownField("Jenis dokumen", docTypeLabel(type), Icons.Default.Description, docTypes) { type = it }
+        DropdownField("Jenis dokumen", if (type.isBlank()) null else docTypeLabel(type), Icons.Default.Description, typeOptions.map { it.code to it.name }, placeholder = "Pilih jenis dokumen") { code ->
+            type = code
+            // Tambah baru: masa berlaku mengikuti bawaan master (kosong bila master tidak punya bawaan)
+            if (initial == null) {
+                val m = DocTypes.find(code)
+                intervalText = m?.defaultValue?.takeIf { it > 0 }?.toString() ?: ""
+                IntervalUnit.parse(m?.defaultUnit)?.let { intervalUnit = it }
+            }
+        }
+        if (typeOptions.isEmpty()) FormNote("Belum ada jenis dokumen untuk kendaraan ini. Tambahkan di Master Jenis Dokumen (ikon kanan atas).", DangerText)
         AppTextField(number, { number = it }, "Nomor dokumen (opsional)", Icons.Default.Pin)
 
         FormGroupLabel("Foto / dokumen")
