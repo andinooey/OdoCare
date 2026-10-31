@@ -10,7 +10,7 @@ class OdoCareApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Notif.setupChannels(this)
-        Notif.scheduleDaily(this)
+        Notif.schedulePolling(this)
         CoroutineScope(Dispatchers.IO).launch { Repo(this@OdoCareApp).seedMasterIfNeeded() }
     }
 }

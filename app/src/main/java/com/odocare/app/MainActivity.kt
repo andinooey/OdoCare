@@ -53,10 +53,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Pindah tab selalu ke layar default tab itu (sub-layar seperti Dokumen/Riwayat tidak diingat). */
 private fun NavHostController.navigateTab(route: String) = navigate(route) {
-    popUpTo(graph.findStartDestination().id) { saveState = true }
+    popUpTo(graph.findStartDestination().id) { saveState = false }
     launchSingleTop = true
-    restoreState = true
+    restoreState = false
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)

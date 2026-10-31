@@ -15,7 +15,7 @@ private fun nz(v: Any?): Any = v ?: JSONObject.NULL
 object Backup {
     suspend fun export(db: AppDb): String {
         val root = JSONObject()
-        root.put("app", "odocare").put("version", 2).put("exportedAt", System.currentTimeMillis())
+        root.put("app", "odocare").put("version", 3).put("exportedAt", System.currentTimeMillis())
         root.put("vehicles", JSONArray().also { a -> db.vehicleDao().all().forEach { v ->
             a.put(JSONObject().put("id", v.id).put("name", v.name).put("type", v.type).put("isActive", v.isActive).put("createdAt", v.createdAt).put("plate", v.plate).put("initialKm", v.initialKm))
         } })
@@ -24,10 +24,11 @@ object Backup {
         } })
         root.put("schedules", JSONArray().also { a -> db.scheduleDao().all().forEach { s ->
             a.put(JSONObject().put("id", s.id).put("vehicleId", s.vehicleId).put("name", s.name).put("intervalKm", nz(s.intervalKm)).put("intervalMonths", nz(s.intervalMonths))
-                .put("lastServiceKm", nz(s.lastServiceKm)).put("lastServiceDate", nz(s.lastServiceDate)).put("archived", s.archived).put("createdAt", s.createdAt))
+                .put("lastServiceKm", nz(s.lastServiceKm)).put("lastServiceDate", nz(s.lastServiceDate)).put("archived", s.archived).put("createdAt", s.createdAt)
+                .put("notifyEnabled", s.notifyEnabled).put("notifyHour", s.notifyHour).put("notifyMinute", s.notifyMinute))
         } })
         root.put("records", JSONArray().also { a -> db.serviceRecordDao().all().forEach { r ->
-            a.put(JSONObject().put("id", r.id).put("vehicleId", r.vehicleId).put("scheduleId", nz(r.scheduleId)).put("title", r.title).put("km", r.km).put("date", r.date).put("cost", r.cost).put("notes", nz(r.notes)).put("createdAt", r.createdAt))
+            a.put(JSONObject().put("id", r.id).put("vehicleId", r.vehicleId).put("scheduleId", nz(r.scheduleId)).put("title", r.title).put("km", r.km).put("date", r.date).put("cost", r.cost).put("notes", nz(r.notes)).put("createdAt", r.createdAt).put("imagePath", nz(r.imagePath)))
         } })
         root.put("documents", JSONArray().also { a -> db.documentDao().all().forEach { d ->
             a.put(JSONObject().put("id", d.id).put("vehicleId", d.vehicleId).put("type", d.type).put("number", nz(d.number)).put("expiryDate", d.expiryDate).put("notes", nz(d.notes)).put("createdAt", d.createdAt)
@@ -37,7 +38,8 @@ object Backup {
             a.put(JSONObject().put("id", h.id).put("documentId", h.documentId).put("oldExpiry", h.oldExpiry).put("newExpiry", h.newExpiry).put("renewedAt", h.renewedAt))
         } })
         root.put("masters", JSONArray().also { a -> db.masterDao().all().forEach { m ->
-            a.put(JSONObject().put("id", m.id).put("name", m.name).put("vehicleType", m.vehicleType).put("defaultKm", m.defaultKm).put("defaultMonths", m.defaultMonths))
+            a.put(JSONObject().put("id", m.id).put("name", m.name).put("vehicleType", m.vehicleType).put("defaultKm", m.defaultKm).put("defaultMonths", m.defaultMonths)
+                .put("notifyEnabled", m.notifyEnabled).put("notifyHour", m.notifyHour).put("notifyMinute", m.notifyMinute))
         } })
         return root.toString(2)
     }
@@ -49,11 +51,11 @@ object Backup {
 
         val vehicles = root.getJSONArray("vehicles").mapObjects { Vehicle(it.getString("id"), it.getString("name"), it.getString("type"), it.optBoolean("isActive", false), it.optLong("createdAt", System.currentTimeMillis()), it.optString("plate", ""), it.optInt("initialKm", 0)) }
         val odometer = root.getJSONArray("odometer").mapObjects { OdometerLog(it.getString("id"), it.getString("vehicleId"), it.getInt("km"), it.getLong("recordedAt")) }
-        val schedules = root.getJSONArray("schedules").mapObjects { MaintenanceSchedule(it.getString("id"), it.getString("vehicleId"), it.getString("name"), it.intOrNull("intervalKm"), it.intOrNull("intervalMonths"), it.intOrNull("lastServiceKm"), it.longOrNull("lastServiceDate"), it.optBoolean("archived", false), it.optLong("createdAt", System.currentTimeMillis())) }
-        val records = root.getJSONArray("records").mapObjects { ServiceRecord(it.getString("id"), it.getString("vehicleId"), it.strOrNull("scheduleId"), it.getString("title"), it.getInt("km"), it.getLong("date"), it.optLong("cost", 0L), it.strOrNull("notes"), it.optLong("createdAt", System.currentTimeMillis())) }
+        val schedules = root.getJSONArray("schedules").mapObjects { MaintenanceSchedule(it.getString("id"), it.getString("vehicleId"), it.getString("name"), it.intOrNull("intervalKm"), it.intOrNull("intervalMonths"), it.intOrNull("lastServiceKm"), it.longOrNull("lastServiceDate"), it.optBoolean("archived", false), it.optLong("createdAt", System.currentTimeMillis()), it.optBoolean("notifyEnabled", true), it.optInt("notifyHour", 9), it.optInt("notifyMinute", 0)) }
+        val records = root.getJSONArray("records").mapObjects { ServiceRecord(it.getString("id"), it.getString("vehicleId"), it.strOrNull("scheduleId"), it.getString("title"), it.getInt("km"), it.getLong("date"), it.optLong("cost", 0L), it.strOrNull("notes"), it.optLong("createdAt", System.currentTimeMillis()), it.strOrNull("imagePath")) }
         val documents = root.getJSONArray("documents").mapObjects { LegalDocument(id = it.getString("id"), vehicleId = it.getString("vehicleId"), type = it.getString("type"), number = it.strOrNull("number"), expiryDate = it.getLong("expiryDate"), notes = it.strOrNull("notes"), createdAt = it.optLong("createdAt", System.currentTimeMillis()), lastRenewedDate = it.longOrNull("lastRenewedDate"), intervalValue = it.intOrNull("intervalValue"), intervalUnit = it.strOrNull("intervalUnit"), reminders = it.optString("reminders", "30:DAY,15:DAY")) }
         val history = root.getJSONArray("documentHistory").mapObjects { DocumentHistory(it.getString("id"), it.getString("documentId"), it.getLong("oldExpiry"), it.getLong("newExpiry"), it.optLong("renewedAt", System.currentTimeMillis())) }
-        val masters = root.getJSONArray("masters").mapObjects { MasterCategory(it.getString("id"), it.getString("name"), it.optString("vehicleType", "ALL"), it.optInt("defaultKm", 0), it.optInt("defaultMonths", 0)) }
+        val masters = root.getJSONArray("masters").mapObjects { MasterCategory(it.getString("id"), it.getString("name"), it.optString("vehicleType", "ALL"), it.optInt("defaultKm", 0), it.optInt("defaultMonths", 0), it.optBoolean("notifyEnabled", true), it.optInt("notifyHour", 9), it.optInt("notifyMinute", 0)) }
 
         db.withTransaction {
             db.vehicleDao().deleteAll()   // anak-anaknya ikut terhapus (CASCADE)

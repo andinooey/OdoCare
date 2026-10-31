@@ -3,6 +3,7 @@
 package com.odocare.app.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.odocare.app.data.ImageStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -49,8 +64,18 @@ fun toPickerMillis(sys: Long): Long = msToLocalDate(sys).atStartOfDay(ZoneOffset
 fun fromPickerMillis(pic: Long): Long = Instant.ofEpochMilli(pic).atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
 fun posInt(s: String): Int? = s.toIntOrNull()?.takeIf { it > 0 }
-fun fmtKm(n: Int): String = NumberFormat.getInstance(idLocale).format(n)
-fun rupiah(n: Long): String = "Rp " + NumberFormat.getInstance(idLocale).format(n)
+/** Pemisah ribuan di seluruh aplikasi (input dan tampilan). Ganti ke '.' bila ingin gaya Indonesia: 5.000 */
+const val THOUSAND_SEP = ','
+fun fmtNum(n: Long): String = DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US).apply { groupingSeparator = THOUSAND_SEP }).format(n)
+fun fmtKm(n: Int): String = fmtNum(n.toLong())
+fun rupiah(n: Long): String = "Rp " + fmtNum(n)
+fun fmtTime(hour: Int, minute: Int): String = String.format(Locale.US, "%02d:%02d", hour, minute)
+fun intervalLabel(km: Int?, months: Int?): String {
+    val parts = mutableListOf<String>()
+    km?.takeIf { it > 0 }?.let { parts += "tiap ${fmtKm(it)} km" }
+    months?.takeIf { it > 0 }?.let { parts += "tiap $it bulan" }
+    return parts.joinToString(" · ")
+}
 
 val docTypes: List<Pair<String, String>> = listOf(
     "PAJAK_TAHUNAN" to "Pajak Tahunan", "GANTI_PLAT" to "Ganti Plat 5 Tahunan", "STNK_5_TAHUNAN" to "STNK 5 Tahunan",
@@ -93,9 +118,93 @@ fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable RowScope.
     )
 }
 
+/** Menampilkan angka dengan pemisah ribuan (5000 -> 5,000). Nilai yang disimpan di state tetap digit murni. */
+object ThousandsTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        val n = raw.length
+        val sb = StringBuilder()
+        val map = IntArray(n + 1)
+        for (i in 0 until n) {
+            if (i > 0 && (n - i) % 3 == 0) sb.append(THOUSAND_SEP)
+            map[i] = sb.length
+            sb.append(raw[i])
+        }
+        map[n] = sb.length
+        val mapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int = map[offset.coerceIn(0, n)]
+            override fun transformedToOriginal(offset: Int): Int {
+                var res = 0
+                for (i in 0..n) if (map[i] <= offset) res = i
+                return res
+            }
+        }
+        return TransformedText(AnnotatedString(sb.toString()), mapping)
+    }
+}
+
+/** Field angka bulat dengan pemisah ribuan. currency = true menambahkan awalan "Rp". */
 @Composable
-fun NumberField(value: String, onChange: (String) -> Unit, label: String) {
-    OutlinedTextField(value = value, onValueChange = { onChange(it.filter(Char::isDigit)) }, label = { Text(label) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false) {
+    val prefixSlot: (@Composable () -> Unit)? = if (currency) { { Text("Rp ") } } else null
+    OutlinedTextField(
+        value = value, onValueChange = { onChange(it.filter(Char::isDigit).trimStart('0').take(12)) },
+        label = { Text(label) }, singleLine = true, prefix = prefixSlot,
+        visualTransformation = ThousandsTransformation,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+    )
+}
+
+/** Tombol jam yang membuka time picker 24 jam. */
+@Composable
+fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minute: Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    OutlinedButton(onClick = { open = true }) { Text("$label: ${fmtTime(hour, minute)}") }
+    if (open) {
+        val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = true)
+        Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp, modifier = Modifier.width(IntrinsicSize.Min).height(IntrinsicSize.Min)) {
+                Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp))
+                    TimePicker(state = state)
+                    Row(Modifier.height(40.dp).fillMaxWidth()) {
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = { open = false }) { Text("Batal") }
+                        TextButton(onClick = { onPicked(state.hour, state.minute); open = false }) { Text("Pilih") }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Switch notifikasi on/off + pilihan jam (jam hanya muncul saat aktif). */
+@Composable
+fun NotifyOptions(enabled: Boolean, hour: Int, minute: Int, onChange: (enabled: Boolean, hour: Int, minute: Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Notifikasi pengingat", color = TextWhite)
+            Text(if (enabled) "Aktif" else "Mati", color = TextGray, fontSize = 12.sp)
+        }
+        Switch(checked = enabled, onCheckedChange = { onChange(it, hour, minute) })
+    }
+    if (enabled) TimeField("Jam notifikasi", hour, minute) { h, m -> onChange(true, h, m) }
+}
+
+@Composable
+fun rememberStoredImage(path: String?, maxSide: Int): ImageBitmap? {
+    var bmp by remember(path) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(path) {
+        bmp = if (path == null) null else withContext(Dispatchers.IO) { ImageStore.load(path, maxSide)?.asImageBitmap() }
+    }
+    return bmp
+}
+
+/** Foto servis dari penyimpanan internal. Tidak menampilkan apa pun bila file hilang. */
+@Composable
+fun StoredImage(path: String?, modifier: Modifier = Modifier, maxSide: Int = 600, contentScale: ContentScale = ContentScale.Crop) {
+    val bmp = rememberStoredImage(path, maxSide)
+    if (bmp != null) Image(bitmap = bmp, contentDescription = "Foto servis", modifier = modifier, contentScale = contentScale)
 }
 
 @Composable

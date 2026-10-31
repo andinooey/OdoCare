@@ -45,7 +45,8 @@ class Repo(private val ctx: Context) {
             if (v.initialKm > 0) oDao.insert(OdometerLog(vehicleId = v.id, km = v.initialKm))
             val now = System.currentTimeMillis()
             mDao.all().filter { it.vehicleType == "ALL" || it.vehicleType == v.type }.forEach { m ->
-                sDao.insert(MaintenanceSchedule(vehicleId = v.id, name = m.name, intervalKm = m.defaultKm.takeIf { it > 0 }, intervalMonths = m.defaultMonths.takeIf { it > 0 }, lastServiceKm = v.initialKm, lastServiceDate = now))
+                sDao.insert(MaintenanceSchedule(vehicleId = v.id, name = m.name, intervalKm = m.defaultKm.takeIf { it > 0 }, intervalMonths = m.defaultMonths.takeIf { it > 0 }, lastServiceKm = v.initialKm, lastServiceDate = now,
+                    notifyEnabled = m.notifyEnabled, notifyHour = m.notifyHour, notifyMinute = m.notifyMinute))
             }
             val today = LocalDate.now()
             // Tanggal jatuh tempo hanya perkiraan; user mengisi tanggal perpanjang terakhir di form dokumen
@@ -57,6 +58,7 @@ class Repo(private val ctx: Context) {
     suspend fun updateVehicle(v: Vehicle) = vDao.update(v)
     suspend fun setActive(id: String) = db.withTransaction { vDao.clearActive(); vDao.setActive(id) }
     suspend fun deleteVehicle(id: String) = db.withTransaction {
+        srDao.imagePathsForVehicle(id).forEach { ImageStore.delete(it) }
         vDao.deleteById(id)
         if (vDao.activeId() == null) { vDao.firstId()?.let { vDao.setActive(it) } }
     }
@@ -69,12 +71,17 @@ class Repo(private val ctx: Context) {
     suspend fun updateSchedule(s: MaintenanceSchedule) = sDao.update(s)
     suspend fun deleteSchedule(id: String) = sDao.deleteById(id)
 
-    suspend fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, notes: String?) = db.withTransaction {
-        oDao.insert(OdometerLog(vehicleId = schedule.vehicleId, km = km, recordedAt = dateMillis))
-        srDao.insert(ServiceRecord(vehicleId = schedule.vehicleId, scheduleId = schedule.id, title = schedule.name, km = km, date = dateMillis, cost = cost, notes = notes))
+    /** Simpan servis. Odometer ikut naik bila KM servis lebih besar dari KM terakhir (tidak pernah diturunkan otomatis). */
+    suspend fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, notes: String?, imagePath: String?) = db.withTransaction {
+        bumpOdometer(schedule.vehicleId, km)
+        srDao.insert(ServiceRecord(vehicleId = schedule.vehicleId, scheduleId = schedule.id, title = schedule.name, km = km, date = dateMillis, cost = cost, notes = notes, imagePath = imagePath))
         sDao.update(schedule.copy(lastServiceKm = km, lastServiceDate = dateMillis))
     }
-    suspend fun updateRecord(r: ServiceRecord) = srDao.update(r)
+    private suspend fun bumpOdometer(vehicleId: String, km: Int) {
+        val current = oDao.latestKm(vehicleId)
+        if (current == null || km > current) oDao.insert(OdometerLog(vehicleId = vehicleId, km = km))
+    }
+    suspend fun updateRecord(r: ServiceRecord) = db.withTransaction { srDao.update(r); bumpOdometer(r.vehicleId, r.km) }
     suspend fun deleteRecord(id: String) = srDao.deleteById(id)
 
     suspend fun addDocument(d: LegalDocument) = dDao.insert(d)

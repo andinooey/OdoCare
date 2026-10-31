@@ -2,6 +2,9 @@
 
 package com.odocare.app.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,7 +36,11 @@ import com.odocare.app.data.MaintenanceSchedule
 import com.odocare.app.data.MasterCategory
 import com.odocare.app.data.OdometerLog
 import com.odocare.app.domain.Engines
+import com.odocare.app.data.ImageStore
 import com.odocare.app.domain.ServiceStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.odocare.app.ui.*
 
 // ---------- Home ----------
@@ -122,30 +130,6 @@ fun HomeScreen(
         Spacer(Modifier.height(24.dp))
 
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Dokumen & Pajak", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            Spacer(Modifier.weight(1f))
-            Text("Kelola", color = LavenderPrimary, fontSize = 14.sp, modifier = Modifier.clickable(onClick = onNavigateToDocuments))
-        }
-        Spacer(Modifier.height(12.dp))
-        if (documents.isEmpty()) {
-            Text("Belum ada dokumen. Tap Kelola untuk menambahkan pajak, SIM, atau asuransi.", color = TextGray, fontSize = 14.sp)
-        } else {
-            documents.take(3).forEach { d ->
-                val dv = Engines.documentView(d)
-                Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(onClick = onNavigateToDocuments)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(docTypeLabel(d.type), color = TextWhite, fontWeight = FontWeight.Bold)
-                            Text(docDaysText(dv.daysRemaining), color = TextGray, fontSize = 12.sp)
-                        }
-                        StatusBadge(dv.status.label, docColor(dv.status))
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Status Perawatan Komponen", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
             Spacer(Modifier.weight(1f))
             Text("Lihat Semua", color = LavenderPrimary, fontSize = 14.sp, modifier = Modifier.clickable(onClick = onNavigateToSchedule))
@@ -155,12 +139,44 @@ fun HomeScreen(
         scheduleViews.sortedByDescending { it.progress }.take(3).forEach { view ->
             val colors = serviceColor(view.status)
             Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(view.schedule.name, color = TextWhite, fontWeight = FontWeight.Bold)
-                        Text(scheduleDetail(view), color = TextGray, fontSize = 12.sp)
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(view.schedule.name, color = TextWhite, fontWeight = FontWeight.Bold)
+                            val interval = intervalLabel(view.schedule.intervalKm, view.schedule.intervalMonths)
+                            if (interval.isNotEmpty()) Text(interval, color = TextGray, fontSize = 12.sp)
+                        }
+                        StatusBadge(view.status.label, colors)
                     }
-                    StatusBadge(view.status.label, colors)
+                    Spacer(Modifier.height(8.dp))
+                    ProgressBar(view.progress, colors.second)
+                    Spacer(Modifier.height(6.dp))
+                    Text(scheduleDetail(view), color = colors.second, fontSize = 12.sp)
+                }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Dokumen & Pajak", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Spacer(Modifier.weight(1f))
+            Text("Kelola", color = LavenderPrimary, fontSize = 14.sp, modifier = Modifier.clickable(onClick = onNavigateToDocuments))
+        }
+        Spacer(Modifier.height(12.dp))
+        if (documents.isEmpty()) {
+            Text("Belum ada dokumen. Tap Kelola untuk menambahkan pajak, SIM, atau asuransi.", color = TextGray, fontSize = 14.sp)
+        } else {
+            documents.take(5).forEach { d ->
+                val dv = Engines.documentView(d)
+                Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(onClick = onNavigateToDocuments)) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(docTypeLabel(d.type), color = TextWhite, fontWeight = FontWeight.Bold)
+                            Text("Jatuh tempo: ${fmtDate(d.expiryDate)}", color = TextWhite, fontSize = 13.sp)
+                            Text(docDaysText(dv.daysRemaining), color = TextGray, fontSize = 12.sp)
+                        }
+                        StatusBadge(dv.status.label, docColor(dv.status))
+                    }
                 }
             }
         }
@@ -180,8 +196,8 @@ fun HomeScreen(
             dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Batal") } })
     }
     recordTarget?.let { s ->
-        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes ->
-            vm.recordService(s, kmV, date, cost, notes); recordTarget = null
+        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img ->
+            vm.recordService(s, kmV, date, cost, notes, img); recordTarget = null
         }
     }
 }
@@ -289,9 +305,8 @@ fun ScheduleScreen(vm: MainViewModel) {
                         ProgressBar(view.progress, colors.second)
                         Spacer(Modifier.height(6.dp))
                         Text(scheduleDetail(view), style = MaterialTheme.typography.bodyMedium, color = colors.second)
-                        val parts = mutableListOf<String>()
-                        s.intervalKm?.let { parts += "tiap ${fmtKm(it)} km" }; s.intervalMonths?.let { parts += "tiap $it bulan" }
-                        if (parts.isNotEmpty()) Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = TextGray)
+                        val intervalText = intervalLabel(s.intervalKm, s.intervalMonths)
+                        if (intervalText.isNotEmpty()) Text(intervalText + if (s.notifyEnabled) " · 🔔 ${fmtTime(s.notifyHour, s.notifyMinute)}" else " · 🔕", style = MaterialTheme.typography.bodySmall, color = TextGray)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Button(onClick = { recordTarget = s }, colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black), shape = RoundedCornerShape(8.dp)) { Text("Sudah service") }
@@ -306,15 +321,15 @@ fun ScheduleScreen(vm: MainViewModel) {
 
     if (showAdd) {
         val options = masters.filter { it.vehicleType == "ALL" || it.vehicleType == vehicle?.type }
-        ScheduleFormDialog("Tambah Kategori", options, null, km, { showAdd = false }) { n, ik, im, lk, ld -> vm.addSchedule(n, ik, im, lk, ld); showAdd = false }
+        ScheduleFormDialog("Tambah Kategori", options, null, km, { showAdd = false }) { n, ik, im, lk, ld, ne, nh, nm -> vm.addSchedule(n, ik, im, lk, ld, ne, nh, nm); showAdd = false }
     }
     editTarget?.let { s ->
-        ScheduleFormDialog("Edit Kategori", null, s, km, { editTarget = null }) { n, ik, im, lk, ld ->
-            vm.updateSchedule(s.copy(name = n, intervalKm = ik, intervalMonths = im, lastServiceKm = lk, lastServiceDate = ld)); editTarget = null
+        ScheduleFormDialog("Edit Kategori", null, s, km, { editTarget = null }) { n, ik, im, lk, ld, ne, nh, nm ->
+            vm.updateSchedule(s.copy(name = n, intervalKm = ik, intervalMonths = im, lastServiceKm = lk, lastServiceDate = ld, notifyEnabled = ne, notifyHour = nh, notifyMinute = nm)); editTarget = null
         }
     }
     recordTarget?.let { s ->
-        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes -> vm.recordService(s, kmV, date, cost, notes); recordTarget = null }
+        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img -> vm.recordService(s, kmV, date, cost, notes, img); recordTarget = null }
     }
     deleteTarget?.let { s -> ConfirmDialog("Hapus kategori?", "\"${s.name}\" akan dihapus.", "Hapus", { vm.deleteSchedule(s.id); deleteTarget = null }, { deleteTarget = null }) }
 }
@@ -325,13 +340,17 @@ private const val CUSTOM = "__custom__"
 @Composable
 private fun ScheduleFormDialog(
     title: String, masters: List<MasterCategory>?, initial: MaintenanceSchedule?, currentKm: Int?,
-    onDismiss: () -> Unit, onSave: (name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long) -> Unit
+    onDismiss: () -> Unit,
+    onSave: (name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) -> Unit
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var kmT by remember { mutableStateOf(initial?.intervalKm?.toString() ?: "") }
     var moT by remember { mutableStateOf(initial?.intervalMonths?.toString() ?: "") }
     var lastKm by remember { mutableStateOf((initial?.lastServiceKm ?: currentKm)?.toString() ?: "") }
     var lastDate by remember { mutableStateOf(initial?.lastServiceDate ?: todayMillis()) }
+    var notifyOn by remember { mutableStateOf(initial?.notifyEnabled ?: true) }
+    var notifyHour by remember { mutableStateOf(initial?.notifyHour ?: 9) }
+    var notifyMinute by remember { mutableStateOf(initial?.notifyMinute ?: 0) }
     var selected by remember { mutableStateOf<String?>(if (masters == null) CUSTOM else null) }
     var menu by remember { mutableStateOf(false) }
     val showName = selected == CUSTOM
@@ -347,6 +366,7 @@ private fun ScheduleFormDialog(
                             masters.forEach { m ->
                                 DropdownMenuItem(text = { Text(m.name) }, onClick = {
                                     selected = m.id; name = m.name
+                                    notifyOn = m.notifyEnabled; notifyHour = m.notifyHour; notifyMinute = m.notifyMinute
                                     kmT = m.defaultKm.takeIf { it > 0 }?.toString() ?: ""; moT = m.defaultMonths.takeIf { it > 0 }?.toString() ?: ""
                                     menu = false
                                 })
@@ -361,37 +381,71 @@ private fun ScheduleFormDialog(
                     NumberField(moT, { moT = it }, "Interval bulan (kosong = tidak dipakai)")
                     NumberField(lastKm, { lastKm = it }, "KM terakhir diservis")
                     DateField("Tanggal terakhir diservis", lastDate) { lastDate = it }
+                    if (canSave) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
                 }
             }
         },
-        confirmButton = { TextButton(enabled = selected != null && canSave, onClick = { onSave(name.trim(), posInt(kmT), posInt(moT), lastKm.toIntOrNull(), lastDate) }) { Text("Simpan") } },
+        confirmButton = { TextButton(enabled = selected != null && canSave, onClick = { onSave(name.trim(), posInt(kmT), posInt(moT), lastKm.toIntOrNull(), lastDate, notifyOn, notifyHour, notifyMinute) }) { Text("Simpan") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
 }
 
-/** Form tanggal, KM, biaya, catatan. Dipakai untuk "Sudah service" dan edit riwayat. */
+/** Form tanggal, KM, biaya, catatan, foto. Dipakai untuk "Sudah service" dan edit riwayat. */
 @Composable
 fun ServiceFormDialog(
-    title: String, initialKm: Int?, initialDate: Long, initialCost: Long, initialNotes: String?,
-    onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?) -> Unit
+    title: String, initialKm: Int?, initialDate: Long, initialCost: Long, initialNotes: String?, initialImage: String? = null,
+    onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit
 ) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     var kmText by remember { mutableStateOf(initialKm?.toString() ?: "") }
     var date by remember { mutableStateOf(initialDate) }
     var costText by remember { mutableStateOf(if (initialCost > 0) initialCost.toString() else "") }
     var notes by remember { mutableStateOf(initialNotes ?: "") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title) },
+    var imagePath by remember { mutableStateOf(initialImage) }
+    var newImages by remember { mutableStateOf(listOf<String>()) }   // foto baru yang dibuat selama dialog terbuka
+    var imageError by remember { mutableStateOf(false) }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) scope.launch {
+            val saved = withContext(Dispatchers.IO) { ImageStore.save(ctx, uri) }
+            if (saved != null) { imagePath = saved; newImages = newImages + saved; imageError = false } else imageError = true
+        }
+    }
+    // Bersihkan file foto baru yang tidak jadi dipakai (dibatalkan / diganti)
+    fun cleanup(keep: String?) { newImages.filter { it != keep }.forEach { ImageStore.delete(it) } }
+    fun dismiss() { cleanup(null); onDismiss() }
+
+    AlertDialog(onDismissRequest = { dismiss() }, title = { Text(title) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DateField("Tanggal", date) { date = it }
                 NumberField(kmText, { kmText = it }, "Kilometer")
-                NumberField(costText, { costText = it }, "Biaya (Rp)")
+                NumberField(costText, { costText = it }, "Biaya", currency = true)
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Catatan") })
+
+                Text("Foto bukti servis (opsional)", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (imagePath != null) {
+                    StoredImage(imagePath, Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)), maxSide = 800)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { picker.launch("image/*") }) { Text(if (imagePath == null) "Pilih Foto" else "Ganti Foto") }
+                    if (imagePath != null) TextButton(onClick = { imagePath = null }) { Text("Hapus Foto", color = Color.Red) }
+                }
+                if (imageError) Text("Gagal membaca gambar.", color = Color.Red, fontSize = 12.sp)
             }
         },
-        confirmButton = { TextButton(enabled = posInt(kmText) != null, onClick = { posInt(kmText)?.let { onConfirm(it, date, costText.toLongOrNull() ?: 0L, notes.ifBlank { null }) } }) { Text("Simpan") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
+        confirmButton = {
+            TextButton(enabled = posInt(kmText) != null, onClick = {
+                posInt(kmText)?.let {
+                    cleanup(imagePath)
+                    onConfirm(it, date, costText.toLongOrNull() ?: 0L, notes.ifBlank { null }, imagePath)
+                }
+            }) { Text("Simpan") }
+        },
+        dismissButton = { TextButton(onClick = { dismiss() }) { Text("Batal") } })
 }
 
 @Composable
-fun RecordServiceDialog(schedule: MaintenanceSchedule?, initialKm: Int?, onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?) -> Unit) {
-    ServiceFormDialog(if (schedule != null) "Sudah service: ${schedule.name}" else "Catat Servis", initialKm, todayMillis(), 0L, null, onDismiss, onConfirm)
+fun RecordServiceDialog(schedule: MaintenanceSchedule?, initialKm: Int?, onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit) {
+    ServiceFormDialog(if (schedule != null) "Sudah service: ${schedule.name}" else "Catat Servis", initialKm, todayMillis(), 0L, null, null, onDismiss, onConfirm)
 }

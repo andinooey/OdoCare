@@ -27,7 +27,9 @@ data class MaintenanceSchedule(
     val vehicleId: String, val name: String,
     val intervalKm: Int? = null, val intervalMonths: Int? = null,
     val lastServiceKm: Int? = null, val lastServiceDate: Long? = null,
-    val archived: Boolean = false, val createdAt: Long = System.currentTimeMillis()
+    val archived: Boolean = false, val createdAt: Long = System.currentTimeMillis(),
+    // Notifikasi per kategori: hidup/mati + jam tampil
+    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0
 )
 
 @Entity(tableName = "service_records", foreignKeys = [ForeignKey(entity = Vehicle::class, parentColumns = ["id"], childColumns = ["vehicleId"], onDelete = ForeignKey.CASCADE)], indices = [Index("vehicleId")])
@@ -35,7 +37,9 @@ data class ServiceRecord(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val vehicleId: String, val scheduleId: String?, val title: String,
     val km: Int, val date: Long, val cost: Long = 0L, val notes: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    // Path foto bukti servis (disalin ke penyimpanan internal aplikasi)
+    val imagePath: String? = null
 )
 
 @Entity(tableName = "legal_documents", foreignKeys = [ForeignKey(entity = Vehicle::class, parentColumns = ["id"], childColumns = ["vehicleId"], onDelete = ForeignKey.CASCADE)], indices = [Index("vehicleId")])
@@ -60,7 +64,8 @@ data class DocumentHistory(
 data class MasterCategory(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String, val vehicleType: String = "ALL", // MOTOR / MOBIL / ALL
-    val defaultKm: Int = 0, val defaultMonths: Int = 0
+    val defaultKm: Int = 0, val defaultMonths: Int = 0,
+    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0
 )
 
 @Dao
@@ -83,6 +88,7 @@ interface VehicleDao {
 interface OdometerDao {
     @Query("SELECT * FROM odometer_logs WHERE vehicleId = :vid ORDER BY recordedAt DESC") fun observeForVehicle(vid: String): Flow<List<OdometerLog>>
     @Query("SELECT km FROM odometer_logs WHERE vehicleId = :vid ORDER BY recordedAt DESC LIMIT 1") fun observeLatest(vid: String): Flow<Int?>
+    @Query("SELECT km FROM odometer_logs WHERE vehicleId = :vid ORDER BY recordedAt DESC LIMIT 1") suspend fun latestKm(vid: String): Int?
     @Query("SELECT * FROM odometer_logs") fun observeAll(): Flow<List<OdometerLog>>
     @Query("SELECT * FROM odometer_logs") suspend fun all(): List<OdometerLog>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(log: OdometerLog)
@@ -104,6 +110,7 @@ interface ScheduleDao {
 @Dao
 interface ServiceRecordDao {
     @Query("SELECT * FROM service_records WHERE vehicleId = :vid ORDER BY date DESC") fun observeForVehicle(vid: String): Flow<List<ServiceRecord>>
+    @Query("SELECT imagePath FROM service_records WHERE vehicleId = :vid AND imagePath IS NOT NULL") suspend fun imagePathsForVehicle(vid: String): List<String>
     @Query("SELECT * FROM service_records") fun observeAll(): Flow<List<ServiceRecord>>
     @Query("SELECT * FROM service_records") suspend fun all(): List<ServiceRecord>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(r: ServiceRecord)
@@ -138,7 +145,7 @@ interface MasterDao {
     @Query("DELETE FROM master_categories") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class], version = 3, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class], version = 4, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -150,7 +157,7 @@ abstract class AppDb : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
         }
     }
 }
@@ -169,5 +176,17 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE legal_documents ADD COLUMN intervalValue INTEGER")
         db.execSQL("ALTER TABLE legal_documents ADD COLUMN intervalUnit TEXT")
         db.execSQL("ALTER TABLE legal_documents ADD COLUMN reminders TEXT NOT NULL DEFAULT '30:DAY,15:DAY'")
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE maintenance_schedules ADD COLUMN notifyEnabled INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE maintenance_schedules ADD COLUMN notifyHour INTEGER NOT NULL DEFAULT 9")
+        db.execSQL("ALTER TABLE maintenance_schedules ADD COLUMN notifyMinute INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE master_categories ADD COLUMN notifyEnabled INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE master_categories ADD COLUMN notifyHour INTEGER NOT NULL DEFAULT 9")
+        db.execSQL("ALTER TABLE master_categories ADD COLUMN notifyMinute INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE service_records ADD COLUMN imagePath TEXT")
     }
 }

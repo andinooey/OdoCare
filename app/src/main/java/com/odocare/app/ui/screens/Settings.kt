@@ -54,6 +54,12 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     var deleteTarget by remember { mutableStateOf<Vehicle?>(null) }
     var kmValueText by remember { mutableStateOf(Notif.kmReminderValue(ctx).takeIf { it > 0 }?.toString() ?: "") }
     var kmUnit by remember { mutableStateOf(Notif.kmReminderUnit(ctx)) }
+    var kmEnabled by remember { mutableStateOf(Notif.kmReminderEnabled(ctx)) }
+    var kmHour by remember { mutableStateOf(Notif.kmReminderHour(ctx)) }
+    var kmMinute by remember { mutableStateOf(Notif.kmReminderMinute(ctx)) }
+    var docEnabled by remember { mutableStateOf(Notif.docReminderEnabled(ctx)) }
+    var docHour by remember { mutableStateOf(Notif.docReminderHour(ctx)) }
+    var docMinute by remember { mutableStateOf(Notif.docReminderMinute(ctx)) }
     var message by remember { mutableStateOf<String?>(null) }
     var pendingRestore by remember { mutableStateOf<String?>(null) }
     var showPaste by remember { mutableStateOf(false) }
@@ -97,22 +103,53 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         }
 
         SectionCard("Pengingat Update KM") {
-            Text("Ingatkan saya memperbarui odometer jika KM belum dicatat selama:", color = TextGray, fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            NumberField(kmValueText, { kmValueText = it }, "Setiap (angka, kosong = nonaktif)")
-            Spacer(Modifier.height(8.dp))
-            UnitChips(kmUnit) { kmUnit = it }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Ingatkan saya memperbarui odometer jika KM belum dicatat selama:", Modifier.weight(1f), color = TextGray, fontSize = 13.sp)
+                Spacer(Modifier.width(8.dp))
+                Switch(checked = kmEnabled, onCheckedChange = { kmEnabled = it })
+            }
+            if (kmEnabled) {
+                Spacer(Modifier.height(8.dp))
+                NumberField(kmValueText, { kmValueText = it }, "Setiap (angka)")
+                Spacer(Modifier.height(8.dp))
+                UnitChips(kmUnit) { kmUnit = it }
+                Spacer(Modifier.height(8.dp))
+                TimeField("Jam notifikasi", kmHour, kmMinute) { h, m -> kmHour = h; kmMinute = m }
+            }
             Spacer(Modifier.height(8.dp))
             Button(colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black), onClick = {
                 val v = kmValueText.toIntOrNull() ?: 0
-                Notif.setKmReminder(ctx, v, kmUnit)
-                Notif.scheduleDaily(ctx)
-                message = if (v > 0) "Pengingat update KM: setiap $v ${kmUnit.label.lowercase()} (diulang selama KM belum diperbarui)." else "Pengingat update KM dinonaktifkan."
+                if (kmEnabled && v <= 0) {
+                    message = "Isi angka interval dulu, atau matikan pengingat."
+                } else {
+                    Notif.setKmReminder(ctx, kmEnabled, v, kmUnit, kmHour, kmMinute)
+                    Notif.schedulePolling(ctx)
+                    message = if (kmEnabled) "Pengingat update KM: setiap $v ${kmUnit.label.lowercase()} pukul ${fmtTime(kmHour, kmMinute)} (diulang selama KM belum diperbarui)." else "Pengingat update KM dimatikan."
+                }
             }) { Text("Simpan") }
         }
 
+        SectionCard("Pengingat Pajak & Dokumen") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Notifikasi jatuh tempo", color = TextWhite)
+                    Text("Berapa lama sebelum jatuh tempo diatur per dokumen di menu Pajak & Dokumen.", color = TextGray, fontSize = 12.sp)
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(checked = docEnabled, onCheckedChange = {
+                    docEnabled = it; Notif.setDocReminder(ctx, docEnabled, docHour, docMinute); Notif.schedulePolling(ctx)
+                })
+            }
+            if (docEnabled) {
+                Spacer(Modifier.height(8.dp))
+                TimeField("Jam notifikasi", docHour, docMinute) { h, m ->
+                    docHour = h; docMinute = m; Notif.setDocReminder(ctx, docEnabled, h, m); Notif.schedulePolling(ctx)
+                }
+            }
+        }
+
         SectionCard("Notifikasi & Kalender") {
-            Text("Pengingat pajak dan dokumen diatur per dokumen, saat menambah atau mengedit di menu Pajak & Dokumen. Notifikasi dikirim sekitar pukul 09.00.", color = TextGray, fontSize = 13.sp)
+            Text("Pastikan izin notifikasi aktif. Jam pengiriman diatur di tiap pengingat; pengecekan berjalan berkala sehingga bisa telat beberapa menit.", color = TextGray, fontSize = 13.sp)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {

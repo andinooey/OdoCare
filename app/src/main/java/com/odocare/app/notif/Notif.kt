@@ -12,8 +12,11 @@ import androidx.work.*
 import com.odocare.app.MainActivity
 import com.odocare.app.R
 import com.odocare.app.data.AppDb
+import com.odocare.app.domain.Engines
 import com.odocare.app.domain.IntervalUnit
 import com.odocare.app.domain.Reminders
+import com.odocare.app.domain.ServiceStatus
+import com.odocare.app.ui.fmtKm
 import java.time.*
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
@@ -39,21 +42,34 @@ object Notif {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("odocare", Context.MODE_PRIVATE)
 
-    // ---- Pengingat update KM: "setiap N hari/bulan/tahun" (N = 0 berarti nonaktif) ----
+    // ---- Pengingat update KM: "setiap N hari/bulan/tahun" pada jam tertentu, bisa dimatikan ----
     fun kmReminderValue(ctx: Context): Int = prefs(ctx).getInt("km_reminder_value", 1)
     fun kmReminderUnit(ctx: Context): IntervalUnit = IntervalUnit.parse(prefs(ctx).getString("km_reminder_unit", "MONTH")) ?: IntervalUnit.MONTH
-    fun setKmReminder(ctx: Context, value: Int, unit: IntervalUnit) {
-        prefs(ctx).edit().putInt("km_reminder_value", value.coerceAtLeast(0)).putString("km_reminder_unit", unit.name).apply()
+    fun kmReminderEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("km_reminder_enabled", kmReminderValue(ctx) > 0)
+    fun kmReminderHour(ctx: Context): Int = prefs(ctx).getInt("km_reminder_hour", 9)
+    fun kmReminderMinute(ctx: Context): Int = prefs(ctx).getInt("km_reminder_minute", 0)
+    fun setKmReminder(ctx: Context, enabled: Boolean, value: Int, unit: IntervalUnit, hour: Int, minute: Int) {
+        prefs(ctx).edit().putBoolean("km_reminder_enabled", enabled).putInt("km_reminder_value", value.coerceAtLeast(0))
+            .putString("km_reminder_unit", unit.name).putInt("km_reminder_hour", hour).putInt("km_reminder_minute", minute).apply()
     }
 
-    /** Dijalankan tiap hari sekitar pukul 09.00. Dijadwalkan ulang setiap aplikasi dibuka. */
-    fun scheduleDaily(ctx: Context) {
-        val now = LocalDateTime.now()
-        var next = now.toLocalDate().atTime(9, 0)
-        if (!next.isAfter(now)) next = next.plusDays(1)
-        val delayMin = Duration.between(now, next).toMinutes()
-        val req = PeriodicWorkRequestBuilder<ReminderWorker>(1, TimeUnit.DAYS).setInitialDelay(delayMin, TimeUnit.MINUTES).build()
-        WorkManager.getInstance(ctx).enqueueUniquePeriodicWork("odocare_daily_reminder", ExistingPeriodicWorkPolicy.UPDATE, req)
+    // ---- Pengingat pajak & dokumen: on/off + jam (jarak hari tiap dokumen tetap diatur di form dokumen) ----
+    fun docReminderEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("doc_reminder_enabled", true)
+    fun docReminderHour(ctx: Context): Int = prefs(ctx).getInt("doc_reminder_hour", 9)
+    fun docReminderMinute(ctx: Context): Int = prefs(ctx).getInt("doc_reminder_minute", 0)
+    fun setDocReminder(ctx: Context, enabled: Boolean, hour: Int, minute: Int) {
+        prefs(ctx).edit().putBoolean("doc_reminder_enabled", enabled).putInt("doc_reminder_hour", hour).putInt("doc_reminder_minute", minute).apply()
+    }
+
+    /**
+     * Worker berkala (tiap 15 menit, minimum WorkManager). Setiap pengingat punya jam sendiri; worker mengirim bila jamnya
+     * sudah lewat dan belum terkirim hari itu, jadi tetap terkirim (agak telat) walau HP sempat Doze.
+     */
+    fun schedulePolling(ctx: Context) {
+        val wm = WorkManager.getInstance(ctx)
+        wm.cancelUniqueWork("odocare_daily_reminder")   // jadwal lama (sekali sehari jam 09.00)
+        val req = PeriodicWorkRequestBuilder<ReminderWorker>(15, TimeUnit.MINUTES).build()
+        wm.enqueueUniquePeriodicWork("odocare_reminder_poll", ExistingPeriodicWorkPolicy.UPDATE, req)
     }
 }
 
@@ -64,40 +80,59 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
         val ctx = applicationContext
         val db = AppDb.get(ctx)
         val prefs = ctx.getSharedPreferences("odocare", Context.MODE_PRIVATE)
-        val today = LocalDate.now()
+        val now = LocalDateTime.now()
+        val today = now.toLocalDate()
         val todayEpoch = today.toEpochDay()
+        val nowMinutes = now.hour * 60 + now.minute
+        fun reached(hour: Int, minute: Int) = nowMinutes >= hour * 60 + minute
         val vehicles = db.vehicleDao().all()
         val vehicleNames = vehicles.associate { it.id to it.name }
 
-        // 1) Dokumen: pengingat per dokumen + hari jatuh tempo.
-        //    Jendela (terakhir jalan, hari ini] agar hari yang terlewat (HP mati/Doze) tetap terkejar, maksimal 3 hari ke belakang.
-        val lastRun = prefs.getLong("worker_last_run_day", todayEpoch - 1)
-        val from = maxOf(lastRun + 1, todayEpoch - 3)
-        db.documentDao().all().forEach { d ->
-            val expiry = toDate(d.expiryDate)
-            val triggerDays = Reminders.parse(d.reminders).map { it.dateFor(expiry).toEpochDay() } + expiry.toEpochDay()
-            val days = ChronoUnit.DAYS.between(today, expiry)
-            if (days >= 0 && triggerDays.any { it in from..todayEpoch }) {
+        // 1) Pajak & dokumen: pengingat per dokumen (mis. 30 & 15 hari sebelum) + hari jatuh tempo, dikirim pada jam yang dipilih.
+        //    Hari pemicu yang terlewat (HP mati) tetap dikejar maksimal 3 hari ke belakang, tiap pemicu hanya sekali.
+        if (Notif.docReminderEnabled(ctx) && reached(Notif.docReminderHour(ctx), Notif.docReminderMinute(ctx))) {
+            db.documentDao().all().forEach { d ->
+                val expiry = toDate(d.expiryDate)
+                val days = ChronoUnit.DAYS.between(today, expiry)
+                if (days < 0) return@forEach
+                val triggers = Reminders.parse(d.reminders).map { it.dateFor(expiry).toEpochDay() } + expiry.toEpochDay()
+                val key = "doc_handled_${d.id}"
+                val handled = prefs.getLong(key, Long.MIN_VALUE)
+                val trigger = triggers.filter { it in (todayEpoch - 3)..todayEpoch && it > handled }.maxOrNull() ?: return@forEach
                 val label = d.type.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() } + (vehicleNames[d.vehicleId]?.let { " ($it)" } ?: "")
                 if (days == 0L) Notif.show(ctx, Notif.CH_DOCUMENTS, "Jatuh tempo hari ini", "$label jatuh tempo hari ini")
                 else Notif.show(ctx, Notif.CH_DOCUMENTS, "Dokumen mendekati jatuh tempo", "$label jatuh tempo dalam $days hari")
+                prefs.edit().putLong(key, trigger).apply()
             }
         }
-        prefs.edit().putLong("worker_last_run_day", todayEpoch).apply()
 
-        // 2) Jadwal servis berbasis bulan
+        // 2) Perawatan komponen: tiap kategori punya on/off + jam sendiri. Dikirim saat status Segera/Lewat (berdasarkan km dan/atau bulan),
+        //    diulang tiap 3 hari selama belum diservis, atau langsung bila statusnya berubah.
+        val latestKm = db.odometerDao().all().groupBy { it.vehicleId }.mapValues { (_, l) -> l.maxByOrNull { it.recordedAt }!!.km }
         db.scheduleDao().allActive().forEach { s ->
-            if (s.intervalMonths != null && s.lastServiceDate != null) {
-                val days = ChronoUnit.DAYS.between(today, toDate(s.lastServiceDate).plusMonths(s.intervalMonths.toLong()))
-                if (days < 0) Notif.show(ctx, Notif.CH_SERVICE, "Servis terlambat", "${s.name} sudah lewat ${-days} hari")
-                else if (days <= 14) Notif.show(ctx, Notif.CH_SERVICE, "Servis mendekati jadwal", "${s.name} dalam $days hari")
-            }
+            if (!s.notifyEnabled || !reached(s.notifyHour, s.notifyMinute)) return@forEach
+            val view = Engines.scheduleView(s, latestKm[s.vehicleId], today)
+            if (view.status != ServiceStatus.SOON && view.status != ServiceStatus.DUE && view.status != ServiceStatus.LATE) return@forEach
+            val key = "svc_sent_${s.id}"
+            val last = prefs.getString(key, null)?.split('|')
+            val lastStatus = last?.getOrNull(0)
+            val lastDay = last?.getOrNull(1)?.toLongOrNull() ?: Long.MIN_VALUE
+            if (lastStatus == view.status.name && todayEpoch - lastDay < 3) return@forEach
+
+            val parts = mutableListOf<String>()
+            view.kmRemaining?.let { parts += if (it < 0) "lewat ${fmtKm(-it)} km" else "sisa ${fmtKm(it)} km" }
+            view.daysRemaining?.let { parts += if (it < 0) "lewat ${-it} hari" else "sisa $it hari" }
+            val name = s.name + (vehicleNames[s.vehicleId]?.let { " ($it)" } ?: "")
+            val detail = if (parts.isEmpty()) "" else ": " + parts.joinToString(", ")
+            if (view.status == ServiceStatus.LATE) Notif.show(ctx, Notif.CH_SERVICE, "Servis terlambat", "$name sudah lewat jadwal$detail")
+            else Notif.show(ctx, Notif.CH_SERVICE, "Servis mendekati jadwal", "$name segera diservis$detail")
+            prefs.edit().putString(key, "${view.status.name}|$todayEpoch").apply()
         }
 
-        // 3) Pengingat update KM: bila KM terakhir dicatat sudah >= N hari/bulan/tahun lalu.
+        // 3) Pengingat update KM: bila KM terakhir dicatat sudah >= N hari/bulan/tahun lalu, pada jam yang dipilih.
         //    Diulang tiap interval selama KM belum diperbarui.
         val kmValue = Notif.kmReminderValue(ctx)
-        if (kmValue > 0) {
+        if (Notif.kmReminderEnabled(ctx) && kmValue > 0 && reached(Notif.kmReminderHour(ctx), Notif.kmReminderMinute(ctx))) {
             val unit = Notif.kmReminderUnit(ctx)
             val lastByVehicle = db.odometerDao().all().groupBy { it.vehicleId }.mapValues { (_, l) -> l.maxOf { it.recordedAt } }
             vehicles.forEach { v ->

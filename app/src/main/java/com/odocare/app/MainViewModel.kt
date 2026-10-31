@@ -47,16 +47,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteOdometer(id: String) = viewModelScope.launch { repo.deleteOdometer(id) }
 
     // ---- Jadwal / kategori servis ----
-    fun addSchedule(name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long) = viewModelScope.launch {
-        activeVehicle.value?.let { if (name.isNotBlank()) repo.addSchedule(MaintenanceSchedule(vehicleId = it.id, name = name.trim(), intervalKm = intervalKm, intervalMonths = intervalMonths, lastServiceKm = lastKm ?: currentKm.value, lastServiceDate = lastDate)) }
+    fun addSchedule(name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) = viewModelScope.launch {
+        activeVehicle.value?.let { if (name.isNotBlank()) repo.addSchedule(MaintenanceSchedule(vehicleId = it.id, name = name.trim(), intervalKm = intervalKm, intervalMonths = intervalMonths, lastServiceKm = lastKm ?: currentKm.value, lastServiceDate = lastDate, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute)) }
     }
     fun updateSchedule(s: MaintenanceSchedule) = viewModelScope.launch { repo.updateSchedule(s) }
     fun deleteSchedule(id: String) = viewModelScope.launch { repo.deleteSchedule(id) }
-    fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, notes: String?) = viewModelScope.launch { if (km > 0) repo.recordService(schedule, km, dateMillis, cost, notes) }
+    fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, notes: String?, imagePath: String?) = viewModelScope.launch { if (km > 0) repo.recordService(schedule, km, dateMillis, cost, notes, imagePath) }
 
     // ---- Riwayat servis ----
-    fun updateRecord(r: ServiceRecord) = viewModelScope.launch { repo.updateRecord(r) }
-    fun deleteRecord(id: String) = viewModelScope.launch { repo.deleteRecord(id) }
+    fun updateRecord(r: ServiceRecord) = viewModelScope.launch {
+        val old = records.value.firstOrNull { it.id == r.id }?.imagePath
+        repo.updateRecord(r)
+        if (old != null && old != r.imagePath) ImageStore.delete(old)
+    }
+    fun deleteRecord(id: String) = viewModelScope.launch {
+        val old = records.value.firstOrNull { it.id == id }?.imagePath
+        repo.deleteRecord(id)
+        ImageStore.delete(old)
+    }
 
     // ---- Dokumen ----
     fun addDocument(type: String, expiryMillis: Long, number: String?, lastRenewed: Long?, intervalValue: Int?, intervalUnit: String?, reminders: String) = viewModelScope.launch {
@@ -67,7 +75,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteDocument(id: String) = viewModelScope.launch { repo.deleteDocument(id) }
 
     // ---- Master kategori (tidak mengubah kendaraan yang sudah ada) ----
-    fun addMaster(name: String, type: String, km: Int, months: Int) = viewModelScope.launch { if (name.isNotBlank()) repo.addMaster(MasterCategory(name = name.trim(), vehicleType = type, defaultKm = km, defaultMonths = months)) }
+    fun addMaster(name: String, type: String, km: Int, months: Int, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) = viewModelScope.launch {
+        if (name.isNotBlank()) repo.addMaster(MasterCategory(name = name.trim(), vehicleType = type, defaultKm = km, defaultMonths = months, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute))
+    }
     fun updateMaster(m: MasterCategory) = viewModelScope.launch { repo.updateMaster(m) }
     fun deleteMaster(id: String) = viewModelScope.launch { repo.deleteMaster(id) }
 

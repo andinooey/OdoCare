@@ -2,7 +2,11 @@
 
 package com.odocare.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -28,6 +32,7 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onOpenOdometer: () -> U
     val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
     var editTarget by remember { mutableStateOf<ServiceRecord?>(null) }
     var deleteTarget by remember { mutableStateOf<ServiceRecord?>(null) }
+    var viewImage by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         contentWindowInsets = NoInsets,
@@ -45,6 +50,10 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onOpenOdometer: () -> U
                                 Text("${fmtDate(r.date)} · ${fmtKm(r.km)} km", style = MaterialTheme.typography.bodySmall, color = TextGray)
                                 if (r.cost > 0) Text(rupiah(r.cost), style = MaterialTheme.typography.bodyMedium, color = LavenderPrimary)
                                 if (!r.notes.isNullOrBlank()) Text(r.notes, style = MaterialTheme.typography.bodySmall, color = TextGray)
+                                if (r.imagePath != null) {
+                                    Spacer(Modifier.height(6.dp))
+                                    StoredImage(r.imagePath, Modifier.size(72.dp).clip(RoundedCornerShape(8.dp)).clickable { viewImage = r.imagePath })
+                                }
                             }
                             IconButton(onClick = { editTarget = r }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
                             IconButton(onClick = { deleteTarget = r }) { Icon(Icons.Default.Delete, "Hapus", tint = Color.Red) }
@@ -55,9 +64,13 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onOpenOdometer: () -> U
         }
     }
     editTarget?.let { r ->
-        ServiceFormDialog("Edit Riwayat: ${r.title}", r.km, r.date, r.cost, r.notes, { editTarget = null }) { km, date, cost, notes ->
-            vm.updateRecord(r.copy(km = km, date = date, cost = cost, notes = notes)); editTarget = null
+        ServiceFormDialog("Edit Riwayat: ${r.title}", r.km, r.date, r.cost, r.notes, r.imagePath, { editTarget = null }) { km, date, cost, notes, img ->
+            vm.updateRecord(r.copy(km = km, date = date, cost = cost, notes = notes, imagePath = img)); editTarget = null
         }
+    }
+    viewImage?.let { path ->
+        AlertDialog(onDismissRequest = { viewImage = null }, text = { StoredImage(path, Modifier.fillMaxWidth(), maxSide = 1600, contentScale = ContentScale.Fit) },
+            confirmButton = { TextButton(onClick = { viewImage = null }) { Text("Tutup") } })
     }
     deleteTarget?.let { r -> ConfirmDialog("Hapus riwayat?", "${r.title} (${fmtDate(r.date)}) akan dihapus. Jadwal servis tidak berubah.", "Hapus", { vm.deleteRecord(r.id); deleteTarget = null }, { deleteTarget = null }) }
 }

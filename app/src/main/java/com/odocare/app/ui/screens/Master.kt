@@ -3,6 +3,8 @@
 package com.odocare.app.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -45,6 +47,7 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
                             val parts = mutableListOf(vehicleTypeLabel(m.vehicleType))
                             if (m.defaultKm > 0) parts += "${fmtKm(m.defaultKm)} km"
                             if (m.defaultMonths > 0) parts += "${m.defaultMonths} bulan"
+                            if (m.defaultKm > 0 || m.defaultMonths > 0) parts += if (m.notifyEnabled) "🔔 ${fmtTime(m.notifyHour, m.notifyMinute)}" else "🔕 Mati"
                             Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = TextGray)
                         }
                         IconButton(onClick = { editTarget = m }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
@@ -54,28 +57,34 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
             }
         }
     }
-    if (showAdd) MasterFormDialog("Tambah Master", null, { showAdd = false }) { n, t, k, mo -> vm.addMaster(n, t, k, mo); showAdd = false }
-    editTarget?.let { m -> MasterFormDialog("Edit Master", m, { editTarget = null }) { n, t, k, mo -> vm.updateMaster(m.copy(name = n, vehicleType = t, defaultKm = k, defaultMonths = mo)); editTarget = null } }
+    if (showAdd) MasterFormDialog("Tambah Master", null, { showAdd = false }) { n, t, k, mo, ne, nh, nm -> vm.addMaster(n, t, k, mo, ne, nh, nm); showAdd = false }
+    editTarget?.let { m -> MasterFormDialog("Edit Master", m, { editTarget = null }) { n, t, k, mo, ne, nh, nm -> vm.updateMaster(m.copy(name = n, vehicleType = t, defaultKm = k, defaultMonths = mo, notifyEnabled = ne, notifyHour = nh, notifyMinute = nm)); editTarget = null } }
     deleteTarget?.let { m -> ConfirmDialog("Hapus master?", "\"${m.name}\" dihapus dari master. Kendaraan yang sudah ada tidak terpengaruh.", "Hapus", { vm.deleteMaster(m.id); deleteTarget = null }, { deleteTarget = null }) }
 }
 
 @Composable
-private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss: () -> Unit, onSave: (name: String, type: String, km: Int, months: Int) -> Unit) {
+private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss: () -> Unit, onSave: (name: String, type: String, km: Int, months: Int, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) -> Unit) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var type by remember { mutableStateOf(initial?.vehicleType ?: "ALL") }
     var kmT by remember { mutableStateOf(initial?.defaultKm?.takeIf { it > 0 }?.toString() ?: "") }
     var moT by remember { mutableStateOf(initial?.defaultMonths?.takeIf { it > 0 }?.toString() ?: "") }
+    var notifyOn by remember { mutableStateOf(initial?.notifyEnabled ?: true) }
+    var notifyHour by remember { mutableStateOf(initial?.notifyHour ?: 9) }
+    var notifyMinute by remember { mutableStateOf(initial?.notifyMinute ?: 0) }
+    val hasInterval = posInt(kmT) != null || posInt(moT) != null
     AlertDialog(onDismissRequest = onDismiss, title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama") }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("ALL", "MOTOR", "MOBIL").forEach { t -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(vehicleTypeLabel(t)) }) }
                 }
                 NumberField(kmT, { kmT = it }, "Interval km default")
                 NumberField(moT, { moT = it }, "Interval bulan default (kosong = tidak dipakai)")
+                // Opsi notifikasi baru muncul setelah interval diisi
+                if (hasInterval) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
             }
         },
-        confirmButton = { TextButton(enabled = name.isNotBlank() && (posInt(kmT) != null || posInt(moT) != null), onClick = { onSave(name.trim(), type, kmT.toIntOrNull() ?: 0, moT.toIntOrNull() ?: 0) }) { Text("Simpan") } },
+        confirmButton = { TextButton(enabled = name.isNotBlank() && (posInt(kmT) != null || posInt(moT) != null), onClick = { onSave(name.trim(), type, kmT.toIntOrNull() ?: 0, moT.toIntOrNull() ?: 0, notifyOn, notifyHour, notifyMinute) }) { Text("Simpan") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
 }
