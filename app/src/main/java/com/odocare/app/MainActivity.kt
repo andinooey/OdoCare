@@ -62,25 +62,33 @@ private fun NavHostController.navigateTab(route: String) = navigate(route) {
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
+/** Halaman non-tab ditandai ke tab induknya agar tab tetap menyala. */
+private fun parentTab(route: String?): String? = when (route) {
+    "history", "odometer", "documents" -> "home"
+    "master" -> "settings"
+    else -> route
+}
+
 @Composable
 private fun OdoCareRoot(vm: MainViewModel) {
     val nav = rememberNavController()
     val tabs = listOf(
         Tab("home", "Home", Icons.Default.Home),
-        Tab("schedule", "Maintenance", Icons.Default.Build),
-        Tab("odometer", "History", Icons.Default.History),
-        Tab("settings", "Vehicle", Icons.Default.TwoWheeler)
+        Tab("schedule", "Servis", Icons.Default.Build),
+        Tab("dashboard", "Dashboard", Icons.Default.Dashboard),
+        Tab("report", "Laporan", Icons.Default.BarChart),
+        Tab("settings", "Kendaraan", Icons.Default.TwoWheeler)
     )
     val backStack by nav.currentBackStackEntryAsState()
-    val currentRoute = backStack?.destination?.route
+    val currentTab = parentTab(backStack?.destination?.route)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             Surface(color = SurfaceDark, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 12.dp, bottom = 16.dp, start = 8.dp, end = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 12.dp, bottom = 16.dp, start = 4.dp, end = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                     tabs.forEach { tab ->
-                        val selected = currentRoute == tab.route
+                        val selected = currentTab == tab.route
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (selected) LavenderPrimary.copy(alpha = 0.2f) else Color.Transparent)
@@ -88,7 +96,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
                         ) {
                             Icon(tab.icon, tab.label, tint = if (selected) LavenderPrimary else Color.Gray)
                             Spacer(Modifier.height(4.dp))
-                            Text(tab.label, fontSize = 10.sp, color = if (selected) LavenderPrimary else Color.Gray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            Text(tab.label, fontSize = 10.sp, maxLines = 1, color = if (selected) LavenderPrimary else Color.Gray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                         }
                     }
                 }
@@ -96,11 +104,26 @@ private fun OdoCareRoot(vm: MainViewModel) {
         }
     ) { padding ->
         NavHost(navController = nav, startDestination = "home", modifier = Modifier.padding(padding)) {
-            composable("home") { HomeScreen(vm, onNavigateToSchedule = { nav.navigateTab("schedule") }, onNavigateToHistory = { nav.navigateTab("odometer") }, onNavigateToDocuments = { nav.navigate("documents") { launchSingleTop = true } }) }
-            composable("odometer") { OdometerScreen(vm) }
+            composable("home") {
+                HomeScreen(vm,
+                    onNavigateToSchedule = { nav.navigateTab("schedule") },
+                    onNavigateToHistory = { nav.navigate("history") { launchSingleTop = true } },
+                    onNavigateToDocuments = { nav.navigate("documents") { launchSingleTop = true } },
+                    onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } })
+            }
             composable("schedule") { ScheduleScreen(vm) }
+            composable("dashboard") {
+                DashboardScreen(vm) { vehicleId, route ->
+                    vm.setActiveVehicle(vehicleId)
+                    if (route == "schedule") nav.navigateTab("schedule") else nav.navigate(route) { launchSingleTop = true }
+                }
+            }
+            composable("report") { ReportScreen(vm) }
+            composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }) }
+            composable("history") { HistoryScreen(vm, onBack = { nav.popBackStack() }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }
+            composable("odometer") { OdometerScreen(vm, onBack = { nav.popBackStack() }) }
             composable("documents") { DocumentsScreen(vm, onBack = { nav.popBackStack() }) }
-            composable("settings") { SettingsScreen(vm) }
+            composable("master") { MasterScreen(vm, onBack = { nav.popBackStack() }) }
         }
     }
 }

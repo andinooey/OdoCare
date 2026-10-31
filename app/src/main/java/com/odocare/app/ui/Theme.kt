@@ -30,3 +30,6 @@ private val DarkScheme = darkColorScheme(
 fun OdoCareTheme(mode: String, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = DarkScheme, typography = Typography(), content = content)
 }
+
+val StatusYellowBg = Color(0xFF4A3F12)
+val StatusYellowText = Color(0xFFFFE082)
