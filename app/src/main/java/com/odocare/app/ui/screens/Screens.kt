@@ -5,6 +5,7 @@ package com.odocare.app.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,6 +43,7 @@ fun HomeScreen(
     onNavigateToSchedule: () -> Unit, onNavigateToHistory: () -> Unit,
     onNavigateToDocuments: () -> Unit, onNavigateToOdometer: () -> Unit
 ) {
+    val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
     val km by vm.currentKm.collectAsStateWithLifecycle()
     val schedules by vm.schedules.collectAsStateWithLifecycle()
@@ -61,7 +63,15 @@ fun HomeScreen(
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onNavigateToDocuments) { Icon(Icons.Default.Description, "Dokumen", tint = Color.White) }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
+
+        // Pindah kendaraan aktif langsung dari Home (hanya tampil bila punya lebih dari satu)
+        if (vehicles.size > 1) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                vehicles.forEach { item -> FilterChip(selected = item.id == vehicle?.id, onClick = { vm.setActiveVehicle(item.id) }, label = { Text(item.name) }) }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
 
         val v = vehicle
         Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {

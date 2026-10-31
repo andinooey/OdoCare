@@ -30,7 +30,8 @@ object Backup {
             a.put(JSONObject().put("id", r.id).put("vehicleId", r.vehicleId).put("scheduleId", nz(r.scheduleId)).put("title", r.title).put("km", r.km).put("date", r.date).put("cost", r.cost).put("notes", nz(r.notes)).put("createdAt", r.createdAt))
         } })
         root.put("documents", JSONArray().also { a -> db.documentDao().all().forEach { d ->
-            a.put(JSONObject().put("id", d.id).put("vehicleId", d.vehicleId).put("type", d.type).put("number", nz(d.number)).put("expiryDate", d.expiryDate).put("notes", nz(d.notes)).put("createdAt", d.createdAt))
+            a.put(JSONObject().put("id", d.id).put("vehicleId", d.vehicleId).put("type", d.type).put("number", nz(d.number)).put("expiryDate", d.expiryDate).put("notes", nz(d.notes)).put("createdAt", d.createdAt)
+                .put("lastRenewedDate", nz(d.lastRenewedDate)).put("intervalValue", nz(d.intervalValue)).put("intervalUnit", nz(d.intervalUnit)).put("reminders", d.reminders))
         } })
         root.put("documentHistory", JSONArray().also { a -> db.docHistoryDao().all().forEach { h ->
             a.put(JSONObject().put("id", h.id).put("documentId", h.documentId).put("oldExpiry", h.oldExpiry).put("newExpiry", h.newExpiry).put("renewedAt", h.renewedAt))
@@ -50,7 +51,7 @@ object Backup {
         val odometer = root.getJSONArray("odometer").mapObjects { OdometerLog(it.getString("id"), it.getString("vehicleId"), it.getInt("km"), it.getLong("recordedAt")) }
         val schedules = root.getJSONArray("schedules").mapObjects { MaintenanceSchedule(it.getString("id"), it.getString("vehicleId"), it.getString("name"), it.intOrNull("intervalKm"), it.intOrNull("intervalMonths"), it.intOrNull("lastServiceKm"), it.longOrNull("lastServiceDate"), it.optBoolean("archived", false), it.optLong("createdAt", System.currentTimeMillis())) }
         val records = root.getJSONArray("records").mapObjects { ServiceRecord(it.getString("id"), it.getString("vehicleId"), it.strOrNull("scheduleId"), it.getString("title"), it.getInt("km"), it.getLong("date"), it.optLong("cost", 0L), it.strOrNull("notes"), it.optLong("createdAt", System.currentTimeMillis())) }
-        val documents = root.getJSONArray("documents").mapObjects { LegalDocument(it.getString("id"), it.getString("vehicleId"), it.getString("type"), it.strOrNull("number"), it.getLong("expiryDate"), it.strOrNull("notes"), it.optLong("createdAt", System.currentTimeMillis())) }
+        val documents = root.getJSONArray("documents").mapObjects { LegalDocument(id = it.getString("id"), vehicleId = it.getString("vehicleId"), type = it.getString("type"), number = it.strOrNull("number"), expiryDate = it.getLong("expiryDate"), notes = it.strOrNull("notes"), createdAt = it.optLong("createdAt", System.currentTimeMillis()), lastRenewedDate = it.longOrNull("lastRenewedDate"), intervalValue = it.intOrNull("intervalValue"), intervalUnit = it.strOrNull("intervalUnit"), reminders = it.optString("reminders", "30:DAY,15:DAY")) }
         val history = root.getJSONArray("documentHistory").mapObjects { DocumentHistory(it.getString("id"), it.getString("documentId"), it.getLong("oldExpiry"), it.getLong("newExpiry"), it.optLong("renewedAt", System.currentTimeMillis())) }
         val masters = root.getJSONArray("masters").mapObjects { MasterCategory(it.getString("id"), it.getString("name"), it.optString("vehicleType", "ALL"), it.optInt("defaultKm", 0), it.optInt("defaultMonths", 0)) }
 

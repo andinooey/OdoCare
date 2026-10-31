@@ -42,7 +42,11 @@ data class ServiceRecord(
 data class LegalDocument(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val vehicleId: String, val type: String, val number: String? = null,
-    val expiryDate: Long, val notes: String? = null, val createdAt: Long = System.currentTimeMillis()
+    val expiryDate: Long, val notes: String? = null, val createdAt: Long = System.currentTimeMillis(),
+    // Jatuh tempo = lastRenewedDate + interval (jika keduanya diisi)
+    val lastRenewedDate: Long? = null, val intervalValue: Int? = null, val intervalUnit: String? = null,
+    // Pengingat notifikasi per dokumen, mis. "30:DAY,15:DAY,1:MONTH"
+    val reminders: String = "30:DAY,15:DAY"
 )
 
 @Entity(tableName = "document_history", foreignKeys = [ForeignKey(entity = LegalDocument::class, parentColumns = ["id"], childColumns = ["documentId"], onDelete = ForeignKey.CASCADE)], indices = [Index("documentId")])
@@ -134,7 +138,7 @@ interface MasterDao {
     @Query("DELETE FROM master_categories") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class], version = 2, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class], version = 3, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -146,7 +150,7 @@ abstract class AppDb : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
         }
     }
 }
@@ -156,5 +160,14 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("ALTER TABLE vehicles ADD COLUMN plate TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE vehicles ADD COLUMN initialKm INTEGER NOT NULL DEFAULT 0")
         db.execSQL("CREATE TABLE IF NOT EXISTS master_categories (id TEXT NOT NULL, name TEXT NOT NULL, vehicleType TEXT NOT NULL, defaultKm INTEGER NOT NULL, defaultMonths INTEGER NOT NULL, PRIMARY KEY(id))")
+    }
+}
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN lastRenewedDate INTEGER")
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN intervalValue INTEGER")
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN intervalUnit TEXT")
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN reminders TEXT NOT NULL DEFAULT '30:DAY,15:DAY'")
     }
 }

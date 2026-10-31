@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.odocare.app.data.ServiceRecord
+import com.odocare.app.domain.IntervalUnit
 import com.odocare.app.domain.ScheduleView
 import java.text.NumberFormat
 import java.time.Instant
@@ -42,6 +43,7 @@ private val dateTimeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM
 fun fmtDate(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFmt)
 fun fmtDateTime(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(dateTimeFmt)
 fun msToLocalDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
+fun localDateToMillis(d: LocalDate): Long = d.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 fun todayMillis(): Long = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 fun toPickerMillis(sys: Long): Long = msToLocalDate(sys).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 fun fromPickerMillis(pic: Long): Long = Instant.ofEpochMilli(pic).atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -220,5 +222,13 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier) {
             Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(label, fontSize = 12.sp, color = TextGray)
         }
+    }
+}
+
+/** Pilihan satuan Hari / Bulan / Tahun */
+@Composable
+fun UnitChips(selected: IntervalUnit, onSelect: (IntervalUnit) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        IntervalUnit.values().forEach { u -> FilterChip(selected = selected == u, onClick = { onSelect(u) }, label = { Text(u.label) }) }
     }
 }

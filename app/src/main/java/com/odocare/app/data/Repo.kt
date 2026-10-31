@@ -48,8 +48,9 @@ class Repo(private val ctx: Context) {
                 sDao.insert(MaintenanceSchedule(vehicleId = v.id, name = m.name, intervalKm = m.defaultKm.takeIf { it > 0 }, intervalMonths = m.defaultMonths.takeIf { it > 0 }, lastServiceKm = v.initialKm, lastServiceDate = now))
             }
             val today = LocalDate.now()
-            dDao.insert(LegalDocument(vehicleId = v.id, type = "PAJAK_TAHUNAN", expiryDate = dayMillis(today.plusYears(1))))
-            dDao.insert(LegalDocument(vehicleId = v.id, type = "GANTI_PLAT", expiryDate = dayMillis(today.plusYears(5))))
+            // Tanggal jatuh tempo hanya perkiraan; user mengisi tanggal perpanjang terakhir di form dokumen
+            dDao.insert(LegalDocument(vehicleId = v.id, type = "PAJAK_TAHUNAN", expiryDate = dayMillis(today.plusYears(1)), intervalValue = 1, intervalUnit = "YEAR"))
+            dDao.insert(LegalDocument(vehicleId = v.id, type = "GANTI_PLAT", expiryDate = dayMillis(today.plusYears(5)), intervalValue = 5, intervalUnit = "YEAR"))
         }
     }
 
@@ -78,9 +79,9 @@ class Repo(private val ctx: Context) {
 
     suspend fun addDocument(d: LegalDocument) = dDao.insert(d)
     suspend fun updateDocument(d: LegalDocument) = dDao.update(d)
-    suspend fun renewDocument(doc: LegalDocument, newExpiry: Long) = db.withTransaction {
-        dhDao.insert(DocumentHistory(documentId = doc.id, oldExpiry = doc.expiryDate, newExpiry = newExpiry))
-        dDao.update(doc.copy(expiryDate = newExpiry))
+    suspend fun renewDocument(doc: LegalDocument, renewedDate: Long, newExpiry: Long) = db.withTransaction {
+        dhDao.insert(DocumentHistory(documentId = doc.id, oldExpiry = doc.expiryDate, newExpiry = newExpiry, renewedAt = renewedDate))
+        dDao.update(doc.copy(expiryDate = newExpiry, lastRenewedDate = renewedDate))
     }
     suspend fun deleteDocument(id: String) = dDao.deleteById(id)
 

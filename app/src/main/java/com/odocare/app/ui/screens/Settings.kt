@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.Snapshots
 import com.odocare.app.data.Vehicle
+import com.odocare.app.domain.IntervalUnit
 import com.odocare.app.notif.Notif
 import com.odocare.app.ui.*
 import com.odocare.app.util.Exports
@@ -51,7 +52,8 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<Vehicle?>(null) }
     var deleteTarget by remember { mutableStateOf<Vehicle?>(null) }
-    var daysText by remember { mutableStateOf(Notif.reminderDaysText(ctx)) }
+    var kmValueText by remember { mutableStateOf(Notif.kmReminderValue(ctx).takeIf { it > 0 }?.toString() ?: "") }
+    var kmUnit by remember { mutableStateOf(Notif.kmReminderUnit(ctx)) }
     var message by remember { mutableStateOf<String?>(null) }
     var pendingRestore by remember { mutableStateOf<String?>(null) }
     var showPaste by remember { mutableStateOf(false) }
@@ -94,15 +96,25 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
             OutlinedButton(onClick = onOpenMaster, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Kelola Master", color = LavenderPrimary) }
         }
 
-        SectionCard("Pengingat Pajak & Dokumen") {
-            OutlinedTextField(value = daysText, onValueChange = { daysText = it }, label = { Text("Hari pengingat (mis. 45, 30, 7)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Text("Notifikasi dikirim pukul 09.00 pada hari-hari ini sebelum jatuh tempo, dan di hari jatuh tempo.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        SectionCard("Pengingat Update KM") {
+            Text("Ingatkan saya memperbarui odometer jika KM belum dicatat selama:", color = TextGray, fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+            NumberField(kmValueText, { kmValueText = it }, "Setiap (angka, kosong = nonaktif)")
+            Spacer(Modifier.height(8.dp))
+            UnitChips(kmUnit) { kmUnit = it }
+            Spacer(Modifier.height(8.dp))
+            Button(colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black), onClick = {
+                val v = kmValueText.toIntOrNull() ?: 0
+                Notif.setKmReminder(ctx, v, kmUnit)
+                Notif.scheduleDaily(ctx)
+                message = if (v > 0) "Pengingat update KM: setiap $v ${kmUnit.label.lowercase()} (diulang selama KM belum diperbarui)." else "Pengingat update KM dinonaktifkan."
+            }) { Text("Simpan") }
+        }
+
+        SectionCard("Notifikasi & Kalender") {
+            Text("Pengingat pajak dan dokumen diatur per dokumen, saat menambah atau mengedit di menu Pajak & Dokumen. Notifikasi dikirim sekitar pukul 09.00.", color = TextGray, fontSize = 13.sp)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black), onClick = {
-                    if (Notif.parseDays(daysText).isEmpty()) message = "Isi minimal satu angka hari, mis. 30, 15."
-                    else { Notif.setReminderDays(ctx, daysText); daysText = Notif.reminderDaysText(ctx); Notif.scheduleDaily(ctx); message = "Pengingat disimpan: $daysText hari sebelum jatuh tempo." }
-                }) { Text("Simpan") }
                 OutlinedButton(onClick = {
                     if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     else message = "Notifikasi sudah aktif."
@@ -112,7 +124,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             OutlinedButton(enabled = allDocs.isNotEmpty(), onClick = {
                 try {
-                    val ics = Exports.icsText(vehicles, allDocs, Notif.reminderDays(ctx), ::docTypeLabel)
+                    val ics = Exports.icsText(vehicles, allDocs, ::docTypeLabel)
                     Exports.shareFile(ctx, "odocare-pajak.ics", "text/calendar", ics.toByteArray(Charsets.UTF_8))
                 } catch (e: Exception) { message = "Gagal ekspor: ${e.message}" }
             }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Ekspor ke Kalender (.ics)", color = LavenderPrimary) }

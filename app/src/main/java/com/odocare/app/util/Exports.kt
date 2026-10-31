@@ -6,6 +6,7 @@ import androidx.core.content.FileProvider
 import com.odocare.app.data.LegalDocument
 import com.odocare.app.data.ServiceRecord
 import com.odocare.app.data.Vehicle
+import com.odocare.app.domain.Reminders
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -13,6 +14,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 object Exports {
     /** Tulis ke cache lalu buka menu bagikan. Butuh FileProvider (lihat AndroidManifest). */
@@ -43,8 +45,8 @@ object Exports {
 
     private fun icsEscape(s: String) = s.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
 
-    /** Event seharian di tanggal jatuh tempo + VALARM pukul 09.00 untuk tiap hari pengingat (dan hari-H). */
-    fun icsText(vehicles: List<Vehicle>, docs: List<LegalDocument>, reminderDays: List<Int>, labelOf: (String) -> String): String {
+    /** Event seharian di tanggal jatuh tempo + VALARM pukul 09.00 untuk tiap pengingat dokumen (dan hari-H). */
+    fun icsText(vehicles: List<Vehicle>, docs: List<LegalDocument>, labelOf: (String) -> String): String {
         val sb = StringBuilder()
         fun line(s: String) { sb.append(s).append("\r\n") }
         val stamp = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").format(ZonedDateTime.now(ZoneOffset.UTC))
@@ -57,7 +59,9 @@ object Exports {
             line("DTSTART;VALUE=DATE:${date.format(DateTimeFormatter.BASIC_ISO_DATE)}")
             line("DTEND;VALUE=DATE:${date.plusDays(1).format(DateTimeFormatter.BASIC_ISO_DATE)}")
             line("SUMMARY:" + icsEscape("Jatuh tempo: $title"))
-            (reminderDays + 0).distinct().forEach { n ->
+            // Pengingat per dokumen (hari/bulan/tahun sebelum jatuh tempo) + hari-H
+            val offsets = (Reminders.parse(d.reminders).map { ChronoUnit.DAYS.between(it.dateFor(date), date).toInt() } + 0).filter { it >= 0 }.distinct()
+            offsets.forEach { n ->
                 line("BEGIN:VALARM"); line("ACTION:DISPLAY"); line("DESCRIPTION:" + icsEscape(if (n == 0) "Hari ini jatuh tempo: $title" else "$title jatuh tempo $n hari lagi"))
                 // Event seharian mulai 00.00; alarm 09.00 pada H-n = (n-1) hari + 15 jam sebelum mulai
                 if (n == 0) line("TRIGGER;RELATED=START:PT9H") else line("TRIGGER:-P${n - 1}DT15H")

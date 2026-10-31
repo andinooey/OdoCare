@@ -74,7 +74,6 @@ private fun OdoCareRoot(vm: MainViewModel) {
     val tabs = listOf(
         Tab("home", "Home", Icons.Default.Home),
         Tab("schedule", "Servis", Icons.Default.Build),
-        Tab("dashboard", "Dashboard", Icons.Default.Dashboard),
         Tab("report", "Laporan", Icons.Default.BarChart),
         Tab("settings", "Kendaraan", Icons.Default.TwoWheeler)
     )
@@ -111,12 +110,6 @@ private fun OdoCareRoot(vm: MainViewModel) {
                     onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } })
             }
             composable("schedule") { ScheduleScreen(vm) }
-            composable("dashboard") {
-                DashboardScreen(vm) { vehicleId, route ->
-                    vm.setActiveVehicle(vehicleId)
-                    if (route == "schedule") nav.navigateTab("schedule") else nav.navigate(route) { launchSingleTop = true }
-                }
-            }
             composable("report") { ReportScreen(vm) }
             composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }) }
             composable("history") { HistoryScreen(vm, onBack = { nav.popBackStack() }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }

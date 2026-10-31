@@ -59,9 +59,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteRecord(id: String) = viewModelScope.launch { repo.deleteRecord(id) }
 
     // ---- Dokumen ----
-    fun addDocument(type: String, expiryMillis: Long, number: String?) = viewModelScope.launch { activeVehicle.value?.let { repo.addDocument(LegalDocument(vehicleId = it.id, type = type, number = number, expiryDate = expiryMillis)) } }
+    fun addDocument(type: String, expiryMillis: Long, number: String?, lastRenewed: Long?, intervalValue: Int?, intervalUnit: String?, reminders: String) = viewModelScope.launch {
+        activeVehicle.value?.let { repo.addDocument(LegalDocument(vehicleId = it.id, type = type, number = number, expiryDate = expiryMillis, lastRenewedDate = lastRenewed, intervalValue = intervalValue, intervalUnit = intervalUnit, reminders = reminders)) }
+    }
     fun updateDocument(d: LegalDocument) = viewModelScope.launch { repo.updateDocument(d) }
-    fun renewDocument(doc: LegalDocument, newExpiry: Long) = viewModelScope.launch { repo.renewDocument(doc, newExpiry) }
+    fun renewDocument(doc: LegalDocument, renewedDate: Long, newExpiry: Long) = viewModelScope.launch { repo.renewDocument(doc, renewedDate, newExpiry) }
     fun deleteDocument(id: String) = viewModelScope.launch { repo.deleteDocument(id) }
 
     // ---- Master kategori (tidak mengubah kendaraan yang sudah ada) ----
