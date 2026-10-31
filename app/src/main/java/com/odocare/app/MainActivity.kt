@@ -35,7 +35,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.odocare.app.ui.LavenderPrimary
 import com.odocare.app.ui.OdoCareTheme
+import com.odocare.app.ui.PillSelected
 import com.odocare.app.ui.SurfaceDark
+import com.odocare.app.ui.TextGray
+import com.odocare.app.ui.TextWhite
 import com.odocare.app.ui.screens.*
 
 class MainActivity : ComponentActivity() {
@@ -79,23 +82,26 @@ private fun OdoCareRoot(vm: MainViewModel) {
         Tab("settings", "Kendaraan", Icons.Default.TwoWheeler)
     )
     val backStack by nav.currentBackStackEntryAsState()
-    val currentTab = parentTab(backStack?.destination?.route)
+    val route = backStack?.destination?.route
+    // Master Kategori bisa dibuka dari tab Servis atau Kendaraan: tab asal tetap menyala
+    val currentTab = if (route == "master") parentTab(nav.previousBackStackEntry?.destination?.route) else parentTab(route)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            Surface(color = SurfaceDark, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 12.dp, bottom = 16.dp, start = 4.dp, end = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = SurfaceDark, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 12.dp, bottom = 12.dp, start = 4.dp, end = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                     tabs.forEach { tab ->
                         val selected = currentTab == tab.route
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(if (selected) LavenderPrimary.copy(alpha = 0.2f) else Color.Transparent)
-                                .clickable { nav.navigateTab(tab.route) }.padding(vertical = 8.dp)
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable { nav.navigateTab(tab.route) }.padding(vertical = 4.dp)
                         ) {
-                            Icon(tab.icon, tab.label, tint = if (selected) LavenderPrimary else Color.Gray)
+                            Box(Modifier.clip(RoundedCornerShape(50)).background(if (selected) PillSelected else Color.Transparent).padding(horizontal = 24.dp, vertical = 6.dp)) {
+                                Icon(tab.icon, tab.label, tint = if (selected) TextWhite else TextGray)
+                            }
                             Spacer(Modifier.height(4.dp))
-                            Text(tab.label, fontSize = 10.sp, maxLines = 1, color = if (selected) LavenderPrimary else Color.Gray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) TextWhite else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                         }
                     }
                 }
@@ -110,7 +116,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
                     onNavigateToDocuments = { nav.navigate("documents") { launchSingleTop = true } },
                     onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } })
             }
-            composable("schedule") { ScheduleScreen(vm) }
+            composable("schedule") { ScheduleScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }) }
             composable("report") { ReportScreen(vm) }
             composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }) }
             composable("history") { HistoryScreen(vm, onBack = { nav.popBackStack() }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }

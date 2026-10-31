@@ -48,7 +48,7 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = NoInsets,
         topBar = { BackTopBar("Pajak & Dokumen", onBack) },
-        floatingActionButton = { if (vehicle != null) FloatingActionButton(onClick = { showAdd = true }, containerColor = LavenderPrimary, contentColor = Color.Black) { Icon(Icons.Default.Add, "Tambah") } }
+        floatingActionButton = { if (vehicle != null) AddFab { showAdd = true } }
     ) { pad ->
         if (docs.isEmpty()) {
             Column(Modifier.padding(pad).padding(16.dp)) { Text(if (vehicle == null) "Tambahkan kendaraan dulu di tab Kendaraan." else "Belum ada dokumen.", color = TextGray) }
@@ -62,17 +62,16 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(docTypeLabel(d.type), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = TextWhite)
                             StatusBadge(view.status.label, colors)
+                            ItemMenu(onEdit = { editTarget = d }, onDelete = { deleteTarget = d })
                         }
                         if (!d.number.isNullOrBlank()) Text("No. ${d.number}", style = MaterialTheme.typography.bodySmall, color = TextGray)
                         Text("Jatuh tempo: ${fmtDate(d.expiryDate)} (${docDaysText(view.daysRemaining)})", style = MaterialTheme.typography.bodySmall, color = colors.second)
-                        d.lastRenewedDate?.let { Text("Terakhir perpanjang: ${fmtDate(it)}", style = MaterialTheme.typography.bodySmall, color = TextGray) }
-                        if (d.intervalValue != null && unit != null) Text("Interval: tiap ${d.intervalValue} ${unit.label.lowercase()}", style = MaterialTheme.typography.bodySmall, color = TextGray)
-                        Text("Pengingat: ${Reminders.summary(d.reminders)}", style = MaterialTheme.typography.bodySmall, color = TextGray)
+                        d.lastRenewedDate?.let { Text("Terakhir diperpanjang: ${fmtDate(it)}", style = MaterialTheme.typography.bodySmall, color = TextGray) }
+                        if (d.intervalValue != null && unit != null) Text("Berlaku selama ${d.intervalValue} ${unit.label.lowercase()}", style = MaterialTheme.typography.bodySmall, color = TextGray)
+                        Text("Ingatkan: ${Reminders.summary(d.reminders)}", style = MaterialTheme.typography.bodySmall, color = TextGray)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedButton(onClick = { renewTarget = d }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Perpanjang", color = LavenderPrimary) }
-                            IconButton(onClick = { editTarget = d }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
-                            IconButton(onClick = { deleteTarget = d }) { Icon(Icons.Default.Delete, "Hapus", tint = Color.Red) }
                         }
                     }
                 }
@@ -123,34 +122,34 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss
                         docTypes.forEach { (k, label) -> DropdownMenuItem(text = { Text(label) }, onClick = { type = k; menu = false }) }
                     }
                 }
-                OutlinedTextField(value = number, onValueChange = { number = it }, label = { Text("Nomor (opsional)") }, singleLine = true)
+                OutlinedTextField(value = number, onValueChange = { number = it }, label = { Text("Nomor dokumen (opsional)") }, singleLine = true)
 
-                Text("Perpanjang & interval", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                DateField("Tanggal terakhir perpanjang", lastRenewed) { lastRenewed = it }
-                NumberField(intervalText, { intervalText = it }, "Interval (angka)")
+                Text("Masa berlaku", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                DateField("Terakhir diperpanjang", lastRenewed) { lastRenewed = it }
+                NumberField(intervalText, { intervalText = it }, "Berlaku selama (angka)")
                 UnitChips(intervalUnit) { intervalUnit = it }
 
                 if (computed != null) {
                     Text("Jatuh tempo: ${fmtDate(computed)} (otomatis)", color = LavenderPrimary, fontWeight = FontWeight.Bold)
                 } else {
-                    DateField("Pilih tanggal jatuh tempo", manualExpiry) { manualExpiry = it }
-                    Text("Isi tanggal terakhir perpanjang dan interval agar jatuh tempo dihitung otomatis.", color = TextGray, fontSize = 11.sp)
+                    DateField("Tanggal jatuh tempo", manualExpiry) { manualExpiry = it }
+                    Text("Isi \"Terakhir diperpanjang\" dan \"Berlaku selama\" agar jatuh tempo dihitung otomatis.", color = TextGray, fontSize = 11.sp)
                 }
 
-                Text("Pengingat notifikasi", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                if (reminders.isEmpty()) Text("Tidak ada, hanya di hari jatuh tempo.", color = TextGray, fontSize = 12.sp)
+                Text("Ingatkan sebelum jatuh tempo", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (reminders.isEmpty()) Text("Hanya di hari jatuh tempo.", color = TextGray, fontSize = 12.sp)
                 reminders.forEach { r ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(r.label(), Modifier.weight(1f), color = TextWhite)
                         IconButton(onClick = { reminders = reminders - r }) { Icon(Icons.Default.Close, "Hapus pengingat", tint = TextGray) }
                     }
                 }
-                NumberField(newRemText, { newRemText = it }, "Ingatkan berapa lama sebelum")
+                NumberField(newRemText, { newRemText = it }, "Ingatkan sebelum (angka)")
                 UnitChips(newRemUnit) { newRemUnit = it }
                 TextButton(enabled = posInt(newRemText) != null, onClick = {
                     posInt(newRemText)?.let { v -> reminders = (reminders + Reminder(v, newRemUnit)).distinct().sortedByDescending { approxDays(it) } }
                     newRemText = ""
-                }) { Text("Tambah pengingat") }
+                }) { Text("Tambah") }
             }
         },
         confirmButton = {
@@ -175,9 +174,9 @@ private fun RenewDialog(doc: LegalDocument, onDismiss: () -> Unit, onConfirm: (r
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Perpanjang ${docTypeLabel(doc.type)}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DateField("Tanggal perpanjang", renewed) { renewed = it }
-                if (computed != null) Text("Jatuh tempo baru: ${fmtDate(computed)} (tiap $iv $unitLabel)", color = LavenderPrimary, fontWeight = FontWeight.Bold)
-                else DateField("Jatuh tempo baru", manual) { manual = it }
+                DateField("Tanggal diperpanjang", renewed) { renewed = it }
+                if (computed != null) Text("Jatuh tempo baru: ${fmtDate(computed)} (berlaku $iv $unitLabel)", color = LavenderPrimary, fontWeight = FontWeight.Bold)
+                else DateField("Tanggal jatuh tempo baru", manual) { manual = it }
             }
         },
         confirmButton = { TextButton(enabled = newExpiry != null, onClick = { newExpiry?.let { onConfirm(renewed, it) } }) { Text("Simpan") } },

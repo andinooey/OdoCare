@@ -47,8 +47,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteOdometer(id: String) = viewModelScope.launch { repo.deleteOdometer(id) }
 
     // ---- Jadwal / kategori servis ----
-    fun addSchedule(name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) = viewModelScope.launch {
-        activeVehicle.value?.let { if (name.isNotBlank()) repo.addSchedule(MaintenanceSchedule(vehicleId = it.id, name = name.trim(), intervalKm = intervalKm, intervalMonths = intervalMonths, lastServiceKm = lastKm ?: currentKm.value, lastServiceDate = lastDate, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute)) }
+    fun addSchedule(name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int, warnKm: Int, warnDays: Int) = viewModelScope.launch {
+        activeVehicle.value?.let { if (name.isNotBlank()) repo.addSchedule(MaintenanceSchedule(vehicleId = it.id, name = name.trim(), intervalKm = intervalKm, intervalMonths = intervalMonths, lastServiceKm = lastKm ?: currentKm.value, lastServiceDate = lastDate, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute, warnKm = warnKm, warnDays = warnDays)) }
     }
     fun updateSchedule(s: MaintenanceSchedule) = viewModelScope.launch { repo.updateSchedule(s) }
     fun deleteSchedule(id: String) = viewModelScope.launch { repo.deleteSchedule(id) }
@@ -75,8 +75,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteDocument(id: String) = viewModelScope.launch { repo.deleteDocument(id) }
 
     // ---- Master kategori (tidak mengubah kendaraan yang sudah ada) ----
-    fun addMaster(name: String, type: String, km: Int, months: Int, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) = viewModelScope.launch {
-        if (name.isNotBlank()) repo.addMaster(MasterCategory(name = name.trim(), vehicleType = type, defaultKm = km, defaultMonths = months, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute))
+    fun addMaster(name: String, type: String, km: Int, months: Int, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int, warnKm: Int, warnDays: Int) = viewModelScope.launch {
+        if (name.isNotBlank()) repo.addMaster(MasterCategory(name = name.trim(), vehicleType = type, defaultKm = km, defaultMonths = months, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute, warnKm = warnKm, warnDays = warnDays))
     }
     fun updateMaster(m: MasterCategory) = viewModelScope.launch { repo.updateMaster(m) }
     fun deleteMaster(id: String) = viewModelScope.launch { repo.deleteMaster(id) }

@@ -38,7 +38,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.odocare.app.data.ServiceRecord
+import com.odocare.app.domain.Engines
 import com.odocare.app.domain.IntervalUnit
+import com.odocare.app.domain.ServiceStatus
 import com.odocare.app.domain.ScheduleView
 import java.text.NumberFormat
 import java.time.Instant
@@ -85,17 +87,25 @@ fun docTypeLabel(k: String): String = docTypes.firstOrNull { it.first == k }?.se
 fun vehicleTypeLabel(t: String): String = when (t) { "MOBIL" -> "Mobil"; "MOTOR" -> "Motor"; "ALL" -> "Semua"; else -> "Lainnya" }
 fun docDaysText(days: Long): String = when { days < 0 -> "Lewat ${-days} hari"; days == 0L -> "Hari ini"; else -> "$days hari lagi" }
 
-fun kmLine(rem: Int, interval: Int?): String = when {
+fun kmLine(rem: Int, warn: Int): String = when {
     rem < 0 -> "Lewat ${fmtKm(-rem)} km"
-    interval != null && rem < interval * 0.2 -> "Segera, sisa ${fmtKm(rem)} km"
+    rem <= warn -> "Segera, sisa ${fmtKm(rem)} km"
     else -> "Sisa ${fmtKm(rem)} km"
 }
-fun dayLine(d: Long): String = when { d < 0 -> "Lewat ${-d} hari"; d == 0L -> "Segera, jatuh tempo hari ini"; d < 30 -> "Segera, $d hari lagi"; else -> "Sisa $d hari" }
+fun dayLine(d: Long, warn: Int): String = when { d < 0 -> "Lewat ${-d} hari"; d == 0L -> "Segera, jatuh tempo hari ini"; d <= warn -> "Segera, $d hari lagi"; else -> "Sisa $d hari" }
 fun scheduleDetail(v: ScheduleView): String {
     val parts = mutableListOf<String>()
-    v.kmRemaining?.let { parts += kmLine(it, v.schedule.intervalKm) }
-    v.daysRemaining?.let { parts += dayLine(it) }
+    v.kmRemaining?.let { parts += kmLine(it, Engines.warnKm(v.schedule)) }
+    v.daysRemaining?.let { parts += dayLine(it, Engines.warnDays(v.schedule)) }
     return if (parts.isEmpty()) "Belum ada data" else parts.joinToString(" · ")
+}
+/** Teks kondisi ringkas untuk kartu jadwal: "Sisa 4,000 km / 119 hari". */
+fun conditionText(v: ScheduleView): String {
+    if (v.status == ServiceStatus.NO_ODOMETER) return "KM belum diupdate"
+    val parts = mutableListOf<String>()
+    v.kmRemaining?.let { parts += if (it < 0) "Lewat ${fmtKm(-it)} km" else "Sisa ${fmtKm(it)} km" }
+    v.daysRemaining?.let { parts += if (it < 0) "Lewat ${-it} hari" else "Sisa $it hari" }
+    return if (parts.isEmpty()) "-" else parts.joinToString(" / ")
 }
 
 /** 6 bulan terakhir (termasuk bulan ini): label + total biaya */
@@ -145,11 +155,13 @@ object ThousandsTransformation : VisualTransformation {
 
 /** Field angka bulat dengan pemisah ribuan. currency = true menambahkan awalan "Rp". */
 @Composable
-fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false) {
+fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null) {
     val prefixSlot: (@Composable () -> Unit)? = if (currency) { { Text("Rp ") } } else null
+    val hintSlot: (@Composable () -> Unit)? = if (hint != null) { { Text(hint) } } else null
     OutlinedTextField(
         value = value, onValueChange = { onChange(it.filter(Char::isDigit).trimStart('0').take(12)) },
         label = { Text(label) }, singleLine = true, prefix = prefixSlot,
+        supportingText = hintSlot,
         visualTransformation = ThousandsTransformation,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
@@ -242,11 +254,11 @@ fun InfoDialog(message: String, onDismiss: () -> Unit) {
 fun AddKmDialog(currentKm: Int?, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
     var kmText by remember { mutableStateOf("") }
     var pendingLower by remember { mutableStateOf<Int?>(null) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Update Odometer") },
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Update KM Odometer") },
         text = {
             Column {
-                if (currentKm != null) { Text("KM sekarang: ${fmtKm(currentKm)}", color = TextGray, fontSize = 12.sp); Spacer(Modifier.height(8.dp)) }
-                NumberField(kmText, { kmText = it }, "Kilometer")
+                if (currentKm != null) { Text("KM saat ini: ${fmtKm(currentKm)}", color = TextGray, fontSize = 12.sp); Spacer(Modifier.height(8.dp)) }
+                NumberField(kmText, { kmText = it }, "KM odometer terbaru")
             }
         },
         confirmButton = {

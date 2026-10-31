@@ -18,10 +18,15 @@ object Engines {
     private fun millisToLocalDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
 
     /**
-     * Segera  : sisa km < 20% interval km, ATAU jatuh tempo bulan < 30 hari.
+     * Segera  : sisa km <= batas km (default 20% interval), ATAU sisa hari <= batas hari (default 30). Batas bisa diatur per kategori.
      * Lewat   : sisa km < 0 ATAU jatuh tempo bulan sudah lewat.
      * Diambil yang paling mendesak antara km dan waktu.
      */
+    /** Batas "Segera" untuk sisa km: diisi user, atau otomatis 20% dari interval km. */
+    fun warnKm(s: MaintenanceSchedule): Int = if (s.warnKm > 0) s.warnKm else ((s.intervalKm ?: 0) * 0.2).toInt()
+    /** Batas "Segera" untuk sisa hari: diisi user, atau otomatis 30 hari. */
+    fun warnDays(s: MaintenanceSchedule): Int = if (s.warnDays > 0) s.warnDays else 30
+
     fun scheduleView(s: MaintenanceSchedule, currentKm: Int?, today: LocalDate = LocalDate.now()): ScheduleView {
         val ik = s.intervalKm?.takeIf { it > 0 }
         val lk = s.lastServiceKm
@@ -43,8 +48,8 @@ object Engines {
 
         if (ik != null && currentKm == null && daysRemaining == null) return ScheduleView(s, ServiceStatus.NO_ODOMETER, null, null, 0f)
 
-        val kmRank = if (kmRemaining == null || ik == null) 0 else when { kmRemaining < 0 -> 3; kmRemaining < ik * 0.2 -> 1; else -> 0 }
-        val dayRank = if (daysRemaining == null) 0 else when { daysRemaining < 0 -> 3; daysRemaining < 30 -> 1; else -> 0 }
+        val kmRank = if (kmRemaining == null || ik == null) 0 else when { kmRemaining < 0 -> 3; kmRemaining <= warnKm(s) -> 1; else -> 0 }
+        val dayRank = if (daysRemaining == null) 0 else when { daysRemaining < 0 -> 3; daysRemaining <= warnDays(s) -> 1; else -> 0 }
         val status = when (maxOf(kmRank, dayRank)) { 3 -> ServiceStatus.LATE; 1 -> ServiceStatus.SOON; else -> ServiceStatus.NORMAL }
         return ScheduleView(s, status, kmRemaining, daysRemaining, maxOf(kmUsed, dayUsed).coerceAtLeast(0f))
     }

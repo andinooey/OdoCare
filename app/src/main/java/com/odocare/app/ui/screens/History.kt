@@ -55,8 +55,7 @@ fun HistoryScreen(vm: MainViewModel, onBack: () -> Unit, onOpenOdometer: () -> U
                                     StoredImage(r.imagePath, Modifier.size(72.dp).clip(RoundedCornerShape(8.dp)).clickable { viewImage = r.imagePath })
                                 }
                             }
-                            IconButton(onClick = { editTarget = r }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
-                            IconButton(onClick = { deleteTarget = r }) { Icon(Icons.Default.Delete, "Hapus", tint = Color.Red) }
+                            ItemMenu(onEdit = { editTarget = r }, onDelete = { deleteTarget = r })
                         }
                     }
                 }

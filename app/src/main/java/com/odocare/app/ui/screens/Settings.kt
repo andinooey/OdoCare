@@ -88,8 +88,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
                         if (v.plate.isNotBlank()) Text(v.plate, color = TextGray, fontSize = 12.sp)
                     }
                     if (v.id != active?.id) TextButton(onClick = { vm.setActiveVehicle(v.id) }) { Text("Aktifkan", color = LavenderPrimary) }
-                    IconButton(onClick = { editTarget = v }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
-                    IconButton(onClick = { deleteTarget = v }) { Icon(Icons.Default.Delete, "Hapus", tint = Color.Red) }
+                    ItemMenu(onEdit = { editTarget = v }, onDelete = { deleteTarget = v })
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -97,20 +96,20 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         }
 
         SectionCard("Master Kategori") {
-            Text("Atur kategori service default untuk motor dan mobil.", color = TextGray, fontSize = 13.sp)
+            Text("Atur daftar komponen servis bawaan untuk motor dan mobil.", color = TextGray, fontSize = 13.sp)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onOpenMaster, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Kelola Master", color = LavenderPrimary) }
         }
 
         SectionCard("Pengingat Update KM") {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Ingatkan saya memperbarui odometer jika KM belum dicatat selama:", Modifier.weight(1f), color = TextGray, fontSize = 13.sp)
+                Text("Ingatkan update KM jika belum dicatat selama:", Modifier.weight(1f), color = TextGray, fontSize = 13.sp)
                 Spacer(Modifier.width(8.dp))
                 Switch(checked = kmEnabled, onCheckedChange = { kmEnabled = it })
             }
             if (kmEnabled) {
                 Spacer(Modifier.height(8.dp))
-                NumberField(kmValueText, { kmValueText = it }, "Setiap (angka)")
+                NumberField(kmValueText, { kmValueText = it }, "Lama (angka)")
                 Spacer(Modifier.height(8.dp))
                 UnitChips(kmUnit) { kmUnit = it }
                 Spacer(Modifier.height(8.dp))
@@ -239,8 +238,8 @@ private fun VehicleFormDialog(title: String, initial: Vehicle?, onDismiss: () ->
                 if (initial == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("MOTOR", "MOBIL").forEach { t -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(vehicleTypeLabel(t)) }) }
                 }
-                NumberField(kmT, { kmT = it }, "KM awal")
-                if (initial == null) Text("Kategori service dan dokumen default akan dibuat otomatis sesuai jenis kendaraan. Atur tanggal jatuh tempo dokumen di menu Dokumen.", color = TextGray, fontSize = 12.sp)
+                NumberField(kmT, { kmT = it }, "KM odometer saat ini")
+                if (initial == null) Text("Jadwal servis dan dokumen bawaan dibuat otomatis sesuai jenis kendaraan. Atur jatuh tempo dokumen di menu Pajak & Dokumen.", color = TextGray, fontSize = 12.sp)
             }
         },
         confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onSave(name, plate, type, kmT.toIntOrNull() ?: 0) }) { Text("Simpan") } },

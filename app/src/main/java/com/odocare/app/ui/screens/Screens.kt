@@ -37,6 +37,7 @@ import com.odocare.app.data.MasterCategory
 import com.odocare.app.data.OdometerLog
 import com.odocare.app.domain.Engines
 import com.odocare.app.data.ImageStore
+import com.odocare.app.domain.ScheduleView
 import com.odocare.app.domain.ServiceStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -238,7 +239,7 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = NoInsets,
         topBar = { BackTopBar("Riwayat Odometer", onBack) },
-        floatingActionButton = { FloatingActionButton(onClick = { showAdd = true }, containerColor = LavenderPrimary, contentColor = Color.Black) { Icon(Icons.Default.Add, "Tambah") } }
+        floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
         if (logs.isEmpty()) {
             Column(Modifier.padding(pad).padding(16.dp)) { Text("Belum ada catatan.", color = TextGray) }
@@ -251,8 +252,7 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
                                 Text("${fmtKm(log.km)} km", style = MaterialTheme.typography.titleLarge, color = TextWhite, fontWeight = FontWeight.Bold)
                                 Text(fmtDate(log.recordedAt), style = MaterialTheme.typography.bodySmall, color = TextGray)
                             }
-                            IconButton(onClick = { editTarget = log }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
-                            IconButton(onClick = { vm.deleteOdometer(log.id) }) { Icon(Icons.Default.Delete, "Hapus", tint = Color.Red) }
+                            ItemMenu(onEdit = { editTarget = log }, onDelete = { vm.deleteOdometer(log.id) })
                         }
                     }
                 }
@@ -263,7 +263,7 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
     editTarget?.let { log ->
         var kmText by remember { mutableStateOf(log.km.toString()) }
         AlertDialog(onDismissRequest = { editTarget = null }, title = { Text("Edit Odometer") },
-            text = { NumberField(kmText, { kmText = it }, "Kilometer") },
+            text = { NumberField(kmText, { kmText = it }, "KM odometer") },
             confirmButton = { TextButton(enabled = posInt(kmText) != null, onClick = { posInt(kmText)?.let { vm.updateOdometer(log.copy(km = it)) }; editTarget = null }) { Text("Simpan") } },
             dismissButton = { TextButton(onClick = { editTarget = null }) { Text("Batal") } })
     }
@@ -272,7 +272,7 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
 // ---------- Jadwal / kategori servis ----------
 
 @Composable
-fun ScheduleScreen(vm: MainViewModel) {
+fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     val schedules by vm.schedules.collectAsStateWithLifecycle()
     val masters by vm.masters.collectAsStateWithLifecycle()
     val km by vm.currentKm.collectAsStateWithLifecycle()
@@ -281,38 +281,45 @@ fun ScheduleScreen(vm: MainViewModel) {
     var recordTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     var editTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     var deleteTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
+    var tab by remember { mutableStateOf(0) }
     // Paling mendesak di atas
     val views = schedules.map { Engines.scheduleView(it, km) }.sortedByDescending { it.progress }
+    val needService = views.filter { it.status == ServiceStatus.SOON || it.status == ServiceStatus.DUE || it.status == ServiceStatus.LATE }
+    val good = views.filter { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }
+    val shown = when (tab) { 1 -> needService; 2 -> good; else -> views }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = NoInsets,
-        topBar = { TopAppBar(title = { Text("Jadwal Servis", color = TextWhite) }, colors = appBarColors()) },
-        floatingActionButton = { if (vehicle != null) FloatingActionButton(onClick = { showAdd = true }, containerColor = LavenderPrimary, contentColor = Color.Black) { Icon(Icons.Default.Add, "Tambah") } }
+        floatingActionButton = { if (vehicle != null) AddFab { showAdd = true } }
     ) { pad ->
-        if (views.isEmpty()) {
-            Column(Modifier.padding(pad).padding(16.dp)) { Text(if (vehicle == null) "Tambahkan kendaraan dulu di tab Kendaraan." else "Belum ada kategori. Tap + untuk menambah.", color = TextGray) }
-        } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 120.dp)) {
-                items(views, key = { it.schedule.id }) { view ->
-                    val s = view.schedule
-                    val colors = serviceColor(view.status)
-                    StatusStripeCard(colors.second) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(s.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = TextWhite, fontWeight = FontWeight.Bold)
-                            StatusBadge(view.status.label, colors)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        ProgressBar(view.progress, colors.second)
-                        Spacer(Modifier.height(6.dp))
-                        Text(scheduleDetail(view), style = MaterialTheme.typography.bodyMedium, color = colors.second)
-                        val intervalText = intervalLabel(s.intervalKm, s.intervalMonths)
-                        if (intervalText.isNotEmpty()) Text(intervalText + if (s.notifyEnabled) " · 🔔 ${fmtTime(s.notifyHour, s.notifyMinute)}" else " · 🔕", style = MaterialTheme.typography.bodySmall, color = TextGray)
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Button(onClick = { recordTarget = s }, colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black), shape = RoundedCornerShape(8.dp)) { Text("Sudah service") }
-                            IconButton(onClick = { editTarget = s }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
-                            IconButton(onClick = { deleteTarget = s }) { Icon(Icons.Default.Delete, "Hapus", tint = Color.Red) }
-                        }
+        Column(Modifier.padding(pad).statusBarsPadding()) {
+            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 24.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Jadwal & Komponen", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                    vehicle?.let { Text(it.name, fontSize = 18.sp, color = TextGray) }
+                }
+                IconButton(onClick = onOpenMaster) { Icon(Icons.Default.Category, "Master Kategori", tint = LavenderPrimary, modifier = Modifier.size(32.dp)) }
+            }
+            TabRow(selectedTabIndex = tab, containerColor = Color.Transparent, contentColor = LavenderPrimary) {
+                listOf("Semua (${views.size})", "Perlu Servis (${needService.size})", "Baik (${good.size})").forEachIndexed { i, label ->
+                    Tab(selected = tab == i, onClick = { tab = i }, selectedContentColor = LavenderPrimary, unselectedContentColor = LavenderPrimary,
+                        text = { Text(label, textAlign = TextAlign.Center, fontSize = 17.sp, fontWeight = FontWeight.Medium) })
+                }
+            }
+            if (shown.isEmpty()) {
+                Text(
+                    when {
+                        vehicle == null -> "Tambahkan kendaraan dulu di tab Kendaraan."
+                        tab == 1 -> "Tidak ada komponen yang perlu servis."
+                        tab == 2 -> "Belum ada komponen berstatus baik."
+                        else -> "Belum ada kategori. Tap + untuk menambah."
+                    }, color = TextGray, modifier = Modifier.padding(24.dp)
+                )
+            } else {
+                LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)) {
+                    items(shown, key = { it.schedule.id }) { view ->
+                        ScheduleCard(view, onRecord = { recordTarget = view.schedule }, onEdit = { editTarget = view.schedule }, onDelete = { deleteTarget = view.schedule })
                     }
                 }
             }
@@ -321,17 +328,82 @@ fun ScheduleScreen(vm: MainViewModel) {
 
     if (showAdd) {
         val options = masters.filter { it.vehicleType == "ALL" || it.vehicleType == vehicle?.type }
-        ScheduleFormDialog("Tambah Kategori", options, null, km, { showAdd = false }) { n, ik, im, lk, ld, ne, nh, nm -> vm.addSchedule(n, ik, im, lk, ld, ne, nh, nm); showAdd = false }
+        ScheduleFormDialog("Tambah Kategori", options, null, km, { showAdd = false }) { n, ik, im, lk, ld, ne, nh, nm, wk, wd -> vm.addSchedule(n, ik, im, lk, ld, ne, nh, nm, wk, wd); showAdd = false }
     }
     editTarget?.let { s ->
-        ScheduleFormDialog("Edit Kategori", null, s, km, { editTarget = null }) { n, ik, im, lk, ld, ne, nh, nm ->
-            vm.updateSchedule(s.copy(name = n, intervalKm = ik, intervalMonths = im, lastServiceKm = lk, lastServiceDate = ld, notifyEnabled = ne, notifyHour = nh, notifyMinute = nm)); editTarget = null
+        ScheduleFormDialog("Edit Kategori", null, s, km, { editTarget = null }) { n, ik, im, lk, ld, ne, nh, nm, wk, wd ->
+            vm.updateSchedule(s.copy(name = n, intervalKm = ik, intervalMonths = im, lastServiceKm = lk, lastServiceDate = ld, notifyEnabled = ne, notifyHour = nh, notifyMinute = nm, warnKm = wk, warnDays = wd)); editTarget = null
         }
     }
     recordTarget?.let { s ->
         RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img -> vm.recordService(s, kmV, date, cost, notes, img); recordTarget = null }
     }
     deleteTarget?.let { s -> ConfirmDialog("Hapus kategori?", "\"${s.name}\" akan dihapus.", "Hapus", { vm.deleteSchedule(s.id); deleteTarget = null }, { deleteTarget = null }) }
+}
+
+/** Kartu jadwal: nama + interval, status, KM terakhir / berikutnya / kondisi, tombol catat servis. Edit & hapus di titik tiga. */
+@Composable
+private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val s = view.schedule
+    val ik = s.intervalKm?.takeIf { it > 0 }
+    val im = s.intervalMonths?.takeIf { it > 0 }
+    val lk = s.lastServiceKm
+    val ld = s.lastServiceDate
+    val nextKm: Int? = if (ik != null && lk != null) lk + ik else null
+    val nextDate: Long? = if (im != null && ld != null) localDateToMillis(msToLocalDate(ld).plusMonths(im.toLong())) else null
+    val conditionColor = when (view.status) { ServiceStatus.NORMAL -> LavenderPrimary; else -> serviceColor(view.status).second }
+
+    Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(start = 20.dp, top = 16.dp, end = 8.dp, bottom = 20.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f).padding(top = 6.dp)) {
+                    Text(s.name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                    val interval = intervalLabel(ik, im)
+                    if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 15.sp, color = TextGray)
+                }
+                Spacer(Modifier.width(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    StatusChip(view.status)
+                    ItemMenu(onEdit, onDelete, editLabel = "Edit Jadwal", deleteLabel = "Hapus Jadwal")
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth().padding(end = 12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Terakhir", fontSize = 14.sp, color = TextGray)
+                    Text(lk?.let { "${fmtKm(it)} km" } ?: "-", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                    ld?.let { Text(fmtDate(it), fontSize = 14.sp, color = TextGray) }
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("Berikutnya", fontSize = 14.sp, color = TextGray)
+                    Text(nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                    if (nextKm != null && nextDate != null) Text(fmtDate(nextDate), fontSize = 14.sp, color = TextGray)
+                }
+                Column(Modifier.weight(1.2f), horizontalAlignment = Alignment.End) {
+                    Text("Kondisi", fontSize = 14.sp, color = TextGray)
+                    Text(conditionText(view), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = conditionColor, textAlign = TextAlign.End)
+                }
+            }
+            // Info batas peringatan + notifikasi
+            val warn = mutableListOf<String>()
+            if (ik != null) warn += "${fmtKm(Engines.warnKm(s))} km"
+            if (im != null) warn += "${Engines.warnDays(s)} hari"
+            val infoParts = mutableListOf<String>()
+            if (warn.isNotEmpty()) infoParts += "Segera saat sisa " + warn.joinToString(" / ")
+            infoParts += if (s.notifyEnabled) "Notifikasi ${fmtTime(s.notifyHour, s.notifyMinute)}" else "Notifikasi mati"
+            Spacer(Modifier.height(10.dp))
+            Text(infoParts.joinToString(" · "), fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(end = 12.dp))
+            Spacer(Modifier.height(14.dp))
+            Button(
+                onClick = onRecord, modifier = Modifier.fillMaxWidth().padding(end = 12.dp).height(56.dp), shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ButtonSlate, contentColor = TextWhite)
+            ) {
+                Icon(Icons.Default.Check, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Catat Servis Sekarang", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
 }
 
 private const val CUSTOM = "__custom__"
@@ -341,7 +413,7 @@ private const val CUSTOM = "__custom__"
 private fun ScheduleFormDialog(
     title: String, masters: List<MasterCategory>?, initial: MaintenanceSchedule?, currentKm: Int?,
     onDismiss: () -> Unit,
-    onSave: (name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) -> Unit
+    onSave: (name: String, intervalKm: Int?, intervalMonths: Int?, lastKm: Int?, lastDate: Long, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int, warnKm: Int, warnDays: Int) -> Unit
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var kmT by remember { mutableStateOf(initial?.intervalKm?.toString() ?: "") }
@@ -351,6 +423,8 @@ private fun ScheduleFormDialog(
     var notifyOn by remember { mutableStateOf(initial?.notifyEnabled ?: true) }
     var notifyHour by remember { mutableStateOf(initial?.notifyHour ?: 9) }
     var notifyMinute by remember { mutableStateOf(initial?.notifyMinute ?: 0) }
+    var warnKmT by remember { mutableStateOf(initial?.warnKm?.takeIf { it > 0 }?.toString() ?: "") }
+    var warnDaysT by remember { mutableStateOf(initial?.warnDays?.takeIf { it > 0 }?.toString() ?: "") }
     var selected by remember { mutableStateOf<String?>(if (masters == null) CUSTOM else null) }
     var menu by remember { mutableStateOf(false) }
     val showName = selected == CUSTOM
@@ -361,31 +435,34 @@ private fun ScheduleFormDialog(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (masters != null) {
                     Box {
-                        OutlinedButton(onClick = { menu = true }) { Text(when (selected) { null -> "Pilih kategori"; CUSTOM -> "Lainnya (ketik sendiri)"; else -> name }) }
+                        OutlinedButton(onClick = { menu = true }) { Text(when (selected) { null -> "Pilih komponen"; CUSTOM -> "Lainnya (ketik sendiri)"; else -> name }) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             masters.forEach { m ->
                                 DropdownMenuItem(text = { Text(m.name) }, onClick = {
                                     selected = m.id; name = m.name
                                     notifyOn = m.notifyEnabled; notifyHour = m.notifyHour; notifyMinute = m.notifyMinute
+                                    warnKmT = m.warnKm.takeIf { it > 0 }?.toString() ?: ""; warnDaysT = m.warnDays.takeIf { it > 0 }?.toString() ?: ""
                                     kmT = m.defaultKm.takeIf { it > 0 }?.toString() ?: ""; moT = m.defaultMonths.takeIf { it > 0 }?.toString() ?: ""
                                     menu = false
                                 })
                             }
-                            DropdownMenuItem(text = { Text("Lainnya (ketik sendiri)") }, onClick = { selected = CUSTOM; name = ""; kmT = ""; moT = ""; menu = false })
+                            DropdownMenuItem(text = { Text("Lainnya (ketik sendiri)") }, onClick = { selected = CUSTOM; name = ""; kmT = ""; moT = ""; warnKmT = ""; warnDaysT = ""; menu = false })
                         }
                     }
                 }
-                if (showName) OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama kategori") }, singleLine = true)
+                if (showName) OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama komponen") }, singleLine = true)
                 if (selected != null) {
-                    NumberField(kmT, { kmT = it }, "Interval km (kosong = tidak dipakai)")
-                    NumberField(moT, { moT = it }, "Interval bulan (kosong = tidak dipakai)")
-                    NumberField(lastKm, { lastKm = it }, "KM terakhir diservis")
-                    DateField("Tanggal terakhir diservis", lastDate) { lastDate = it }
+                    NumberField(kmT, { kmT = it }, "Ganti tiap (km)", hint = "Kosongkan jika tidak dipakai")
+                    NumberField(moT, { moT = it }, "Ganti tiap (bulan)", hint = "Kosongkan jika tidak dipakai")
+                    NumberField(lastKm, { lastKm = it }, "KM servis terakhir")
+                    DateField("Tanggal servis terakhir", lastDate) { lastDate = it }
+                    posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
+                    if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", hint = "Kosong = otomatis 30 hari")
                     if (canSave) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
                 }
             }
         },
-        confirmButton = { TextButton(enabled = selected != null && canSave, onClick = { onSave(name.trim(), posInt(kmT), posInt(moT), lastKm.toIntOrNull(), lastDate, notifyOn, notifyHour, notifyMinute) }) { Text("Simpan") } },
+        confirmButton = { TextButton(enabled = selected != null && canSave, onClick = { onSave(name.trim(), posInt(kmT), posInt(moT), lastKm.toIntOrNull(), lastDate, notifyOn, notifyHour, notifyMinute, if (posInt(kmT) != null) warnKmT.toIntOrNull() ?: 0 else 0, if (posInt(moT) != null) warnDaysT.toIntOrNull() ?: 0 else 0) }) { Text("Simpan") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
 }
 
@@ -418,12 +495,12 @@ fun ServiceFormDialog(
     AlertDialog(onDismissRequest = { dismiss() }, title = { Text(title) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DateField("Tanggal", date) { date = it }
-                NumberField(kmText, { kmText = it }, "Kilometer")
-                NumberField(costText, { costText = it }, "Biaya", currency = true)
-                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Catatan") })
+                DateField("Tanggal servis", date) { date = it }
+                NumberField(kmText, { kmText = it }, "KM saat servis")
+                NumberField(costText, { costText = it }, "Biaya servis", currency = true)
+                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Catatan (opsional)") })
 
-                Text("Foto bukti servis (opsional)", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Foto nota / bukti (opsional)", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 if (imagePath != null) {
                     StoredImage(imagePath, Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)), maxSide = 800)
                 }

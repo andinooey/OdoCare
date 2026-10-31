@@ -46,7 +46,7 @@ class Repo(private val ctx: Context) {
             val now = System.currentTimeMillis()
             mDao.all().filter { it.vehicleType == "ALL" || it.vehicleType == v.type }.forEach { m ->
                 sDao.insert(MaintenanceSchedule(vehicleId = v.id, name = m.name, intervalKm = m.defaultKm.takeIf { it > 0 }, intervalMonths = m.defaultMonths.takeIf { it > 0 }, lastServiceKm = v.initialKm, lastServiceDate = now,
-                    notifyEnabled = m.notifyEnabled, notifyHour = m.notifyHour, notifyMinute = m.notifyMinute))
+                    notifyEnabled = m.notifyEnabled, notifyHour = m.notifyHour, notifyMinute = m.notifyMinute, warnKm = m.warnKm, warnDays = m.warnDays))
             }
             val today = LocalDate.now()
             // Tanggal jatuh tempo hanya perkiraan; user mengisi tanggal perpanjang terakhir di form dokumen

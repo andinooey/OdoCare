@@ -29,7 +29,9 @@ data class MaintenanceSchedule(
     val lastServiceKm: Int? = null, val lastServiceDate: Long? = null,
     val archived: Boolean = false, val createdAt: Long = System.currentTimeMillis(),
     // Notifikasi per kategori: hidup/mati + jam tampil
-    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0
+    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0,
+    // Batas "Segera" (juga pemicu notifikasi): sisa km / sisa hari. 0 = otomatis (20% interval km / 30 hari)
+    val warnKm: Int = 0, val warnDays: Int = 0
 )
 
 @Entity(tableName = "service_records", foreignKeys = [ForeignKey(entity = Vehicle::class, parentColumns = ["id"], childColumns = ["vehicleId"], onDelete = ForeignKey.CASCADE)], indices = [Index("vehicleId")])
@@ -65,7 +67,8 @@ data class MasterCategory(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String, val vehicleType: String = "ALL", // MOTOR / MOBIL / ALL
     val defaultKm: Int = 0, val defaultMonths: Int = 0,
-    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0
+    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0,
+    val warnKm: Int = 0, val warnDays: Int = 0
 )
 
 @Dao
@@ -145,7 +148,7 @@ interface MasterDao {
     @Query("DELETE FROM master_categories") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class], version = 4, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class], version = 5, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -157,7 +160,7 @@ abstract class AppDb : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
         }
     }
 }
@@ -188,5 +191,14 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("ALTER TABLE master_categories ADD COLUMN notifyHour INTEGER NOT NULL DEFAULT 9")
         db.execSQL("ALTER TABLE master_categories ADD COLUMN notifyMinute INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE service_records ADD COLUMN imagePath TEXT")
+    }
+}
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE maintenance_schedules ADD COLUMN warnKm INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE maintenance_schedules ADD COLUMN warnDays INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE master_categories ADD COLUMN warnKm INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE master_categories ADD COLUMN warnDays INTEGER NOT NULL DEFAULT 0")
     }
 }

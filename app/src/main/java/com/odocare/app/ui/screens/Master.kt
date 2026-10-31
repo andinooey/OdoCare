@@ -35,10 +35,10 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
     Scaffold(
         contentWindowInsets = NoInsets,
         topBar = { BackTopBar("Master Kategori", onBack) },
-        floatingActionButton = { FloatingActionButton(onClick = { showAdd = true }, containerColor = LavenderPrimary, contentColor = Color.Black) { Icon(Icons.Default.Add, "Tambah") } }
+        floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
         LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp)) {
-            item { Text("Perubahan master tidak mengubah kendaraan yang sudah ada.", color = TextGray, fontSize = 12.sp) }
+            item { Text("Perubahan di sini tidak mengubah jadwal kendaraan yang sudah ada.", color = TextGray, fontSize = 12.sp) }
             items(masters, key = { it.id }) { m ->
                 Card(colors = CardDefaults.cardColors(containerColor = SurfaceVariantDark)) {
                     Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -50,20 +50,19 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
                             if (m.defaultKm > 0 || m.defaultMonths > 0) parts += if (m.notifyEnabled) "🔔 ${fmtTime(m.notifyHour, m.notifyMinute)}" else "🔕 Mati"
                             Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = TextGray)
                         }
-                        IconButton(onClick = { editTarget = m }) { Icon(Icons.Default.Edit, "Edit", tint = TextGray) }
-                        IconButton(onClick = { deleteTarget = m }) { Icon(Icons.Default.Delete, "Hapus", tint = Color.Red) }
+                        ItemMenu(onEdit = { editTarget = m }, onDelete = { deleteTarget = m })
                     }
                 }
             }
         }
     }
-    if (showAdd) MasterFormDialog("Tambah Master", null, { showAdd = false }) { n, t, k, mo, ne, nh, nm -> vm.addMaster(n, t, k, mo, ne, nh, nm); showAdd = false }
-    editTarget?.let { m -> MasterFormDialog("Edit Master", m, { editTarget = null }) { n, t, k, mo, ne, nh, nm -> vm.updateMaster(m.copy(name = n, vehicleType = t, defaultKm = k, defaultMonths = mo, notifyEnabled = ne, notifyHour = nh, notifyMinute = nm)); editTarget = null } }
+    if (showAdd) MasterFormDialog("Tambah Master", null, { showAdd = false }) { n, t, k, mo, ne, nh, nm, wk, wd -> vm.addMaster(n, t, k, mo, ne, nh, nm, wk, wd); showAdd = false }
+    editTarget?.let { m -> MasterFormDialog("Edit Master", m, { editTarget = null }) { n, t, k, mo, ne, nh, nm, wk, wd -> vm.updateMaster(m.copy(name = n, vehicleType = t, defaultKm = k, defaultMonths = mo, notifyEnabled = ne, notifyHour = nh, notifyMinute = nm, warnKm = wk, warnDays = wd)); editTarget = null } }
     deleteTarget?.let { m -> ConfirmDialog("Hapus master?", "\"${m.name}\" dihapus dari master. Kendaraan yang sudah ada tidak terpengaruh.", "Hapus", { vm.deleteMaster(m.id); deleteTarget = null }, { deleteTarget = null }) }
 }
 
 @Composable
-private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss: () -> Unit, onSave: (name: String, type: String, km: Int, months: Int, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) -> Unit) {
+private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss: () -> Unit, onSave: (name: String, type: String, km: Int, months: Int, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int, warnKm: Int, warnDays: Int) -> Unit) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var type by remember { mutableStateOf(initial?.vehicleType ?: "ALL") }
     var kmT by remember { mutableStateOf(initial?.defaultKm?.takeIf { it > 0 }?.toString() ?: "") }
@@ -71,20 +70,24 @@ private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss:
     var notifyOn by remember { mutableStateOf(initial?.notifyEnabled ?: true) }
     var notifyHour by remember { mutableStateOf(initial?.notifyHour ?: 9) }
     var notifyMinute by remember { mutableStateOf(initial?.notifyMinute ?: 0) }
+    var warnKmT by remember { mutableStateOf(initial?.warnKm?.takeIf { it > 0 }?.toString() ?: "") }
+    var warnDaysT by remember { mutableStateOf(initial?.warnDays?.takeIf { it > 0 }?.toString() ?: "") }
     val hasInterval = posInt(kmT) != null || posInt(moT) != null
     AlertDialog(onDismissRequest = onDismiss, title = { Text(title) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama") }, singleLine = true)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama kategori") }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("ALL", "MOTOR", "MOBIL").forEach { t -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(vehicleTypeLabel(t)) }) }
                 }
-                NumberField(kmT, { kmT = it }, "Interval km default")
-                NumberField(moT, { moT = it }, "Interval bulan default (kosong = tidak dipakai)")
+                NumberField(kmT, { kmT = it }, "Ganti tiap (km)", hint = "Kosongkan jika tidak dipakai")
+                NumberField(moT, { moT = it }, "Ganti tiap (bulan)", hint = "Kosongkan jika tidak dipakai")
+                posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
+                if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", hint = "Kosong = otomatis 30 hari")
                 // Opsi notifikasi baru muncul setelah interval diisi
                 if (hasInterval) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
             }
         },
-        confirmButton = { TextButton(enabled = name.isNotBlank() && (posInt(kmT) != null || posInt(moT) != null), onClick = { onSave(name.trim(), type, kmT.toIntOrNull() ?: 0, moT.toIntOrNull() ?: 0, notifyOn, notifyHour, notifyMinute) }) { Text("Simpan") } },
+        confirmButton = { TextButton(enabled = name.isNotBlank() && (posInt(kmT) != null || posInt(moT) != null), onClick = { onSave(name.trim(), type, kmT.toIntOrNull() ?: 0, moT.toIntOrNull() ?: 0, notifyOn, notifyHour, notifyMinute, if (posInt(kmT) != null) warnKmT.toIntOrNull() ?: 0 else 0, if (posInt(moT) != null) warnDaysT.toIntOrNull() ?: 0 else 0) }) { Text("Simpan") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
 }
