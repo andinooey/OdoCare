@@ -3,7 +3,9 @@
 package com.odocare.app.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,12 +26,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.Snapshots
@@ -42,7 +47,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
+fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTypes: () -> Unit) {
     val ctx = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
@@ -59,9 +64,14 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     var kmEnabled by remember { mutableStateOf(Notif.kmReminderEnabled(ctx)) }
     var kmHour by remember { mutableStateOf(Notif.kmReminderHour(ctx)) }
     var kmMinute by remember { mutableStateOf(Notif.kmReminderMinute(ctx)) }
-    var docEnabled by remember { mutableStateOf(Notif.docReminderEnabled(ctx)) }
-    var docHour by remember { mutableStateOf(Notif.docReminderHour(ctx)) }
-    var docMinute by remember { mutableStateOf(Notif.docReminderMinute(ctx)) }
+    var exactAlarmOk by remember { mutableStateOf(Notif.canExactAlarm(ctx)) }
+    // Kembali dari layar izin "Alarm & pengingat": segarkan status + pasang ulang alarm
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) { exactAlarmOk = Notif.canExactAlarm(ctx) } }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
     var message by remember { mutableStateOf<String?>(null) }
     var pendingRestore by remember { mutableStateOf<String?>(null) }
     var showPaste by remember { mutableStateOf(false) }
@@ -88,7 +98,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
                 vehicles.forEach { v ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(if (v.id == active?.id) PillSelected else SurfaceDark), contentAlignment = Alignment.Center) {
-                            Icon(if (v.type == "MOBIL") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler, null, tint = if (v.id == active?.id) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp))
+                            Icon(VehicleTypes.icon(v.type), null, tint = if (v.id == active?.id) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp))
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
@@ -109,8 +119,9 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
             }
         }
 
-        SectionCard("Master Kategori", Icons.Default.Category) {
-            ActionRow(Icons.Default.Tune, "Kelola master kategori", subtitle = "Daftar komponen servis bawaan motor & mobil", onClick = onOpenMaster)
+        SectionCard("Master Data", Icons.Default.Category) {
+            ActionRow(Icons.Default.Tune, "Master kategori", subtitle = "Daftar komponen servis bawaan per jenis kendaraan", onClick = onOpenMaster)
+            ActionRow(Icons.Default.DirectionsCar, "Master jenis kendaraan", subtitle = "Motor, mobil, dan jenis lain yang kamu tambahkan", onClick = onOpenVehicleTypes)
         }
 
         SectionCard("Pengingat Update KM", Icons.Default.Speed) {
@@ -134,32 +145,21 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
                 } else {
                     Notif.setKmReminder(ctx, kmEnabled, v, kmUnit, kmHour, kmMinute)
                     Notif.schedulePolling(ctx)
+                    Notif.onDataChanged(ctx)   // jam baru langsung berlaku (alarm dipasang ulang)
                     message = if (kmEnabled) "Pengingat update KM: setiap $v ${kmUnit.label.lowercase()} pukul ${fmtTime(kmHour, kmMinute)} (diulang selama KM belum diperbarui)." else "Pengingat update KM dimatikan."
                 }
             }) { Text("Simpan", fontSize = 13.sp) }
         }
 
-        SectionCard("Pengingat Pajak & Dokumen", Icons.Default.EventAvailable) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Notifikasi jatuh tempo", color = TextWhite, fontSize = 13.sp)
-                    Text("Waktu pengingat diatur per dokumen.", color = TextGray, fontSize = 11.sp)
-                }
-                Switch(checked = docEnabled, onCheckedChange = {
-                    docEnabled = it; Notif.setDocReminder(ctx, docEnabled, docHour, docMinute); Notif.schedulePolling(ctx)
-                }, modifier = Modifier.scale(0.8f))
-            }
-            if (docEnabled) {
-                Spacer(Modifier.height(8.dp))
-                TimeField("Jam notifikasi", docHour, docMinute) { h, m ->
-                    docHour = h; docMinute = m; Notif.setDocReminder(ctx, docEnabled, h, m); Notif.schedulePolling(ctx)
-                }
-            }
-        }
-
         SectionCard("Notifikasi & Kalender", Icons.Default.Notifications) {
-            FormNote("Pengecekan berjalan berkala, jadi notifikasi bisa telat beberapa menit.")
+            FormNote("Notifikasi muncul tepat di jam yang diatur. Jam & on/off pajak/dokumen diatur di form dokumen, komponen servis di form komponen.")
             Spacer(Modifier.height(4.dp))
+            if (Build.VERSION.SDK_INT >= 31 && !exactAlarmOk) {
+                ActionRow(Icons.Default.AlarmOn, "Izinkan alarm tepat waktu", subtitle = "Tanpa izin ini notifikasi bisa telat beberapa menit") {
+                    try { ctx.startActivity(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))) }
+                    catch (e: Exception) { message = "Buka Pengaturan HP > Aplikasi > OdoCare > Alarm & pengingat, lalu izinkan." }
+                }
+            }
             ActionRow(Icons.Default.NotificationsActive, "Aktifkan notifikasi") {
                 if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 else message = "Notifikasi sudah aktif."
@@ -194,8 +194,8 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         Spacer(Modifier.height(20.dp))
     }
 
-    if (showAdd) VehicleFormDialog("Tambah Kendaraan", null, { showAdd = false }) { n, p, t, k -> vm.addVehicle(n, p, t, k); showAdd = false }
-    editTarget?.let { v -> VehicleFormDialog("Ubah Kendaraan", v, { editTarget = null }) { n, p, _, k -> vm.updateVehicle(v.copy(name = n.trim(), plate = p.trim().uppercase(), initialKm = k)); editTarget = null } }
+    if (showAdd) VehicleFormDialog("Tambah Kendaraan", null, { showAdd = false }) { n, p, t, k, a, d -> vm.addVehicle(n, p, t, k, a, d); showAdd = false }
+    editTarget?.let { v -> VehicleFormDialog("Ubah Kendaraan", v, { editTarget = null }) { n, p, _, k, _, _ -> vm.updateVehicle(v.copy(name = n.trim(), plate = p.trim().uppercase(), initialKm = k)); editTarget = null } }
     deleteTarget?.let { v -> ConfirmDialog("Hapus kendaraan?", "\"${v.name}\" beserta seluruh odometer, jadwal servis, riwayat, dan dokumennya akan dihapus permanen.", "Hapus", { vm.deleteVehicle(v.id); deleteTarget = null }, { deleteTarget = null }) }
 
     if (showPaste) {

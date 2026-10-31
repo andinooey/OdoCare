@@ -115,11 +115,12 @@ private fun OdoCareRoot(vm: MainViewModel) {
             }
             composable("schedule") { ScheduleScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }) }
             composable("report") { ReportScreen(vm, onOpenHistory = { nav.navigate("history") { launchSingleTop = true } }) }
-            composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }) }
+            composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }, onOpenVehicleTypes = { nav.navigate("vehicletypes") { launchSingleTop = true } }) }
             composable("history") { HistoryScreen(vm, onBack = { nav.popBackStack() }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }
             composable("odometer") { OdometerScreen(vm, onBack = { nav.popBackStack() }) }
             composable("documents") { DocumentsScreen(vm, onBack = { nav.popBackStack() }) }
             composable("master") { MasterScreen(vm, onBack = { nav.popBackStack() }) }
+            composable("vehicletypes") { VehicleTypeScreen(vm, onBack = { nav.popBackStack() }) }
         }
     }
 }

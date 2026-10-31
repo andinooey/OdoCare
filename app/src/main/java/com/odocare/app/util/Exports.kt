@@ -60,11 +60,13 @@ object Exports {
             line("DTEND;VALUE=DATE:${date.plusDays(1).format(DateTimeFormatter.BASIC_ISO_DATE)}")
             line("SUMMARY:" + icsEscape("Jatuh tempo: $title"))
             // Pengingat per dokumen (hari/bulan/tahun sebelum jatuh tempo) + hari-H
-            val offsets = (Reminders.parse(d.reminders).map { ChronoUnit.DAYS.between(it.dateFor(date), date).toInt() } + 0).filter { it >= 0 }.distinct()
+            // Jam alarm mengikuti jam notifikasi dokumen; dokumen dengan notifikasi mati tidak diberi alarm
+            val offsets = if (!d.notifyEnabled) emptyList() else (Reminders.parse(d.reminders).map { ChronoUnit.DAYS.between(it.dateFor(date), date).toInt() } + 0).filter { it >= 0 }.distinct()
+            val minuteOfDay = d.notifyHour * 60 + d.notifyMinute
             offsets.forEach { n ->
                 line("BEGIN:VALARM"); line("ACTION:DISPLAY"); line("DESCRIPTION:" + icsEscape(if (n == 0) "Hari ini jatuh tempo: $title" else "$title jatuh tempo $n hari lagi"))
-                // Event seharian mulai 00.00; alarm 09.00 pada H-n = (n-1) hari + 15 jam sebelum mulai
-                if (n == 0) line("TRIGGER;RELATED=START:PT9H") else line("TRIGGER:-P${n - 1}DT15H")
+                // Event seharian mulai 00.00 pada hari jatuh tempo. H-0: jam notifikasi setelah mulai; H-n: n hari dikurangi jam notifikasi sebelum mulai
+                if (n == 0) line("TRIGGER;RELATED=START:PT${minuteOfDay}M") else line("TRIGGER:-PT${n * 1440 - minuteOfDay}M")
                 line("END:VALARM")
             }
             line("END:VEVENT")

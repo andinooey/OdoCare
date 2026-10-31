@@ -52,7 +52,9 @@ data class LegalDocument(
     // Jatuh tempo = lastRenewedDate + interval (jika keduanya diisi)
     val lastRenewedDate: Long? = null, val intervalValue: Int? = null, val intervalUnit: String? = null,
     // Pengingat notifikasi per dokumen, mis. "30:DAY,15:DAY,1:MONTH"
-    val reminders: String = "30:DAY,15:DAY"
+    val reminders: String = "30:DAY,15:DAY",
+    // Notifikasi per dokumen: hidup/mati + jam tampil
+    val notifyEnabled: Boolean = true, val notifyHour: Int = 9, val notifyMinute: Int = 0
 )
 
 @Entity(tableName = "document_history", foreignKeys = [ForeignKey(entity = LegalDocument::class, parentColumns = ["id"], childColumns = ["documentId"], onDelete = ForeignKey.CASCADE)], indices = [Index("documentId")])
@@ -71,11 +73,20 @@ data class MasterCategory(
     val warnKm: Int = 0, val warnDays: Int = 0
 )
 
+/** Master jenis kendaraan (Motor, Mobil, dst). code dipakai di Vehicle.type dan MasterCategory.vehicleType. */
+@Entity(tableName = "vehicle_types")
+data class VehicleType(
+    @PrimaryKey val code: String,
+    val name: String, val icon: String = "CAR",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
 @Dao
 interface VehicleDao {
     @Query("SELECT * FROM vehicles ORDER BY createdAt ASC") fun observeAll(): Flow<List<Vehicle>>
     @Query("SELECT * FROM vehicles WHERE isActive = 1 LIMIT 1") fun observeActive(): Flow<Vehicle?>
     @Query("SELECT COUNT(*) FROM vehicles") suspend fun count(): Int
+    @Query("SELECT COUNT(*) FROM vehicles WHERE type = :code") suspend fun countByType(code: String): Int
     @Query("SELECT * FROM vehicles") suspend fun all(): List<Vehicle>
     @Query("DELETE FROM vehicles") suspend fun deleteAll()
     @Query("SELECT id FROM vehicles WHERE isActive = 1 LIMIT 1") suspend fun activeId(): String?
@@ -126,6 +137,7 @@ interface DocumentDao {
     @Query("SELECT * FROM legal_documents WHERE vehicleId = :vid ORDER BY expiryDate ASC") fun observeForVehicle(vid: String): Flow<List<LegalDocument>>
     @Query("SELECT * FROM legal_documents") suspend fun all(): List<LegalDocument>
     @Query("SELECT * FROM legal_documents ORDER BY expiryDate ASC") fun observeAll(): Flow<List<LegalDocument>>
+    @Query("UPDATE legal_documents SET notifyEnabled = :enabled, notifyHour = :hour, notifyMinute = :minute") suspend fun setAllNotify(enabled: Boolean, hour: Int, minute: Int)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(d: LegalDocument)
     @Update suspend fun update(d: LegalDocument)
     @Query("DELETE FROM legal_documents WHERE id = :id") suspend fun deleteById(id: String)
@@ -145,10 +157,22 @@ interface MasterDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(m: MasterCategory)
     @Update suspend fun update(m: MasterCategory)
     @Query("DELETE FROM master_categories WHERE id = :id") suspend fun deleteById(id: String)
+    @Query("DELETE FROM master_categories WHERE vehicleType = :code") suspend fun deleteByType(code: String)
     @Query("DELETE FROM master_categories") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class], version = 5, exportSchema = false)
+@Dao
+interface VehicleTypeDao {
+    @Query("SELECT * FROM vehicle_types ORDER BY createdAt ASC, name ASC") fun observeAll(): Flow<List<VehicleType>>
+    @Query("SELECT * FROM vehicle_types") suspend fun all(): List<VehicleType>
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIgnore(t: VehicleType)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(t: VehicleType)
+    @Update suspend fun update(t: VehicleType)
+    @Query("DELETE FROM vehicle_types WHERE code = :code") suspend fun deleteByCode(code: String)
+    @Query("DELETE FROM vehicle_types") suspend fun deleteAll()
+}
+
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class], version = 6, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -157,10 +181,11 @@ abstract class AppDb : RoomDatabase() {
     abstract fun documentDao(): DocumentDao
     abstract fun docHistoryDao(): DocHistoryDao
     abstract fun masterDao(): MasterDao
+    abstract fun vehicleTypeDao(): VehicleTypeDao
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build().also { INSTANCE = it }
         }
     }
 }
@@ -200,5 +225,14 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE maintenance_schedules ADD COLUMN warnDays INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE master_categories ADD COLUMN warnKm INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE master_categories ADD COLUMN warnDays INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN notifyEnabled INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN notifyHour INTEGER NOT NULL DEFAULT 9")
+        db.execSQL("ALTER TABLE legal_documents ADD COLUMN notifyMinute INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("CREATE TABLE IF NOT EXISTS vehicle_types (code TEXT NOT NULL, name TEXT NOT NULL, icon TEXT NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(code))")
     }
 }

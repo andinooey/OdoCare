@@ -72,17 +72,8 @@ fun StatusStripeCard(stripe: Color, content: @Composable ColumnScope.() -> Unit)
     }
 }
 
-/** Chip status kecil dengan ikon: Aman / Segera / Lewat. */
 @Composable
-fun StatusChip(status: ServiceStatus) {
-    val colors = serviceColor(status)
-    val icon = when (status) {
-        ServiceStatus.NORMAL -> Icons.Default.CheckCircle
-        ServiceStatus.SOON, ServiceStatus.DUE -> Icons.Default.Warning
-        ServiceStatus.LATE -> Icons.Default.Error
-        ServiceStatus.NO_ODOMETER -> Icons.Default.Info
-    }
-    val label = if (status == ServiceStatus.NO_ODOMETER) "Update KM" else status.label
+private fun StatusChipBase(colors: Pair<Color, Color>, icon: ImageVector, label: String) {
     Surface(color = colors.first, shape = RoundedCornerShape(50)) {
         Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = colors.second, modifier = Modifier.size(13.dp))
@@ -90,6 +81,29 @@ fun StatusChip(status: ServiceStatus) {
             Text(label, color = colors.second, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
     }
+}
+
+/** Chip status kecil dengan ikon: Aman / Segera / Lewat. */
+@Composable
+fun StatusChip(status: ServiceStatus) {
+    val icon = when (status) {
+        ServiceStatus.NORMAL -> Icons.Default.CheckCircle
+        ServiceStatus.SOON, ServiceStatus.DUE -> Icons.Default.Warning
+        ServiceStatus.LATE -> Icons.Default.Error
+        ServiceStatus.NO_ODOMETER -> Icons.Default.Info
+    }
+    StatusChipBase(serviceColor(status), icon, if (status == ServiceStatus.NO_ODOMETER) "Update KM" else status.label)
+}
+
+/** Chip status dokumen dengan ikon yang sama seperti komponen servis. */
+@Composable
+fun DocStatusChip(status: DocStatus) {
+    val icon = when (status) {
+        DocStatus.SAFE -> Icons.Default.CheckCircle
+        DocStatus.SOON -> Icons.Default.Warning
+        DocStatus.DUE_TODAY, DocStatus.LATE -> Icons.Default.Error
+    }
+    StatusChipBase(docColor(status), icon, status.label)
 }
 
 /** Titik tiga: tap dulu, baru muncul pilihan Edit dan Hapus. */

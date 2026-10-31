@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.InvalidationTracker
 import com.odocare.app.data.*
 import com.odocare.app.notif.Notif
+import com.odocare.app.ui.VehicleTypes
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -28,14 +30,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // Semua kendaraan (Dashboard & Laporan)
     val masters: StateFlow<List<MasterCategory>> = repo.masters.state(emptyList())
+    val vehicleTypes: StateFlow<List<VehicleType>> = repo.vehicleTypes.state(com.odocare.app.domain.Catalog.defaultTypes())
     val allSchedules: StateFlow<List<MaintenanceSchedule>> = repo.allSchedules.state(emptyList())
     val allDocuments: StateFlow<List<LegalDocument>> = repo.allDocuments.state(emptyList())
     val allRecords: StateFlow<List<ServiceRecord>> = repo.allRecords.state(emptyList())
     val allOdometer: StateFlow<List<OdometerLog>> = repo.allOdometer.state(emptyList())
 
     // ---- Kendaraan ----
-    fun addVehicle(name: String, plate: String, type: String, initialKm: Int) = viewModelScope.launch {
-        if (name.isNotBlank()) repo.addVehicleWithDefaults(Vehicle(name = name.trim(), plate = plate.trim().uppercase(), type = type, initialKm = initialKm))
+    fun addVehicle(name: String, plate: String, type: String, initialKm: Int, autoSchedules: Boolean, autoDocs: Boolean) = viewModelScope.launch {
+        if (name.isNotBlank()) repo.addVehicleWithDefaults(Vehicle(name = name.trim(), plate = plate.trim().uppercase(), type = type, initialKm = initialKm), autoSchedules, autoDocs)
     }
     fun updateVehicle(v: Vehicle) = viewModelScope.launch { repo.updateVehicle(v) }
     fun setActiveVehicle(id: String) = viewModelScope.launch { repo.setActive(id) }
@@ -67,8 +70,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- Dokumen ----
-    fun addDocument(type: String, expiryMillis: Long, number: String?, lastRenewed: Long?, intervalValue: Int?, intervalUnit: String?, reminders: String) = viewModelScope.launch {
-        activeVehicle.value?.let { repo.addDocument(LegalDocument(vehicleId = it.id, type = type, number = number, expiryDate = expiryMillis, lastRenewedDate = lastRenewed, intervalValue = intervalValue, intervalUnit = intervalUnit, reminders = reminders)) }
+    fun addDocument(type: String, expiryMillis: Long, number: String?, lastRenewed: Long?, intervalValue: Int?, intervalUnit: String?, reminders: String, notifyEnabled: Boolean, notifyHour: Int, notifyMinute: Int) = viewModelScope.launch {
+        activeVehicle.value?.let { repo.addDocument(LegalDocument(vehicleId = it.id, type = type, number = number, expiryDate = expiryMillis, lastRenewedDate = lastRenewed, intervalValue = intervalValue, intervalUnit = intervalUnit, reminders = reminders, notifyEnabled = notifyEnabled, notifyHour = notifyHour, notifyMinute = notifyMinute)) }
     }
     fun updateDocument(d: LegalDocument) = viewModelScope.launch { repo.updateDocument(d) }
     fun renewDocument(doc: LegalDocument, renewedDate: Long, newExpiry: Long) = viewModelScope.launch { repo.renewDocument(doc, renewedDate, newExpiry) }
@@ -80,6 +83,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun updateMaster(m: MasterCategory) = viewModelScope.launch { repo.updateMaster(m) }
     fun deleteMaster(id: String) = viewModelScope.launch { repo.deleteMaster(id) }
+
+    // ---- Master jenis kendaraan ----
+    fun addVehicleType(name: String, icon: String) = viewModelScope.launch {
+        if (name.isNotBlank()) repo.addVehicleType(VehicleType(code = "T_" + UUID.randomUUID().toString().take(8).uppercase(), name = name.trim(), icon = icon))
+    }
+    fun updateVehicleType(t: VehicleType) = viewModelScope.launch { repo.updateVehicleType(t) }
+    /** onResult(false) = jenis ini masih dipakai kendaraan, tidak dihapus. */
+    fun deleteVehicleType(code: String, onResult: (Boolean) -> Unit) = viewModelScope.launch { onResult(repo.deleteVehicleType(code)) }
 
     // ---- Notifikasi ----
     fun testNotification() = Notif.show(getApplication(), Notif.CH_SERVICE, "Uji Notifikasi", "Notifikasi OdoCare berfungsi.")
@@ -94,9 +105,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             prefs.edit().putInt("changes_since_backup", n).apply()
             changesSinceBackup.value = n
             maybeSnapshot()
+            Notif.onDataChanged(getApplication())   // jam/hari notifikasi berubah -> langsung berlaku, alarm dipasang ulang
         }
     }
-    init { repo.db.invalidationTracker.addObserver(observer) }
+    init {
+        repo.db.invalidationTracker.addObserver(observer)
+        // Daftar jenis kendaraan dipakai di banyak layar (label & ikon), jadi disimpan di registri global
+        viewModelScope.launch { repo.vehicleTypes.collect { VehicleTypes.all = it } }
+    }
     override fun onCleared() { repo.db.invalidationTracker.removeObserver(observer) }
 
     /** Satu snapshot per jendela 10 menit, simpan 30 terakhir. */

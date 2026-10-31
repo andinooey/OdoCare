@@ -12,11 +12,12 @@ class Repo(private val ctx: Context) {
     val prefs = ctx.getSharedPreferences("odocare", Context.MODE_PRIVATE)
     private val vDao = db.vehicleDao(); private val oDao = db.odometerDao()
     private val sDao = db.scheduleDao(); private val srDao = db.serviceRecordDao()
-    private val dDao = db.documentDao(); private val dhDao = db.docHistoryDao(); private val mDao = db.masterDao()
+    private val dDao = db.documentDao(); private val dhDao = db.docHistoryDao(); private val mDao = db.masterDao(); private val vtDao = db.vehicleTypeDao()
 
     val vehicles: Flow<List<Vehicle>> = vDao.observeAll()
     val activeVehicle: Flow<Vehicle?> = vDao.observeActive()
     val masters: Flow<List<MasterCategory>> = mDao.observeAll()
+    val vehicleTypes: Flow<List<VehicleType>> = vtDao.observeAll()
     val allOdometer: Flow<List<OdometerLog>> = oDao.observeAll()
     val allSchedules: Flow<List<MaintenanceSchedule>> = sDao.observeAllActive()
     val allRecords: Flow<List<ServiceRecord>> = srDao.observeAll()
@@ -35,23 +36,46 @@ class Repo(private val ctx: Context) {
         prefs.edit().putBoolean("master_seeded", true).apply()
     }
 
+    /** Isi jenis kendaraan bawaan sekali saja. IGNORE: baris yang sudah ada (mis. hasil restore) tidak ditimpa. */
+    suspend fun seedVehicleTypesIfNeeded() {
+        if (prefs.getBoolean("vtype_seeded", false)) return
+        Catalog.defaultTypes().forEach { vtDao.insertIgnore(it) }
+        prefs.edit().putBoolean("vtype_seeded", true).apply()
+    }
+
+    /** Sekali saja: pengaturan notifikasi dokumen yang dulu global (Pengaturan) disalin ke tiap dokumen yang sudah ada. */
+    suspend fun migrateDocNotifPrefs() {
+        if (prefs.getBoolean("doc_notif_migrated", false)) return
+        if (prefs.contains("doc_reminder_enabled") || prefs.contains("doc_reminder_hour")) {
+            dDao.setAllNotify(prefs.getBoolean("doc_reminder_enabled", true), prefs.getInt("doc_reminder_hour", 9), prefs.getInt("doc_reminder_minute", 0))
+        }
+        prefs.edit().putBoolean("doc_notif_migrated", true).apply()
+    }
+
     private fun dayMillis(d: LocalDate) = d.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-    /** Kendaraan baru otomatis memakai master sesuai jenisnya + dokumen default + odometer awal. */
-    suspend fun addVehicleWithDefaults(v: Vehicle) {
-        seedMasterIfNeeded()
+    /**
+     * Kendaraan baru + odometer awal. Jadwal servis (dari master sesuai jenisnya) dan dokumen default
+     * hanya dibuat bila switch-nya aktif di form tambah kendaraan.
+     */
+    suspend fun addVehicleWithDefaults(v: Vehicle, autoSchedules: Boolean = true, autoDocs: Boolean = true) {
+        if (autoSchedules) seedMasterIfNeeded()
         db.withTransaction {
             vDao.insert(if (vDao.count() == 0) v.copy(isActive = true) else v)
             if (v.initialKm > 0) oDao.insert(OdometerLog(vehicleId = v.id, km = v.initialKm))
             val now = System.currentTimeMillis()
-            mDao.all().filter { it.vehicleType == "ALL" || it.vehicleType == v.type }.forEach { m ->
-                sDao.insert(MaintenanceSchedule(vehicleId = v.id, name = m.name, intervalKm = m.defaultKm.takeIf { it > 0 }, intervalMonths = m.defaultMonths.takeIf { it > 0 }, lastServiceKm = v.initialKm, lastServiceDate = now,
-                    notifyEnabled = m.notifyEnabled, notifyHour = m.notifyHour, notifyMinute = m.notifyMinute, warnKm = m.warnKm, warnDays = m.warnDays))
+            if (autoSchedules) {
+                mDao.all().filter { it.vehicleType == "ALL" || it.vehicleType == v.type }.forEach { m ->
+                    sDao.insert(MaintenanceSchedule(vehicleId = v.id, name = m.name, intervalKm = m.defaultKm.takeIf { it > 0 }, intervalMonths = m.defaultMonths.takeIf { it > 0 }, lastServiceKm = v.initialKm, lastServiceDate = now,
+                        notifyEnabled = m.notifyEnabled, notifyHour = m.notifyHour, notifyMinute = m.notifyMinute, warnKm = m.warnKm, warnDays = m.warnDays))
+                }
             }
-            val today = LocalDate.now()
-            // Tanggal jatuh tempo hanya perkiraan; user mengisi tanggal perpanjang terakhir di form dokumen
-            dDao.insert(LegalDocument(vehicleId = v.id, type = "PAJAK_TAHUNAN", expiryDate = dayMillis(today.plusYears(1)), intervalValue = 1, intervalUnit = "YEAR"))
-            dDao.insert(LegalDocument(vehicleId = v.id, type = "GANTI_PLAT", expiryDate = dayMillis(today.plusYears(5)), intervalValue = 5, intervalUnit = "YEAR"))
+            if (autoDocs) {
+                val today = LocalDate.now()
+                // Tanggal jatuh tempo hanya perkiraan; user mengisi tanggal perpanjang terakhir di form dokumen
+                dDao.insert(LegalDocument(vehicleId = v.id, type = "PAJAK_TAHUNAN", expiryDate = dayMillis(today.plusYears(1)), intervalValue = 1, intervalUnit = "YEAR"))
+                dDao.insert(LegalDocument(vehicleId = v.id, type = "GANTI_PLAT", expiryDate = dayMillis(today.plusYears(5)), intervalValue = 5, intervalUnit = "YEAR"))
+            }
         }
     }
 
@@ -68,7 +92,7 @@ class Repo(private val ctx: Context) {
     suspend fun deleteOdometer(id: String) = oDao.deleteById(id)
 
     suspend fun addSchedule(s: MaintenanceSchedule) = sDao.insert(s)
-    suspend fun updateSchedule(s: MaintenanceSchedule) = sDao.update(s)
+    suspend fun updateSchedule(s: MaintenanceSchedule) { sDao.update(s); prefs.edit().remove("svc_sent_${s.id}").apply() }
     suspend fun deleteSchedule(id: String) = sDao.deleteById(id)
 
     /** Simpan servis. Odometer ikut naik bila KM servis lebih besar dari KM terakhir (tidak pernah diturunkan otomatis). */
@@ -76,6 +100,7 @@ class Repo(private val ctx: Context) {
         bumpOdometer(schedule.vehicleId, km)
         srDao.insert(ServiceRecord(vehicleId = schedule.vehicleId, scheduleId = schedule.id, title = schedule.name, km = km, date = dateMillis, cost = cost, notes = notes, imagePath = imagePath))
         sDao.update(schedule.copy(lastServiceKm = km, lastServiceDate = dateMillis))
+        prefs.edit().remove("svc_sent_${schedule.id}").apply()
     }
     private suspend fun bumpOdometer(vehicleId: String, km: Int) {
         val current = oDao.latestKm(vehicleId)
@@ -85,16 +110,25 @@ class Repo(private val ctx: Context) {
     suspend fun deleteRecord(id: String) = srDao.deleteById(id)
 
     suspend fun addDocument(d: LegalDocument) = dDao.insert(d)
-    suspend fun updateDocument(d: LegalDocument) = dDao.update(d)
+    suspend fun updateDocument(d: LegalDocument) { dDao.update(d); prefs.edit().remove("doc_handled_${d.id}").apply() }
     suspend fun renewDocument(doc: LegalDocument, renewedDate: Long, newExpiry: Long) = db.withTransaction {
         dhDao.insert(DocumentHistory(documentId = doc.id, oldExpiry = doc.expiryDate, newExpiry = newExpiry, renewedAt = renewedDate))
         dDao.update(doc.copy(expiryDate = newExpiry, lastRenewedDate = renewedDate))
+        prefs.edit().remove("doc_handled_${doc.id}").apply()
     }
     suspend fun deleteDocument(id: String) = dDao.deleteById(id)
 
     suspend fun addMaster(m: MasterCategory) = mDao.insert(m)
     suspend fun updateMaster(m: MasterCategory) = mDao.update(m)
     suspend fun deleteMaster(id: String) = mDao.deleteById(id)
+
+    // ---- Master jenis kendaraan ----
+    suspend fun addVehicleType(t: VehicleType) = vtDao.insert(t)
+    suspend fun updateVehicleType(t: VehicleType) = vtDao.update(t)
+    /** false = masih dipakai kendaraan, tidak dihapus. Master kategori jenis itu ikut dihapus. */
+    suspend fun deleteVehicleType(code: String): Boolean = db.withTransaction {
+        if (vDao.countByType(code) > 0) false else { mDao.deleteByType(code); vtDao.deleteByCode(code); true }
+    }
 
     suspend fun allDocuments(): List<LegalDocument> = dDao.all()
     suspend fun allActiveSchedules(): List<MaintenanceSchedule> = sDao.allActive()

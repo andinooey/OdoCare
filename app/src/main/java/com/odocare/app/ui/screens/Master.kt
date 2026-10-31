@@ -45,7 +45,7 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
                     Surface(color = SurfaceVariantDark, shape = CardShape) {
                         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
-                                Icon(when (m.vehicleType) { "MOBIL" -> Icons.Default.DirectionsCar; "MOTOR" -> Icons.Default.TwoWheeler; else -> Icons.Default.Build }, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                                Icon(if (m.vehicleType == "ALL") Icons.Default.Build else VehicleTypes.icon(m.vehicleType), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                             }
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
@@ -86,7 +86,10 @@ private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss:
     ) {
         AppTextField(name, { name = it }, "Nama kategori", Icons.Default.Edit)
         FormGroupLabel("Berlaku untuk")
-        SegmentedChoice(listOf("ALL", "MOTOR", "MOBIL"), type, { vehicleTypeLabel(it) }, { type = it })
+        DropdownField(
+            "Jenis kendaraan", VehicleTypes.label(type), if (type == "ALL") Icons.Default.Category else VehicleTypes.icon(type),
+            listOf("ALL" to "Semua") + VehicleTypes.all.map { it.code to it.name }
+        ) { type = it }
         FormGroupLabel("Interval bawaan")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.weight(1f)) { NumberField(kmT, { kmT = it }, "Tiap (km)", icon = Icons.Default.Speed) }

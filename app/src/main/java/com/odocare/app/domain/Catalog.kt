@@ -1,11 +1,18 @@
 package com.odocare.app.domain
 
 import com.odocare.app.data.MasterCategory
+import com.odocare.app.data.VehicleType
 
 /** Isi awal master kategori service (bisa diubah user di menu Master Kategori). */
 object Catalog {
     private fun m(type: String, idx: Int, name: String, km: Int, months: Int) =
         MasterCategory(id = "seed_${type}_$idx", name = name, vehicleType = type, defaultKm = km, defaultMonths = months)
+
+    /** Jenis kendaraan bawaan. Kode MOTOR / MOBIL dipertahankan agar data lama tetap cocok. */
+    fun defaultTypes(): List<VehicleType> = listOf(
+        VehicleType(code = "MOTOR", name = "Motor", icon = "MOTOR", createdAt = 1L),
+        VehicleType(code = "MOBIL", name = "Mobil", icon = "CAR", createdAt = 2L)
+    )
 
     fun seed(): List<MasterCategory> = listOf(
         m("MOTOR", 1, "Oli Mesin", 2_000, 6), m("MOTOR", 2, "Oli Gardan", 8_000, 0), m("MOTOR", 3, "Filter Udara", 8_000, 0),

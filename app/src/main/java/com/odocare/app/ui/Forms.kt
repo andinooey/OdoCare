@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -101,12 +102,16 @@ fun AppTextField(
 
 /** Field angka bulat dengan pemisah ribuan. currency = true menambahkan awalan "Rp". */
 @Composable
-fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null, icon: ImageVector? = null) {
+fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null, icon: ImageVector? = null, allowZero: Boolean = false) {
     val prefixSlot: (@Composable () -> Unit)? = if (currency) { { Text("Rp ", fontSize = 14.sp) } } else null
     val iconSlot: (@Composable () -> Unit)? = if (icon != null) { { Icon(icon, null, modifier = Modifier.size(18.dp)) } } else null
     val hintSlot: (@Composable () -> Unit)? = if (hint != null) { { Text(hint, fontSize = 11.sp) } } else null
     OutlinedTextField(
-        value = value, onValueChange = { onChange(it.filter(Char::isDigit).trimStart('0').take(12)) },
+        value = value, onValueChange = { raw ->
+            val digits = raw.filter(Char::isDigit).take(12)
+            // allowZero: nol tunggal ("0") dipertahankan, selain itu nol di depan dibuang
+            onChange(if (allowZero && digits.isNotEmpty() && digits.all { it == '0' }) "0" else digits.trimStart('0'))
+        },
         modifier = Modifier.fillMaxWidth(),
         label = { Text(label, fontSize = 12.sp) }, singleLine = true, prefix = prefixSlot,
         leadingIcon = iconSlot, supportingText = hintSlot,
@@ -132,6 +137,22 @@ fun PickerField(label: String, value: String?, icon: ImageVector, placeholder: S
                 Text(value ?: placeholder, fontSize = 14.sp, color = if (value != null) TextWhite else TextGray)
             }
             if (trailing != null) Icon(trailing, null, tint = TextGray, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+/** Baris switch on/off dengan ikon, judul, dan keterangan. */
+@Composable
+fun SwitchRow(icon: ImageVector, title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = FieldShape, border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = if (checked) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 13.sp, color = TextWhite)
+                if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = TextGray, lineHeight = 14.sp)
+            }
+            Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.scale(0.8f))
         }
     }
 }

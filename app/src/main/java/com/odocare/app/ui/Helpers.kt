@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.odocare.app.data.ServiceRecord
+import com.odocare.app.domain.Catalog
 import com.odocare.app.domain.Engines
 import com.odocare.app.domain.IntervalUnit
 import com.odocare.app.domain.ServiceStatus
@@ -88,7 +89,28 @@ val docTypes: List<Pair<String, String>> = listOf(
     "SIM_A" to "SIM A", "SIM_C" to "SIM C", "ASURANSI" to "Asuransi", "GARANSI" to "Garansi", "LAINNYA" to "Lainnya"
 )
 fun docTypeLabel(k: String): String = docTypes.firstOrNull { it.first == k }?.second ?: k
-fun vehicleTypeLabel(t: String): String = when (t) { "MOBIL" -> "Mobil"; "MOTOR" -> "Motor"; "ALL" -> "Semua"; else -> "Lainnya" }
+/** Pilihan ikon untuk master jenis kendaraan (kunci disimpan di tabel vehicle_types). */
+val vehicleIconOptions: List<Pair<String, ImageVector>> = listOf(
+    "MOTOR" to Icons.Default.TwoWheeler, "CAR" to Icons.Default.DirectionsCar, "TRUCK" to Icons.Default.LocalShipping,
+    "BUS" to Icons.Default.DirectionsBus, "VAN" to Icons.Default.AirportShuttle, "BICYCLE" to Icons.Default.PedalBike,
+    "EBIKE" to Icons.Default.ElectricBike, "ESCOOTER" to Icons.Default.ElectricScooter, "TRACTOR" to Icons.Default.Agriculture,
+    "BOAT" to Icons.Default.DirectionsBoat
+)
+
+/**
+ * Registri jenis kendaraan untuk label & ikon di seluruh layar. State Compose, jadi layar otomatis menyegarkan diri
+ * saat master jenis kendaraan berubah. Diisi MainViewModel dari database.
+ */
+object VehicleTypes {
+    var all by mutableStateOf(Catalog.defaultTypes())
+    private fun find(code: String) = all.firstOrNull { it.code == code }
+    fun label(code: String): String = if (code == "ALL") "Semua" else find(code)?.name ?: when (code) { "MOBIL" -> "Mobil"; "MOTOR" -> "Motor"; else -> "Lainnya" }
+    fun icon(code: String): ImageVector {
+        val key = find(code)?.icon ?: if (code == "MOTOR") "MOTOR" else "CAR"
+        return vehicleIconOptions.firstOrNull { it.first == key }?.second ?: Icons.Default.DirectionsCar
+    }
+}
+fun vehicleTypeLabel(t: String): String = VehicleTypes.label(t)
 fun docDaysText(days: Long): String = when { days < 0 -> "Lewat ${-days} hari"; days == 0L -> "Hari ini"; else -> "$days hari lagi" }
 
 fun kmLine(rem: Int, warn: Int): String = when {

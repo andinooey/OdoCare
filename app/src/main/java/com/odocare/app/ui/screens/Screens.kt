@@ -91,7 +91,7 @@ fun HomeScreen(
                 Column(Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(StatusBlueBg), contentAlignment = Alignment.Center) {
-                            Icon(if (v.type == "MOBIL") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler, null, tint = LavenderPrimary, modifier = Modifier.size(22.dp))
+                            Icon(VehicleTypes.icon(v.type), null, tint = LavenderPrimary, modifier = Modifier.size(22.dp))
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
@@ -133,25 +133,7 @@ fun HomeScreen(
             if (schedules.isEmpty()) {
                 EmptyState(Icons.Default.Build, "Belum ada jadwal", "Tambahkan komponen servis di tab Servis.", compact = true, actionLabel = "Tambah", onAction = onNavigateToSchedule)
             }
-            scheduleViews.sortedByDescending { it.progress }.take(3).forEach { view ->
-                val colors = serviceColor(view.status)
-                Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(view.schedule.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                val interval = intervalLabel(view.schedule.intervalKm, view.schedule.intervalMonths)
-                                if (interval.isNotEmpty()) Text(interval, color = TextGray, fontSize = 11.sp)
-                            }
-                            StatusBadge(view.status.label, colors)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        ProgressBar(view.progress, colors.second)
-                        Spacer(Modifier.height(5.dp))
-                        Text(scheduleDetail(view), color = colors.second, fontSize = 11.sp)
-                    }
-                }
-            }
+            scheduleViews.sortedByDescending { it.progress }.take(5).forEach { view -> HomeComponentCard(view) }
             Spacer(Modifier.height(12.dp))
 
             SectionHeader("Dokumen & Pajak", "Kelola", onNavigateToDocuments)
@@ -166,10 +148,10 @@ fun HomeScreen(
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(docTypeLabel(d.type), color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text(fmtDate(d.expiryDate), color = TextGray, fontSize = 11.sp)
+                                Text("Jatuh tempo ${fmtDate(d.expiryDate)}", color = TextGray, fontSize = 11.sp)
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                StatusBadge(dv.status.label, colors)
+                                DocStatusChip(dv.status)
                                 Spacer(Modifier.height(3.dp))
                                 Text(docDaysText(dv.daysRemaining), color = colors.second, fontSize = 11.sp)
                             }
@@ -181,7 +163,7 @@ fun HomeScreen(
         }
     }
 
-    if (showAddVehicle) VehicleFormDialog("Tambah Kendaraan", null, { showAddVehicle = false }) { n, p, t, k -> vm.addVehicle(n, p, t, k); showAddVehicle = false }
+    if (showAddVehicle) VehicleFormDialog("Tambah Kendaraan", null, { showAddVehicle = false }) { n, p, t, k, a, d -> vm.addVehicle(n, p, t, k, a, d); showAddVehicle = false }
     if (showAddKm) AddKmDialog(km, { showAddKm = false }) { vm.addOdometer(it); showAddKm = false }
     if (showPicker) {
         AlertDialog(onDismissRequest = { showPicker = false }, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
@@ -204,6 +186,47 @@ fun HomeScreen(
     recordTarget?.let { s ->
         RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img ->
             vm.recordService(s, kmV, date, cost, notes, img); recordTarget = null
+        }
+    }
+}
+
+/**
+ * Kartu Status Komponen di Home: nama + status (ikon sama dengan tab Servis), progress, lalu Terakhir / Berikutnya / Sisa (km / hari).
+ */
+@Composable
+private fun HomeComponentCard(view: ScheduleView) {
+    val s = view.schedule
+    val ik = s.intervalKm?.takeIf { it > 0 }
+    val im = s.intervalMonths?.takeIf { it > 0 }
+    val lk = s.lastServiceKm
+    val ld = s.lastServiceDate
+    val nextKm: Int? = if (ik != null && lk != null) lk + ik else null
+    val nextDate: Long? = if (im != null && ld != null) localDateToMillis(msToLocalDate(ld).plusMonths(im.toLong())) else null
+    val statusColor = serviceColor(view.status).second
+    val conditionColor = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor
+
+    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(s.name, color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val interval = intervalLabel(ik, im)
+                    if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, color = TextGray, fontSize = 11.sp)
+                }
+                Spacer(Modifier.width(8.dp))
+                StatusChip(view.status)
+            }
+            Spacer(Modifier.height(8.dp))
+            ProgressBar(view.progress, statusColor)
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth()) {
+                InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(0.9f))
+                InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
+                Column(Modifier.weight(1.6f), horizontalAlignment = Alignment.End) {
+                    Text("Sisa", fontSize = 10.sp, color = TextGray)
+                    Text(conditionText(view), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = conditionColor, textAlign = TextAlign.End)
+                }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package com.odocare.app.notif
 
 import android.Manifest
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,6 +18,12 @@ import com.odocare.app.domain.IntervalUnit
 import com.odocare.app.domain.Reminders
 import com.odocare.app.domain.ServiceStatus
 import com.odocare.app.ui.fmtKm
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.*
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
@@ -53,17 +60,11 @@ object Notif {
             .putString("km_reminder_unit", unit.name).putInt("km_reminder_hour", hour).putInt("km_reminder_minute", minute).apply()
     }
 
-    // ---- Pengingat pajak & dokumen: on/off + jam (jarak hari tiap dokumen tetap diatur di form dokumen) ----
-    fun docReminderEnabled(ctx: Context): Boolean = prefs(ctx).getBoolean("doc_reminder_enabled", true)
-    fun docReminderHour(ctx: Context): Int = prefs(ctx).getInt("doc_reminder_hour", 9)
-    fun docReminderMinute(ctx: Context): Int = prefs(ctx).getInt("doc_reminder_minute", 0)
-    fun setDocReminder(ctx: Context, enabled: Boolean, hour: Int, minute: Int) {
-        prefs(ctx).edit().putBoolean("doc_reminder_enabled", enabled).putInt("doc_reminder_hour", hour).putInt("doc_reminder_minute", minute).apply()
-    }
+    // Pengingat pajak & dokumen: on/off + jam sekarang disimpan PER DOKUMEN (kolom notifyEnabled/notifyHour/notifyMinute di legal_documents).
 
     /**
-     * Worker berkala (tiap 15 menit, minimum WorkManager). Setiap pengingat punya jam sendiri; worker mengirim bila jamnya
-     * sudah lewat dan belum terkirim hari itu, jadi tetap terkirim (agak telat) walau HP sempat Doze.
+     * Cadangan: worker berkala (tiap 15 menit, minimum WorkManager). Pengiriman utama memakai alarm tepat waktu
+     * (lihat [ReminderEngine.scheduleNext]); worker ini hanya menjaring yang terlewat (HP mati / alarm tidak diizinkan).
      */
     fun schedulePolling(ctx: Context) {
         val wm = WorkManager.getInstance(ctx)
@@ -71,13 +72,34 @@ object Notif {
         val req = PeriodicWorkRequestBuilder<ReminderWorker>(15, TimeUnit.MINUTES).build()
         wm.enqueueUniquePeriodicWork("odocare_reminder_poll", ExistingPeriodicWorkPolicy.UPDATE, req)
     }
+
+    /** Panggil setiap data / pengaturan notifikasi berubah: cek sekarang juga + atur ulang alarm berikutnya. */
+    fun onDataChanged(ctx: Context) {
+        val req = OneTimeWorkRequestBuilder<ReminderWorker>().build()
+        WorkManager.getInstance(ctx).enqueueUniqueWork("odocare_reminder_now", ExistingWorkPolicy.REPLACE, req)
+    }
+
+    /** Android 12+: alarm tepat waktu perlu izin khusus "Alarm & pengingat". */
+    fun canExactAlarm(ctx: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || ctx.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
 }
 
-class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+/**
+ * Inti pengiriman notifikasi. Dipanggil dari alarm tepat waktu ([AlarmReceiver]), worker cadangan, dan setelah data berubah.
+ * Aman dipanggil berulang: tiap pemicu hanya dikirim sekali (penanda di SharedPreferences) dan satu per satu (Mutex).
+ */
+object ReminderEngine {
+    private val lock = Mutex()
+    private const val ACTION_FIRE = "com.odocare.app.ACTION_REMINDER_FIRE"
     private fun toDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
 
-    override suspend fun doWork(): Result {
-        val ctx = applicationContext
+    suspend fun run(ctx: Context) = lock.withLock {
+        // Kegagalan satu tahap tidak boleh menghalangi tahap berikutnya (terutama pemasangan alarm berikutnya)
+        try { deliverDue(ctx) } catch (e: CancellationException) { throw e } catch (e: Exception) { }
+        try { scheduleNext(ctx) } catch (e: CancellationException) { throw e } catch (e: Exception) { }
+    }
+
+    private suspend fun deliverDue(ctx: Context) {
         val db = AppDb.get(ctx)
         val prefs = ctx.getSharedPreferences("odocare", Context.MODE_PRIVATE)
         val now = LocalDateTime.now()
@@ -88,22 +110,21 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
         val vehicles = db.vehicleDao().all()
         val vehicleNames = vehicles.associate { it.id to it.name }
 
-        // 1) Pajak & dokumen: pengingat per dokumen (mis. 30 & 15 hari sebelum) + hari jatuh tempo, dikirim pada jam yang dipilih.
+        // 1) Pajak & dokumen: tiap dokumen punya on/off + jam sendiri. Pengingat per dokumen (mis. 30 & 15 hari sebelum) + hari jatuh tempo.
         //    Hari pemicu yang terlewat (HP mati) tetap dikejar maksimal 3 hari ke belakang, tiap pemicu hanya sekali.
-        if (Notif.docReminderEnabled(ctx) && reached(Notif.docReminderHour(ctx), Notif.docReminderMinute(ctx))) {
-            db.documentDao().all().forEach { d ->
-                val expiry = toDate(d.expiryDate)
-                val days = ChronoUnit.DAYS.between(today, expiry)
-                if (days < 0) return@forEach
-                val triggers = Reminders.parse(d.reminders).map { it.dateFor(expiry).toEpochDay() } + expiry.toEpochDay()
-                val key = "doc_handled_${d.id}"
-                val handled = prefs.getLong(key, Long.MIN_VALUE)
-                val trigger = triggers.filter { it in (todayEpoch - 3)..todayEpoch && it > handled }.maxOrNull() ?: return@forEach
-                val label = d.type.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() } + (vehicleNames[d.vehicleId]?.let { " ($it)" } ?: "")
-                if (days == 0L) Notif.show(ctx, Notif.CH_DOCUMENTS, "Jatuh tempo hari ini", "$label jatuh tempo hari ini")
-                else Notif.show(ctx, Notif.CH_DOCUMENTS, "Dokumen mendekati jatuh tempo", "$label jatuh tempo dalam $days hari")
-                prefs.edit().putLong(key, trigger).apply()
-            }
+        db.documentDao().all().forEach { d ->
+            if (!d.notifyEnabled || !reached(d.notifyHour, d.notifyMinute)) return@forEach
+            val expiry = toDate(d.expiryDate)
+            val days = ChronoUnit.DAYS.between(today, expiry)
+            if (days < 0) return@forEach
+            val triggers = Reminders.parse(d.reminders).map { it.dateFor(expiry).toEpochDay() } + expiry.toEpochDay()
+            val key = "doc_handled_${d.id}"
+            val handled = prefs.getLong(key, Long.MIN_VALUE)
+            val trigger = triggers.filter { it in (todayEpoch - 3)..todayEpoch && it > handled }.maxOrNull() ?: return@forEach
+            val label = d.type.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() } + (vehicleNames[d.vehicleId]?.let { " ($it)" } ?: "")
+            if (days == 0L) Notif.show(ctx, Notif.CH_DOCUMENTS, "Jatuh tempo hari ini", "$label jatuh tempo hari ini")
+            else Notif.show(ctx, Notif.CH_DOCUMENTS, "Dokumen mendekati jatuh tempo", "$label jatuh tempo dalam $days hari")
+            prefs.edit().putLong(key, trigger).apply()
         }
 
         // 2) Perawatan komponen: tiap kategori punya on/off + jam sendiri. Dikirim saat status Segera/Lewat (berdasarkan km dan/atau bulan),
@@ -150,6 +171,68 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
                 }
             }
         }
+    }
+
+    private fun alarmIntent(ctx: Context): PendingIntent = PendingIntent.getBroadcast(
+        ctx, 1001, Intent(ctx, AlarmReceiver::class.java).setAction(ACTION_FIRE), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
+    /**
+     * Pasang SATU alarm tepat waktu untuk jam notifikasi terdekat di antara semua notifikasi aktif
+     * (dokumen, komponen servis, update KM). Saat berbunyi, [run] mengirim yang jamnya sudah tiba lalu memasang alarm berikutnya.
+     */
+    suspend fun scheduleNext(ctx: Context) {
+        val db = AppDb.get(ctx)
+        val minutes = mutableSetOf<Int>()
+        db.documentDao().all().forEach { if (it.notifyEnabled) minutes += it.notifyHour * 60 + it.notifyMinute }
+        db.scheduleDao().allActive().forEach { if (it.notifyEnabled) minutes += it.notifyHour * 60 + it.notifyMinute }
+        if (Notif.kmReminderEnabled(ctx) && Notif.kmReminderValue(ctx) > 0) minutes += Notif.kmReminderHour(ctx) * 60 + Notif.kmReminderMinute(ctx)
+
+        val am = ctx.getSystemService(AlarmManager::class.java)
+        val pi = alarmIntent(ctx)
+        if (minutes.isEmpty()) { am.cancel(pi); return }
+
+        val now = LocalDateTime.now()
+        val zone = ZoneId.systemDefault()
+        val nextMillis = minutes.map { m ->
+            var t = now.toLocalDate().atTime(m / 60, m % 60)
+            if (!t.isAfter(now)) t = t.plusDays(1)
+            t.atZone(zone).toInstant().toEpochMilli()
+        }.minOrNull() ?: return
+        val at = nextMillis + 1000   // +1 detik agar pengecekan jam pasti sudah "tercapai"
+
+        try {
+            if (Notif.canExactAlarm(ctx)) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+            else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)   // tanpa izin: Android boleh menunda sedikit
+        } catch (e: SecurityException) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+        }
+    }
+}
+
+class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
+        ReminderEngine.run(applicationContext)
         return Result.success()
+    }
+}
+
+/** Alarm tepat waktu berbunyi: kirim notifikasi yang jamnya tiba, lalu pasang alarm berikutnya. */
+class AlarmReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val pending = goAsync()
+        val app = context.applicationContext
+        CoroutineScope(Dispatchers.IO).launch { try { ReminderEngine.run(app) } finally { pending.finish() } }
+    }
+}
+
+/** Setelah HP restart / aplikasi diperbarui / jam atau zona waktu berubah / izin alarm berubah: kejar yang terlewat dan pasang ulang alarm. */
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val pending = goAsync()
+        val app = context.applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            try { Notif.setupChannels(app); Notif.schedulePolling(app); ReminderEngine.run(app) } finally { pending.finish() }
+        }
     }
 }

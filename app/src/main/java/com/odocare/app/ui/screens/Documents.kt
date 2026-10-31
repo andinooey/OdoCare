@@ -31,7 +31,8 @@ import com.odocare.app.ui.*
 /** Hasil isian form dokumen */
 private data class DocForm(
     val type: String, val expiry: Long, val number: String?,
-    val lastRenewed: Long?, val intervalValue: Int?, val intervalUnit: IntervalUnit?, val reminders: String
+    val lastRenewed: Long?, val intervalValue: Int?, val intervalUnit: IntervalUnit?, val reminders: String,
+    val notifyEnabled: Boolean, val notifyHour: Int, val notifyMinute: Int
 )
 
 @Composable
@@ -62,7 +63,7 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     StatusStripeCard(colors.second) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(docTypeLabel(d.type), Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                            StatusBadge(view.status.label, colors)
+                            DocStatusChip(view.status)
                             ItemMenu(onEdit = { editTarget = d }, onDelete = { deleteTarget = d })
                         }
                         Text("Jatuh tempo ${fmtDate(d.expiryDate)} · ${docDaysText(view.daysRemaining)}", fontSize = 12.sp, color = colors.second)
@@ -72,9 +73,9 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         if (d.intervalValue != null && unit != null) meta += "Berlaku ${d.intervalValue} ${unit.label.lowercase()}"
                         if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 11.sp, color = TextGray)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.NotificationsActive, null, tint = TextGray, modifier = Modifier.size(12.dp))
+                            Icon(if (d.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray, modifier = Modifier.size(12.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(Reminders.summary(d.reminders), fontSize = 11.sp, color = TextGray, modifier = Modifier.weight(1f))
+                            Text(if (d.notifyEnabled) "${Reminders.summary(d.reminders)} · ${fmtTime(d.notifyHour, d.notifyMinute)}" else "Notifikasi mati", fontSize = 11.sp, color = TextGray, modifier = Modifier.weight(1f))
                             TextButton(onClick = { renewTarget = d }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) {
                                 Icon(Icons.Default.Autorenew, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(4.dp))
@@ -88,11 +89,11 @@ fun DocumentsScreen(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     if (showAdd) DocumentFormDialog("Tambah Dokumen", null, { showAdd = false }) { f ->
-        vm.addDocument(f.type, f.expiry, f.number, f.lastRenewed, f.intervalValue, f.intervalUnit?.name, f.reminders); showAdd = false
+        vm.addDocument(f.type, f.expiry, f.number, f.lastRenewed, f.intervalValue, f.intervalUnit?.name, f.reminders, f.notifyEnabled, f.notifyHour, f.notifyMinute); showAdd = false
     }
     editTarget?.let { d ->
         DocumentFormDialog("Edit Dokumen", d, { editTarget = null }) { f ->
-            vm.updateDocument(d.copy(type = f.type, expiryDate = f.expiry, number = f.number, lastRenewedDate = f.lastRenewed, intervalValue = f.intervalValue, intervalUnit = f.intervalUnit?.name, reminders = f.reminders))
+            vm.updateDocument(d.copy(type = f.type, expiryDate = f.expiry, number = f.number, lastRenewedDate = f.lastRenewed, intervalValue = f.intervalValue, intervalUnit = f.intervalUnit?.name, reminders = f.reminders, notifyEnabled = f.notifyEnabled, notifyHour = f.notifyHour, notifyMinute = f.notifyMinute))
             editTarget = null
         }
     }
@@ -125,23 +126,27 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss
     var reminders by remember { mutableStateOf(Reminders.parse(initial?.reminders ?: Reminders.DEFAULT)) }
     var newRemText by remember { mutableStateOf("") }
     var newRemUnit by remember { mutableStateOf(IntervalUnit.DAY) }
+    var notifyOn by remember { mutableStateOf(initial?.notifyEnabled ?: true) }
+    var notifyHour by remember { mutableStateOf(initial?.notifyHour ?: 9) }
+    var notifyMinute by remember { mutableStateOf(initial?.notifyMinute ?: 0) }
 
     // Jatuh tempo otomatis = tanggal terakhir perpanjang + interval (mis. 1/1/2026 + 1 tahun = 1/1/2027)
     val lr = lastRenewed
-    val iv = posInt(intervalText)
+    // 0 diperbolehkan: berlaku 0 hari = jatuh tempo di tanggal perpanjang itu juga (notifikasi muncul hari itu)
+    val iv = intervalText.toIntOrNull()?.takeIf { it >= 0 }
     val computed: Long? = if (lr != null && iv != null) localDateToMillis(intervalUnit.plus(msToLocalDate(lr), iv)) else null
     val expiry: Long? = computed ?: manualExpiry
 
     FormDialog(
         title = title, icon = Icons.Default.Description, onDismiss = onDismiss, confirmEnabled = expiry != null,
-        onConfirm = { expiry?.let { e -> onSave(DocForm(type, e, number.ifBlank { null }, lastRenewed, iv, if (iv != null) intervalUnit else null, Reminders.encode(reminders))) } }
+        onConfirm = { expiry?.let { e -> onSave(DocForm(type, e, number.ifBlank { null }, lastRenewed, iv, if (iv != null) intervalUnit else null, Reminders.encode(reminders), notifyOn, notifyHour, notifyMinute)) } }
     ) {
         DropdownField("Jenis dokumen", docTypeLabel(type), Icons.Default.Description, docTypes) { type = it }
         AppTextField(number, { number = it }, "Nomor dokumen (opsional)", Icons.Default.Pin)
 
         FormGroupLabel("Masa berlaku")
         DateField("Terakhir diperpanjang", lastRenewed) { lastRenewed = it }
-        NumberField(intervalText, { intervalText = it }, "Berlaku selama", icon = Icons.Default.Update)
+        NumberField(intervalText, { intervalText = it }, "Berlaku selama", icon = Icons.Default.Update, allowZero = true, hint = "Isi 0 bila jatuh tempo di tanggal perpanjang itu juga")
         UnitChips(intervalUnit) { intervalUnit = it }
         if (computed != null) {
             ExpiryInfo("Jatuh tempo ${fmtDate(computed)} (otomatis)")
@@ -150,6 +155,10 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss
             FormNote("Isi \"Terakhir diperpanjang\" dan \"Berlaku selama\" agar jatuh tempo dihitung otomatis.")
         }
 
+        FormGroupLabel("Notifikasi")
+        NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
+
+        if (notifyOn) {
         FormGroupLabel("Ingatkan sebelum jatuh tempo")
         if (reminders.isEmpty()) FormNote("Hanya di hari jatuh tempo.")
         reminders.forEach { r ->
@@ -171,6 +180,7 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, onDismiss
                 newRemText = ""
             }
         ) { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text("Tambah pengingat", fontSize = 13.sp) }
+        }
     }
 }
 
@@ -181,7 +191,7 @@ private fun RenewDialog(doc: LegalDocument, onDismiss: () -> Unit, onConfirm: (r
     var manual by remember { mutableStateOf<Long?>(localDateToMillis(msToLocalDate(doc.expiryDate).plusYears(1))) }
     val iv = doc.intervalValue
     val unit = IntervalUnit.parse(doc.intervalUnit)
-    val computed: Long? = if (iv != null && iv > 0 && unit != null) localDateToMillis(unit.plus(msToLocalDate(renewed), iv)) else null
+    val computed: Long? = if (iv != null && iv >= 0 && unit != null) localDateToMillis(unit.plus(msToLocalDate(renewed), iv)) else null
     val unitLabel = unit?.label?.lowercase() ?: ""
     val newExpiry: Long? = computed ?: manual
 
