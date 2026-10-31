@@ -48,8 +48,7 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         setContent {
-            val theme by vm.themeMode.collectAsStateWithLifecycle()
-            OdoCareTheme(theme) { OdoCareRoot(vm) }
+            OdoCareTheme("dark") { OdoCareRoot(vm) }
         }
     }
 }
