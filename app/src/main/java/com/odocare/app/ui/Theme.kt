@@ -3,6 +3,9 @@ package com.odocare.app.ui
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 val LavenderPrimary = Color(0xFFB8C5FF)
 val BgDark = Color(0xFF12131A)
@@ -32,8 +35,22 @@ private val DarkScheme = darkColorScheme(
 
 @Composable
 fun OdoCareTheme(mode: String, content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = DarkScheme, typography = Typography(), content = content)
+    MaterialTheme(colorScheme = DarkScheme, typography = CompactTypography, content = content)
 }
 
 val StatusYellowBg = Color(0xFF4A3F12)
 val StatusYellowText = Color(0xFFFFE082)
+
+/** Skala font ringkas: lebih kecil dari default Material agar tampilan minimalis. */
+val CompactTypography = Typography(
+    headlineSmall = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
+    titleLarge = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
+    titleMedium = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+    titleSmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+    bodyLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
+    bodyMedium = TextStyle(fontSize = 13.sp, lineHeight = 18.sp),
+    bodySmall = TextStyle(fontSize = 11.sp, lineHeight = 15.sp),
+    labelLarge = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+    labelMedium = TextStyle(fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium),
+    labelSmall = TextStyle(fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
+)

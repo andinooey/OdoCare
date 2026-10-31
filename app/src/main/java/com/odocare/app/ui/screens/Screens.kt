@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -59,142 +60,146 @@ fun HomeScreen(
     val documents by vm.documents.collectAsStateWithLifecycle()
     var showAddKm by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
+    var showAddVehicle by remember { mutableStateOf(false) }
     var recordTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     val scheduleViews = schedules.map { Engines.scheduleView(it, km) }
-    val hasVehicle = vehicle != null
+    val v = vehicle
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        Spacer(Modifier.height(24.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(32.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("OdoCare", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = onNavigateToDocuments) { Icon(Icons.Default.Description, "Dokumen", tint = Color.White) }
-        }
-        Spacer(Modifier.height(16.dp))
-
-        // Pindah kendaraan aktif langsung dari Home (hanya tampil bila punya lebih dari satu)
-        if (vehicles.size > 1) {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                vehicles.forEach { item -> FilterChip(selected = item.id == vehicle?.id, onClick = { vm.setActiveVehicle(item.id) }, label = { Text(item.name) }) }
+    if (v == null) {
+        WelcomeEmpty(onAdd = { showAddVehicle = true })
+    } else {
+        Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("OdoCare", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onNavigateToDocuments) { Icon(Icons.Default.Description, "Dokumen", tint = TextWhite, modifier = Modifier.size(22.dp)) }
             }
-            Spacer(Modifier.height(12.dp))
-        }
+            Spacer(Modifier.height(8.dp))
 
-        val v = vehicle
-        Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-            if (v == null) {
-                Column(Modifier.padding(20.dp)) {
-                    Text("Belum ada kendaraan", fontWeight = FontWeight.Bold, color = TextWhite, fontSize = 18.sp)
-                    Spacer(Modifier.height(4.dp))
-                    Text("Buka tab Kendaraan untuk menambahkan kendaraan pertamamu.", color = TextGray, fontSize = 14.sp)
+            // Pindah kendaraan aktif langsung dari Home (hanya tampil bila punya lebih dari satu)
+            if (vehicles.size > 1) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    vehicles.forEach { item -> FilterChip(selected = item.id == v.id, onClick = { vm.setActiveVehicle(item.id) }, label = { Text(item.name, fontSize = 12.sp) }) }
                 }
-            } else {
-                Column(Modifier.padding(16.dp)) {
+                Spacer(Modifier.height(10.dp))
+            }
+
+            Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(StatusBlueBg), contentAlignment = Alignment.Center) {
-                            Icon(if (v.type == "MOBIL") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler, null, tint = LavenderPrimary, modifier = Modifier.size(32.dp))
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(StatusBlueBg), contentAlignment = Alignment.Center) {
+                            Icon(if (v.type == "MOBIL") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler, null, tint = LavenderPrimary, modifier = Modifier.size(22.dp))
                         }
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(v.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(vehicleTypeLabel(v.type), fontSize = 14.sp, color = TextGray)
+                            Text(v.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(vehicleTypeLabel(v.type), fontSize = 12.sp, color = TextGray)
                         }
                         if (v.plate.isNotBlank()) PlateView(v.plate)
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Row(Modifier.clickable(onClick = onNavigateToOdometer), verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(onClick = onNavigateToOdometer), verticalAlignment = Alignment.CenterVertically) {
                         OdometerDigits(km)
                         Spacer(Modifier.width(8.dp))
-                        Text("km", color = TextGray, fontSize = 14.sp)
+                        Text("km", color = TextGray, fontSize = 12.sp)
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.ChevronRight, null, tint = TextGray, modifier = Modifier.size(18.dp))
                     }
                 }
             }
-        }
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ActionButton(Icons.Default.Speed, "Update\nKM", Modifier.weight(1f), false, hasVehicle) { showAddKm = true }
-            ActionButton(Icons.Default.Add, "Catat\nServis", Modifier.weight(1f), true, hasVehicle) { showPicker = true }
-            ActionButton(Icons.Default.History, "Riwayat", Modifier.weight(1f), false, hasVehicle) { onNavigateToHistory() }
-        }
-        Spacer(Modifier.height(24.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionButton(Icons.Default.Speed, "Update KM", Modifier.weight(1f), false) { showAddKm = true }
+                ActionButton(Icons.Default.Add, "Catat Servis", Modifier.weight(1f), true) { showPicker = true }
+                ActionButton(Icons.Default.History, "Riwayat", Modifier.weight(1f), false) { onNavigateToHistory() }
+            }
+            Spacer(Modifier.height(18.dp))
 
-        Text("Ringkasan Perawatan", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SummaryCard("${scheduleViews.count { it.status == ServiceStatus.LATE }}", "Lewat", StatusRedBg, StatusRedText, Modifier.weight(1f))
-            SummaryCard("${scheduleViews.count { it.status == ServiceStatus.SOON || it.status == ServiceStatus.DUE }}", "Segera", StatusYellowBg, StatusYellowText, Modifier.weight(1f))
-            SummaryCard("${scheduleViews.count { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }}", "Aman", StatusGreenBg, StatusGreenText, Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(24.dp))
+            SectionHeader("Ringkasan Perawatan")
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.LATE }}", "Lewat", Icons.Default.Error, StatusRedBg, StatusRedText, Modifier.weight(1f))
+                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.SOON || it.status == ServiceStatus.DUE }}", "Segera", Icons.Default.Warning, StatusYellowBg, StatusYellowText, Modifier.weight(1f))
+                SummaryCard("${scheduleViews.count { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }}", "Aman", Icons.Default.CheckCircle, StatusGreenBg, StatusGreenText, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(18.dp))
 
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Status Perawatan Komponen", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            Spacer(Modifier.weight(1f))
-            Text("Lihat Semua", color = LavenderPrimary, fontSize = 14.sp, modifier = Modifier.clickable(onClick = onNavigateToSchedule))
-        }
-        Spacer(Modifier.height(12.dp))
-        if (schedules.isEmpty()) Text("Belum ada jadwal perawatan. Tambahkan di tab Servis.", color = TextGray, fontSize = 14.sp)
-        scheduleViews.sortedByDescending { it.progress }.take(3).forEach { view ->
-            val colors = serviceColor(view.status)
-            Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                Column(Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(view.schedule.name, color = TextWhite, fontWeight = FontWeight.Bold)
-                            val interval = intervalLabel(view.schedule.intervalKm, view.schedule.intervalMonths)
-                            if (interval.isNotEmpty()) Text(interval, color = TextGray, fontSize = 12.sp)
+            SectionHeader("Status Komponen", "Lihat semua", onNavigateToSchedule)
+            Spacer(Modifier.height(6.dp))
+            if (schedules.isEmpty()) {
+                EmptyState(Icons.Default.Build, "Belum ada jadwal", "Tambahkan komponen servis di tab Servis.", compact = true, actionLabel = "Tambah", onAction = onNavigateToSchedule)
+            }
+            scheduleViews.sortedByDescending { it.progress }.take(3).forEach { view ->
+                val colors = serviceColor(view.status)
+                Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                    Column(Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(view.schedule.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                val interval = intervalLabel(view.schedule.intervalKm, view.schedule.intervalMonths)
+                                if (interval.isNotEmpty()) Text(interval, color = TextGray, fontSize = 11.sp)
+                            }
+                            StatusBadge(view.status.label, colors)
                         }
-                        StatusBadge(view.status.label, colors)
+                        Spacer(Modifier.height(8.dp))
+                        ProgressBar(view.progress, colors.second)
+                        Spacer(Modifier.height(5.dp))
+                        Text(scheduleDetail(view), color = colors.second, fontSize = 11.sp)
                     }
-                    Spacer(Modifier.height(8.dp))
-                    ProgressBar(view.progress, colors.second)
-                    Spacer(Modifier.height(6.dp))
-                    Text(scheduleDetail(view), color = colors.second, fontSize = 12.sp)
                 }
             }
-        }
-        Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
 
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Dokumen & Pajak", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            Spacer(Modifier.weight(1f))
-            Text("Kelola", color = LavenderPrimary, fontSize = 14.sp, modifier = Modifier.clickable(onClick = onNavigateToDocuments))
-        }
-        Spacer(Modifier.height(12.dp))
-        if (documents.isEmpty()) {
-            Text("Belum ada dokumen. Tap Kelola untuk menambahkan pajak, SIM, atau asuransi.", color = TextGray, fontSize = 14.sp)
-        } else {
-            documents.take(5).forEach { d ->
-                val dv = Engines.documentView(d)
-                Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(onClick = onNavigateToDocuments)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(docTypeLabel(d.type), color = TextWhite, fontWeight = FontWeight.Bold)
-                            Text("Jatuh tempo: ${fmtDate(d.expiryDate)}", color = TextWhite, fontSize = 13.sp)
-                            Text(docDaysText(dv.daysRemaining), color = TextGray, fontSize = 12.sp)
+            SectionHeader("Dokumen & Pajak", "Kelola", onNavigateToDocuments)
+            Spacer(Modifier.height(6.dp))
+            if (documents.isEmpty()) {
+                EmptyState(Icons.Default.Description, "Belum ada dokumen", "Pajak, SIM, atau asuransi tampil di sini.", compact = true, actionLabel = "Tambah", onAction = onNavigateToDocuments)
+            } else {
+                documents.take(4).forEach { d ->
+                    val dv = Engines.documentView(d)
+                    val colors = docColor(dv.status)
+                    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp).clip(CardShape).clickable(onClick = onNavigateToDocuments)) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(docTypeLabel(d.type), color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text(fmtDate(d.expiryDate), color = TextGray, fontSize = 11.sp)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                StatusBadge(dv.status.label, colors)
+                                Spacer(Modifier.height(3.dp))
+                                Text(docDaysText(dv.daysRemaining), color = colors.second, fontSize = 11.sp)
+                            }
                         }
-                        StatusBadge(dv.status.label, docColor(dv.status))
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp))
         }
-        Spacer(Modifier.height(24.dp))
     }
 
+    if (showAddVehicle) VehicleFormDialog("Tambah Kendaraan", null, { showAddVehicle = false }) { n, p, t, k -> vm.addVehicle(n, p, t, k); showAddVehicle = false }
     if (showAddKm) AddKmDialog(km, { showAddKm = false }) { vm.addOdometer(it); showAddKm = false }
     if (showPicker) {
-        AlertDialog(onDismissRequest = { showPicker = false }, title = { Text("Servis apa yang dicatat?") },
+        AlertDialog(onDismissRequest = { showPicker = false }, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
+            title = { Text("Servis apa yang dicatat?", fontSize = 16.sp, color = TextWhite) },
             text = {
-                if (schedules.isEmpty()) Text("Belum ada jadwal perawatan. Tambahkan dulu di tab Servis.")
+                if (schedules.isEmpty()) EmptyState(Icons.Default.Build, "Belum ada jadwal", "Tambahkan komponen dulu di tab Servis.", compact = true)
                 else Column(Modifier.verticalScroll(rememberScrollState())) {
-                    schedules.forEach { s -> TextButton(onClick = { showPicker = false; recordTarget = s }) { Text(s.name) } }
+                    schedules.forEach { s ->
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { showPicker = false; recordTarget = s }.padding(vertical = 10.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(s.name, fontSize = 14.sp, color = TextWhite)
+                        }
+                    }
                 }
             },
             confirmButton = { if (schedules.isEmpty()) TextButton(onClick = { showPicker = false; onNavigateToSchedule() }) { Text("Buka Jadwal") } },
-            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Batal") } })
+            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Batal", color = TextGray) } })
     }
     recordTarget?.let { s ->
         RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img ->
@@ -203,27 +208,90 @@ fun HomeScreen(
     }
 }
 
+/** Tampilan awal saat belum ada kendaraan sama sekali. */
 @Composable
-private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, isPrimary: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
-    Button(
-        onClick = onClick, enabled = enabled, modifier = modifier.height(72.dp), shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = if (isPrimary) LavenderPrimary else Color.Transparent, contentColor = if (isPrimary) Color(0xFF0D1B3E) else TextWhite),
-        border = if (!isPrimary) BorderStroke(1.dp, Color.Gray) else null, contentPadding = PaddingValues(4.dp)
+private fun WelcomeEmpty(onAdd: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.height(4.dp))
-            Text(label, fontSize = 12.sp, textAlign = TextAlign.Center, lineHeight = 14.sp)
+        Spacer(Modifier.height(48.dp))
+        // Ilustrasi: lingkaran bertingkat + ikon melayang
+        Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(210.dp).clip(CircleShape).background(SurfaceVariantDark.copy(alpha = 0.45f)))
+            Box(Modifier.size(150.dp).clip(CircleShape).background(SurfaceVariantDark))
+            Box(Modifier.size(100.dp).clip(CircleShape).background(PillSelected), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(48.dp))
+            }
+            FloatBadge(Icons.Default.DirectionsCar, Modifier.align(Alignment.TopStart).offset(x = 14.dp, y = 30.dp), StatusBlueBg, StatusBlueText)
+            FloatBadge(Icons.Default.TwoWheeler, Modifier.align(Alignment.TopEnd).offset(x = (-10).dp, y = 22.dp), StatusGreenBg, StatusGreenText)
+            FloatBadge(Icons.Default.Build, Modifier.align(Alignment.BottomStart).offset(x = 18.dp, y = (-26).dp), StatusYellowBg, StatusYellowText)
+            FloatBadge(Icons.Default.Description, Modifier.align(Alignment.BottomEnd).offset(x = (-14).dp, y = (-34).dp), StatusRedBg, StatusRedText)
+        }
+        Spacer(Modifier.height(20.dp))
+        Text("Selamat datang di OdoCare", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(6.dp))
+        Text("Belum ada kendaraan. Tambahkan kendaraan pertamamu untuk mulai memantau servis dan pajak.", fontSize = 13.sp, color = TextGray, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = onAdd, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(46.dp)) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Tambah Kendaraan", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(24.dp))
+        Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                WelcomePoint(Icons.Default.Speed, "Pantau KM odometer", "Catat KM kapan saja, riwayatnya tersimpan.")
+                WelcomePoint(Icons.Default.Build, "Jadwal servis otomatis", "Oli, rem, ban, dan lainnya dengan status Aman / Segera / Lewat.")
+                WelcomePoint(Icons.Default.Notifications, "Pengingat pajak & dokumen", "Notifikasi sebelum STNK, SIM, atau asuransi jatuh tempo.")
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun FloatBadge(icon: ImageVector, modifier: Modifier, bg: Color, fg: Color) {
+    Box(modifier.size(38.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) { Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp)) }
+}
+
+@Composable
+private fun WelcomePoint(icon: ImageVector, title: String, desc: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
+            Text(desc, fontSize = 11.sp, color = TextGray)
         }
     }
 }
 
 @Composable
-private fun SummaryCard(value: String, label: String, bgColor: Color, textColor: Color, modifier: Modifier = Modifier) {
-    Surface(color = bgColor, shape = RoundedCornerShape(16.dp), modifier = modifier) {
-        Column(Modifier.padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = textColor)
-            Text(label, fontSize = 12.sp, color = textColor, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
+private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, isPrimary: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick, modifier = modifier.height(52.dp), shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = if (isPrimary) LavenderPrimary else Color.Transparent, contentColor = if (isPrimary) Color(0xFF0D1B3E) else TextWhite),
+        border = if (!isPrimary) BorderStroke(1.dp, Color(0xFF3A3B47)) else null, contentPadding = PaddingValues(4.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.height(2.dp))
+            Text(label, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(value: String, label: String, icon: ImageVector, bgColor: Color, textColor: Color, modifier: Modifier = Modifier) {
+    Surface(color = bgColor, shape = CardShape, modifier = modifier) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = textColor, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor, lineHeight = 20.sp)
+                Text(label, fontSize = 11.sp, color = textColor)
+            }
         }
     }
 }
@@ -237,20 +305,23 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<OdometerLog?>(null) }
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = NoInsets,
         topBar = { BackTopBar("Riwayat Odometer", onBack) },
         floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
         if (logs.isEmpty()) {
-            Column(Modifier.padding(pad).padding(16.dp)) { Text("Belum ada catatan.", color = TextGray) }
+            EmptyState(Icons.Default.Speed, "Belum ada catatan odometer", "Catat KM secara berkala agar status servis akurat.", Modifier.padding(pad).padding(top = 48.dp), actionLabel = "Catat KM", onAction = { showAdd = true })
         } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp)) {
+            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                 items(logs, key = { it.id }) { log ->
-                    Card(colors = CardDefaults.cardColors(containerColor = SurfaceVariantDark)) {
-                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = SurfaceVariantDark, shape = CardShape) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+                            Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("${fmtKm(log.km)} km", style = MaterialTheme.typography.titleLarge, color = TextWhite, fontWeight = FontWeight.Bold)
-                                Text(fmtDate(log.recordedAt), style = MaterialTheme.typography.bodySmall, color = TextGray)
+                                Text("${fmtKm(log.km)} km", fontSize = 14.sp, color = TextWhite, fontWeight = FontWeight.Bold)
+                                Text(fmtDate(log.recordedAt), fontSize = 11.sp, color = TextGray)
                             }
                             ItemMenu(onEdit = { editTarget = log }, onDelete = { vm.deleteOdometer(log.id) })
                         }
@@ -262,14 +333,15 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
     if (showAdd) AddKmDialog(km, { showAdd = false }) { vm.addOdometer(it); showAdd = false }
     editTarget?.let { log ->
         var kmText by remember { mutableStateOf(log.km.toString()) }
-        AlertDialog(onDismissRequest = { editTarget = null }, title = { Text("Edit Odometer") },
-            text = { NumberField(kmText, { kmText = it }, "KM odometer") },
-            confirmButton = { TextButton(enabled = posInt(kmText) != null, onClick = { posInt(kmText)?.let { vm.updateOdometer(log.copy(km = it)) }; editTarget = null }) { Text("Simpan") } },
-            dismissButton = { TextButton(onClick = { editTarget = null }) { Text("Batal") } })
+        FormDialog("Edit Odometer", Icons.Default.Speed, { editTarget = null },
+            onConfirm = { posInt(kmText)?.let { vm.updateOdometer(log.copy(km = it)) }; editTarget = null }, confirmEnabled = posInt(kmText) != null
+        ) { NumberField(kmText, { kmText = it }, "KM odometer", icon = Icons.Default.Speed) }
     }
 }
 
-// ---------- Jadwal / kategori servis ----------
+// ---------- Jadwal / komponen servis ----------
+
+private val filterLabels = listOf("Semua", "Lewat", "Segera", "Aman")
 
 @Composable
 fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
@@ -284,9 +356,10 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     var tab by remember { mutableStateOf(0) }
     // Paling mendesak di atas
     val views = schedules.map { Engines.scheduleView(it, km) }.sortedByDescending { it.progress }
-    val needService = views.filter { it.status == ServiceStatus.SOON || it.status == ServiceStatus.DUE || it.status == ServiceStatus.LATE }
-    val good = views.filter { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }
-    val shown = when (tab) { 1 -> needService; 2 -> good; else -> views }
+    val late = views.filter { it.status == ServiceStatus.LATE }
+    val soon = views.filter { it.status == ServiceStatus.SOON || it.status == ServiceStatus.DUE }
+    val safe = views.filter { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }
+    val shown = when (tab) { 1 -> late; 2 -> soon; 3 -> safe; else -> views }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -294,32 +367,31 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         floatingActionButton = { if (vehicle != null) AddFab { showAdd = true } }
     ) { pad ->
         Column(Modifier.padding(pad).statusBarsPadding()) {
-            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 24.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Jadwal & Komponen", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                    vehicle?.let { Text(it.name, fontSize = 18.sp, color = TextGray) }
-                }
-                IconButton(onClick = onOpenMaster) { Icon(Icons.Default.Category, "Master Kategori", tint = LavenderPrimary, modifier = Modifier.size(32.dp)) }
+            ScreenTitle("Jadwal & Komponen", vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 10.dp)) {
+                IconButton(onClick = onOpenMaster) { Icon(Icons.Default.Category, "Master Kategori", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
             }
-            TabRow(selectedTabIndex = tab, containerColor = Color.Transparent, contentColor = LavenderPrimary) {
-                listOf("Semua (${views.size})", "Perlu Servis (${needService.size})", "Baik (${good.size})").forEachIndexed { i, label ->
-                    Tab(selected = tab == i, onClick = { tab = i }, selectedContentColor = LavenderPrimary, unselectedContentColor = LavenderPrimary,
-                        text = { Text(label, textAlign = TextAlign.Center, fontSize = 17.sp, fontWeight = FontWeight.Medium) })
-                }
-            }
-            if (shown.isEmpty()) {
-                Text(
-                    when {
-                        vehicle == null -> "Tambahkan kendaraan dulu di tab Kendaraan."
-                        tab == 1 -> "Tidak ada komponen yang perlu servis."
-                        tab == 2 -> "Belum ada komponen berstatus baik."
-                        else -> "Belum ada kategori. Tap + untuk menambah."
-                    }, color = TextGray, modifier = Modifier.padding(24.dp)
-                )
+            if (vehicle == null) {
+                NoVehicleState(vm, Modifier.padding(top = 32.dp))
             } else {
-                LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)) {
-                    items(shown, key = { it.schedule.id }) { view ->
-                        ScheduleCard(view, onRecord = { recordTarget = view.schedule }, onEdit = { editTarget = view.schedule }, onDelete = { deleteTarget = view.schedule })
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    StatusFilterRow(
+                        filterLabels, listOf(views.size, late.size, soon.size, safe.size),
+                        listOf(PillSelected to TextWhite, StatusRedBg to StatusRedText, StatusYellowBg to StatusYellowText, StatusGreenBg to StatusGreenText),
+                        tab
+                    ) { tab = it }
+                }
+                if (shown.isEmpty()) {
+                    when (tab) {
+                        1 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang lewat", "Semua komponen masih dalam batas servis.", Modifier.padding(top = 32.dp))
+                        2 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang segera", "Belum ada komponen yang mendekati jadwal servis.", Modifier.padding(top = 32.dp))
+                        3 -> EmptyState(Icons.Default.Build, "Belum ada yang aman", "Komponen berstatus aman akan tampil di sini.", Modifier.padding(top = 32.dp))
+                        else -> EmptyState(Icons.Default.Build, "Belum ada komponen", "Tambahkan oli, rem, ban, atau komponen lain yang ingin dipantau.", Modifier.padding(top = 32.dp), actionLabel = "Tambah Komponen", onAction = { showAdd = true })
+                    }
+                } else {
+                    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 10.dp, bottom = 88.dp)) {
+                        items(shown, key = { it.schedule.id }) { view ->
+                            ScheduleCard(view, onRecord = { recordTarget = view.schedule }, onEdit = { editTarget = view.schedule }, onDelete = { deleteTarget = view.schedule })
+                        }
                     }
                 }
             }
@@ -328,20 +400,38 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
 
     if (showAdd) {
         val options = masters.filter { it.vehicleType == "ALL" || it.vehicleType == vehicle?.type }
-        ScheduleFormDialog("Tambah Kategori", options, null, km, { showAdd = false }) { n, ik, im, lk, ld, ne, nh, nm, wk, wd -> vm.addSchedule(n, ik, im, lk, ld, ne, nh, nm, wk, wd); showAdd = false }
+        ScheduleFormDialog("Tambah Komponen", options, null, km, { showAdd = false }) { n, ik, im, lk, ld, ne, nh, nm, wk, wd -> vm.addSchedule(n, ik, im, lk, ld, ne, nh, nm, wk, wd); showAdd = false }
     }
     editTarget?.let { s ->
-        ScheduleFormDialog("Edit Kategori", null, s, km, { editTarget = null }) { n, ik, im, lk, ld, ne, nh, nm, wk, wd ->
+        ScheduleFormDialog("Edit Komponen", null, s, km, { editTarget = null }) { n, ik, im, lk, ld, ne, nh, nm, wk, wd ->
             vm.updateSchedule(s.copy(name = n, intervalKm = ik, intervalMonths = im, lastServiceKm = lk, lastServiceDate = ld, notifyEnabled = ne, notifyHour = nh, notifyMinute = nm, warnKm = wk, warnDays = wd)); editTarget = null
         }
     }
     recordTarget?.let { s ->
         RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img -> vm.recordService(s, kmV, date, cost, notes, img); recordTarget = null }
     }
-    deleteTarget?.let { s -> ConfirmDialog("Hapus kategori?", "\"${s.name}\" akan dihapus.", "Hapus", { vm.deleteSchedule(s.id); deleteTarget = null }, { deleteTarget = null }) }
+    deleteTarget?.let { s -> ConfirmDialog("Hapus komponen?", "\"${s.name}\" akan dihapus.", "Hapus", { vm.deleteSchedule(s.id); deleteTarget = null }, { deleteTarget = null }) }
 }
 
-/** Kartu jadwal: nama + interval, status, KM terakhir / berikutnya / kondisi, tombol catat servis. Edit & hapus di titik tiga. */
+/** Baris kondisi per bagian: "Sisa 4,000 km" dan "Sisa 119 hari" ditumpuk agar muat. */
+private fun conditionLines(v: ScheduleView): List<String> {
+    if (v.status == ServiceStatus.NO_ODOMETER) return listOf("KM belum diupdate")
+    val lines = mutableListOf<String>()
+    v.kmRemaining?.let { lines += if (it < 0) "Lewat ${fmtKm(-it)} km" else "Sisa ${fmtKm(it)} km" }
+    v.daysRemaining?.let { lines += if (it < 0) "Lewat ${-it} hari" else "Sisa $it hari" }
+    return if (lines.isEmpty()) listOf("-") else lines
+}
+
+@Composable
+private fun InfoCol(label: String, value: String, sub: String?, modifier: Modifier, color: Color = TextWhite, end: Boolean = false) {
+    Column(modifier, horizontalAlignment = if (end) Alignment.End else Alignment.Start) {
+        Text(label, fontSize = 10.sp, color = TextGray)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color, textAlign = if (end) TextAlign.End else TextAlign.Start)
+        if (sub != null) Text(sub, fontSize = 10.sp, color = TextGray, textAlign = if (end) TextAlign.End else TextAlign.Start)
+    }
+}
+
+/** Kartu jadwal ringkas: nama + status, progress, terakhir / berikutnya / kondisi, tombol catat. Edit & hapus di titik tiga. */
 @Composable
 private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     val s = view.schedule
@@ -351,56 +441,46 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
     val ld = s.lastServiceDate
     val nextKm: Int? = if (ik != null && lk != null) lk + ik else null
     val nextDate: Long? = if (im != null && ld != null) localDateToMillis(msToLocalDate(ld).plusMonths(im.toLong())) else null
-    val conditionColor = when (view.status) { ServiceStatus.NORMAL -> LavenderPrimary; else -> serviceColor(view.status).second }
+    val statusColor = serviceColor(view.status).second
+    val conditionColor = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor
+    val lines = conditionLines(view)
 
-    Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(start = 20.dp, top = 16.dp, end = 8.dp, bottom = 20.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f).padding(top = 6.dp)) {
-                    Text(s.name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                    val interval = intervalLabel(ik, im)
-                    if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 15.sp, color = TextGray)
-                }
-                Spacer(Modifier.width(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusChip(view.status)
-                    ItemMenu(onEdit, onDelete, editLabel = "Edit Jadwal", deleteLabel = "Hapus Jadwal")
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth().padding(end = 12.dp)) {
+    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(start = 14.dp, top = 8.dp, end = 4.dp, bottom = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Terakhir", fontSize = 14.sp, color = TextGray)
-                    Text(lk?.let { "${fmtKm(it)} km" } ?: "-", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                    ld?.let { Text(fmtDate(it), fontSize = 14.sp, color = TextGray) }
+                    Text(s.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val interval = intervalLabel(ik, im)
+                        if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 11.sp, color = TextGray)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(if (s.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray.copy(alpha = 0.7f), modifier = Modifier.size(11.dp))
+                    }
                 }
-                Column(Modifier.weight(1f)) {
-                    Text("Berikutnya", fontSize = 14.sp, color = TextGray)
-                    Text(nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                    if (nextKm != null && nextDate != null) Text(fmtDate(nextDate), fontSize = 14.sp, color = TextGray)
-                }
-                Column(Modifier.weight(1.2f), horizontalAlignment = Alignment.End) {
-                    Text("Kondisi", fontSize = 14.sp, color = TextGray)
-                    Text(conditionText(view), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = conditionColor, textAlign = TextAlign.End)
-                }
+                StatusChip(view.status)
+                ItemMenu(onEdit, onDelete, editLabel = "Edit Jadwal", deleteLabel = "Hapus Jadwal")
             }
-            // Info batas peringatan + notifikasi
-            val warn = mutableListOf<String>()
-            if (ik != null) warn += "${fmtKm(Engines.warnKm(s))} km"
-            if (im != null) warn += "${Engines.warnDays(s)} hari"
-            val infoParts = mutableListOf<String>()
-            if (warn.isNotEmpty()) infoParts += "Segera saat sisa " + warn.joinToString(" / ")
-            infoParts += if (s.notifyEnabled) "Notifikasi ${fmtTime(s.notifyHour, s.notifyMinute)}" else "Notifikasi mati"
-            Spacer(Modifier.height(10.dp))
-            Text(infoParts.joinToString(" · "), fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(end = 12.dp))
-            Spacer(Modifier.height(14.dp))
-            Button(
-                onClick = onRecord, modifier = Modifier.fillMaxWidth().padding(end = 12.dp).height(56.dp), shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ButtonSlate, contentColor = TextWhite)
-            ) {
-                Icon(Icons.Default.Check, null)
-                Spacer(Modifier.width(8.dp))
-                Text("Catat Servis Sekarang", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Column(Modifier.padding(end = 10.dp)) {
+                Spacer(Modifier.height(6.dp))
+                ProgressBar(view.progress, statusColor)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
+                    InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text("Kondisi", fontSize = 10.sp, color = TextGray)
+                        lines.forEach { Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = conditionColor, textAlign = TextAlign.End) }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                FilledTonalButton(
+                    onClick = onRecord, modifier = Modifier.fillMaxWidth().height(36.dp), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = ButtonSlate, contentColor = TextWhite)
+                ) {
+                    Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Catat servis", fontSize = 13.sp)
+                }
             }
         }
     }
@@ -426,51 +506,54 @@ private fun ScheduleFormDialog(
     var warnKmT by remember { mutableStateOf(initial?.warnKm?.takeIf { it > 0 }?.toString() ?: "") }
     var warnDaysT by remember { mutableStateOf(initial?.warnDays?.takeIf { it > 0 }?.toString() ?: "") }
     var selected by remember { mutableStateOf<String?>(if (masters == null) CUSTOM else null) }
-    var menu by remember { mutableStateOf(false) }
     val showName = selected == CUSTOM
     val canSave = name.isNotBlank() && (posInt(kmT) != null || posInt(moT) != null)
 
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (masters != null) {
-                    Box {
-                        OutlinedButton(onClick = { menu = true }) { Text(when (selected) { null -> "Pilih komponen"; CUSTOM -> "Lainnya (ketik sendiri)"; else -> name }) }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            masters.forEach { m ->
-                                DropdownMenuItem(text = { Text(m.name) }, onClick = {
-                                    selected = m.id; name = m.name
-                                    notifyOn = m.notifyEnabled; notifyHour = m.notifyHour; notifyMinute = m.notifyMinute
-                                    warnKmT = m.warnKm.takeIf { it > 0 }?.toString() ?: ""; warnDaysT = m.warnDays.takeIf { it > 0 }?.toString() ?: ""
-                                    kmT = m.defaultKm.takeIf { it > 0 }?.toString() ?: ""; moT = m.defaultMonths.takeIf { it > 0 }?.toString() ?: ""
-                                    menu = false
-                                })
-                            }
-                            DropdownMenuItem(text = { Text("Lainnya (ketik sendiri)") }, onClick = { selected = CUSTOM; name = ""; kmT = ""; moT = ""; warnKmT = ""; warnDaysT = ""; menu = false })
-                        }
-                    }
-                }
-                if (showName) OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama komponen") }, singleLine = true)
-                if (selected != null) {
-                    NumberField(kmT, { kmT = it }, "Ganti tiap (km)", hint = "Kosongkan jika tidak dipakai")
-                    NumberField(moT, { moT = it }, "Ganti tiap (bulan)", hint = "Kosongkan jika tidak dipakai")
-                    NumberField(lastKm, { lastKm = it }, "KM servis terakhir")
-                    DateField("Tanggal servis terakhir", lastDate) { lastDate = it }
-                    posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
-                    if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", hint = "Kosong = otomatis 30 hari")
-                    if (canSave) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
+    FormDialog(
+        title = title, icon = Icons.Default.Build, onDismiss = onDismiss, confirmEnabled = selected != null && canSave,
+        onConfirm = { onSave(name.trim(), posInt(kmT), posInt(moT), lastKm.toIntOrNull(), lastDate, notifyOn, notifyHour, notifyMinute, if (posInt(kmT) != null) warnKmT.toIntOrNull() ?: 0 else 0, if (posInt(moT) != null) warnDaysT.toIntOrNull() ?: 0 else 0) }
+    ) {
+        if (masters != null) {
+            DropdownField(
+                "Komponen", when (selected) { null -> null; CUSTOM -> "Lainnya (ketik sendiri)"; else -> name }, Icons.Default.Build,
+                masters.map { it.id to it.name } + (CUSTOM to "Lainnya (ketik sendiri)"), placeholder = "Pilih komponen"
+            ) { key ->
+                if (key == CUSTOM) { selected = CUSTOM; name = ""; kmT = ""; moT = ""; warnKmT = ""; warnDaysT = "" }
+                else masters.firstOrNull { it.id == key }?.let { m ->
+                    selected = m.id; name = m.name
+                    notifyOn = m.notifyEnabled; notifyHour = m.notifyHour; notifyMinute = m.notifyMinute
+                    warnKmT = m.warnKm.takeIf { it > 0 }?.toString() ?: ""; warnDaysT = m.warnDays.takeIf { it > 0 }?.toString() ?: ""
+                    kmT = m.defaultKm.takeIf { it > 0 }?.toString() ?: ""; moT = m.defaultMonths.takeIf { it > 0 }?.toString() ?: ""
                 }
             }
-        },
-        confirmButton = { TextButton(enabled = selected != null && canSave, onClick = { onSave(name.trim(), posInt(kmT), posInt(moT), lastKm.toIntOrNull(), lastDate, notifyOn, notifyHour, notifyMinute, if (posInt(kmT) != null) warnKmT.toIntOrNull() ?: 0 else 0, if (posInt(moT) != null) warnDaysT.toIntOrNull() ?: 0 else 0) }) { Text("Simpan") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
+        }
+        if (showName) AppTextField(name, { name = it }, "Nama komponen", Icons.Default.Edit)
+        if (selected != null) {
+            FormGroupLabel("Interval ganti")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.weight(1f)) { NumberField(kmT, { kmT = it }, "Tiap (km)", icon = Icons.Default.Speed) }
+                Box(Modifier.weight(1f)) { NumberField(moT, { moT = it }, "Tiap (bulan)", icon = Icons.Default.Event) }
+            }
+            FormNote("Isi salah satu atau keduanya. Kosongkan yang tidak dipakai.")
+            FormGroupLabel("Servis terakhir")
+            NumberField(lastKm, { lastKm = it }, "KM servis terakhir", icon = Icons.Default.Speed)
+            DateField("Tanggal servis terakhir", lastDate) { lastDate = it }
+            if (posInt(kmT) != null || posInt(moT) != null) {
+                FormGroupLabel("Peringatan \"Segera\"")
+                posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", icon = Icons.Default.Warning, hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
+                if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", icon = Icons.Default.Warning, hint = "Kosong = otomatis 30 hari")
+            }
+            if (canSave) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
+        }
+    }
 }
 
 /** Form tanggal, KM, biaya, catatan, foto. Dipakai untuk "Sudah service" dan edit riwayat. */
 @Composable
 fun ServiceFormDialog(
     title: String, initialKm: Int?, initialDate: Long, initialCost: Long, initialNotes: String?, initialImage: String? = null,
-    onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit
+    onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit,
+    subtitle: String? = null
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -492,37 +575,35 @@ fun ServiceFormDialog(
     fun cleanup(keep: String?) { newImages.filter { it != keep }.forEach { ImageStore.delete(it) } }
     fun dismiss() { cleanup(null); onDismiss() }
 
-    AlertDialog(onDismissRequest = { dismiss() }, title = { Text(title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DateField("Tanggal servis", date) { date = it }
-                NumberField(kmText, { kmText = it }, "KM saat servis")
-                NumberField(costText, { costText = it }, "Biaya servis", currency = true)
-                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Catatan (opsional)") })
-
-                Text("Foto nota / bukti (opsional)", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                if (imagePath != null) {
-                    StoredImage(imagePath, Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)), maxSide = 800)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { picker.launch("image/*") }) { Text(if (imagePath == null) "Pilih Foto" else "Ganti Foto") }
-                    if (imagePath != null) TextButton(onClick = { imagePath = null }) { Text("Hapus Foto", color = Color.Red) }
-                }
-                if (imageError) Text("Gagal membaca gambar.", color = Color.Red, fontSize = 12.sp)
+    FormDialog(
+        title = title, subtitle = subtitle, icon = Icons.Default.Build, onDismiss = { dismiss() }, confirmEnabled = posInt(kmText) != null,
+        onConfirm = {
+            posInt(kmText)?.let {
+                cleanup(imagePath)
+                onConfirm(it, date, costText.toLongOrNull() ?: 0L, notes.ifBlank { null }, imagePath)
             }
-        },
-        confirmButton = {
-            TextButton(enabled = posInt(kmText) != null, onClick = {
-                posInt(kmText)?.let {
-                    cleanup(imagePath)
-                    onConfirm(it, date, costText.toLongOrNull() ?: 0L, notes.ifBlank { null }, imagePath)
+        }
+    ) {
+        DateField("Tanggal servis", date) { date = it }
+        NumberField(kmText, { kmText = it }, "KM saat servis", icon = Icons.Default.Speed)
+        NumberField(costText, { costText = it }, "Biaya servis", currency = true, icon = Icons.Default.Payments)
+        AppTextField(notes, { notes = it }, "Catatan (opsional)", Icons.Default.EditNote, singleLine = false, minLines = 2)
+        if (imagePath == null) {
+            PickerField("Foto nota / bukti (opsional)", null, Icons.Default.AddAPhoto, placeholder = "Tambah foto") { picker.launch("image/*") }
+        } else {
+            StoredImage(imagePath, Modifier.fillMaxWidth().height(130.dp).clip(RoundedCornerShape(12.dp)), maxSide = 800)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { picker.launch("image/*") }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.height(34.dp), border = BorderStroke(1.dp, FieldBorder)) {
+                    Icon(Icons.Default.Image, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(6.dp)); Text("Ganti", fontSize = 12.sp)
                 }
-            }) { Text("Simpan") }
-        },
-        dismissButton = { TextButton(onClick = { dismiss() }) { Text("Batal") } })
+                TextButton(onClick = { imagePath = null }, modifier = Modifier.height(34.dp)) { Text("Hapus foto", color = DangerText, fontSize = 12.sp) }
+            }
+        }
+        if (imageError) FormNote("Gagal membaca gambar.", DangerText)
+    }
 }
 
 @Composable
 fun RecordServiceDialog(schedule: MaintenanceSchedule?, initialKm: Int?, onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit) {
-    ServiceFormDialog(if (schedule != null) "Sudah service: ${schedule.name}" else "Catat Servis", initialKm, todayMillis(), 0L, null, null, onDismiss, onConfirm)
+    ServiceFormDialog("Catat Servis", initialKm, todayMillis(), 0L, null, null, onDismiss, onConfirm, subtitle = schedule?.name)
 }

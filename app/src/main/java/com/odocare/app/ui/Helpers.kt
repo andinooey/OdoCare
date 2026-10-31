@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -122,8 +126,8 @@ fun appBarColors() = TopAppBarDefaults.topAppBarColors(containerColor = Material
 @Composable
 fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable RowScope.() -> Unit = {}) {
     TopAppBar(
-        title = { Text(title, color = TextWhite) }, colors = appBarColors(),
-        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite) } },
+        title = { Text(title, color = TextWhite, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }, colors = appBarColors(),
+        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) } },
         actions = actions
     )
 }
@@ -153,31 +157,17 @@ object ThousandsTransformation : VisualTransformation {
     }
 }
 
-/** Field angka bulat dengan pemisah ribuan. currency = true menambahkan awalan "Rp". */
-@Composable
-fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null) {
-    val prefixSlot: (@Composable () -> Unit)? = if (currency) { { Text("Rp ") } } else null
-    val hintSlot: (@Composable () -> Unit)? = if (hint != null) { { Text(hint) } } else null
-    OutlinedTextField(
-        value = value, onValueChange = { onChange(it.filter(Char::isDigit).trimStart('0').take(12)) },
-        label = { Text(label) }, singleLine = true, prefix = prefixSlot,
-        supportingText = hintSlot,
-        visualTransformation = ThousandsTransformation,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-    )
-}
-
-/** Tombol jam yang membuka time picker 24 jam. */
+/** Kotak jam yang membuka time picker 24 jam. */
 @Composable
 fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minute: Int) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = { open = true }) { Text("$label: ${fmtTime(hour, minute)}") }
+    PickerField(label, fmtTime(hour, minute), Icons.Default.Schedule) { open = true }
     if (open) {
         val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = true)
         Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Surface(shape = MaterialTheme.shapes.extraLarge, tonalElevation = 6.dp, modifier = Modifier.width(IntrinsicSize.Min).height(IntrinsicSize.Min)) {
-                Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp))
+            Surface(shape = RoundedCornerShape(22.dp), color = SurfaceDark, modifier = Modifier.width(IntrinsicSize.Min).height(IntrinsicSize.Min)) {
+                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(label, fontSize = 13.sp, color = TextGray, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
                     TimePicker(state = state)
                     Row(Modifier.height(40.dp).fillMaxWidth()) {
                         Spacer(Modifier.weight(1f))
@@ -193,12 +183,16 @@ fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minut
 /** Switch notifikasi on/off + pilihan jam (jam hanya muncul saat aktif). */
 @Composable
 fun NotifyOptions(enabled: Boolean, hour: Int, minute: Int, onChange: (enabled: Boolean, hour: Int, minute: Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text("Notifikasi pengingat", color = TextWhite)
-            Text(if (enabled) "Aktif" else "Mati", color = TextGray, fontSize = 12.sp)
+    Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (enabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = if (enabled) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Notifikasi pengingat", fontSize = 13.sp, color = TextWhite)
+                Text(if (enabled) "Aktif" else "Mati", fontSize = 11.sp, color = TextGray)
+            }
+            Switch(checked = enabled, onCheckedChange = { onChange(it, hour, minute) }, modifier = Modifier.scale(0.8f))
         }
-        Switch(checked = enabled, onCheckedChange = { onChange(it, hour, minute) })
     }
     if (enabled) TimeField("Jam notifikasi", hour, minute) { h, m -> onChange(true, h, m) }
 }
@@ -229,24 +223,28 @@ fun DatePickerDialogX(initialMillis: Long?, onDismiss: () -> Unit, onPicked: (Lo
     ) { DatePicker(state = state) }
 }
 
-/** Tombol tanggal yang membuka date picker. */
+/** Kotak tanggal yang membuka date picker. */
 @Composable
 fun DateField(label: String, millis: Long?, onPicked: (Long) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = { open = true }) { Text(if (millis != null) "$label: ${fmtDate(millis)}" else label) }
+    PickerField(label, millis?.let { fmtDate(it) }, Icons.Default.CalendarMonth, placeholder = "Pilih tanggal") { open = true }
     if (open) DatePickerDialogX(millis, { open = false }) { onPicked(it); open = false }
 }
 
 @Composable
 fun ConfirmDialog(title: String, text: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title) }, text = { Text(text) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = Color.Red) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
+    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
+        icon = { Icon(Icons.Default.WarningAmber, null, tint = DangerText, modifier = Modifier.size(28.dp)) },
+        title = { Text(title, fontSize = 16.sp, color = TextWhite) }, text = { Text(text, fontSize = 13.sp, color = TextGray) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = DangerText) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal", color = TextGray) } })
 }
 
 @Composable
 fun InfoDialog(message: String, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, text = { Text(message) }, confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } })
+    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
+        icon = { Icon(Icons.Default.Info, null, tint = LavenderPrimary, modifier = Modifier.size(28.dp)) },
+        text = { Text(message, fontSize = 13.sp, color = TextWhite) }, confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } })
 }
 
 /** Update KM; bila lebih kecil dari KM sekarang, minta konfirmasi dulu. */
@@ -254,30 +252,22 @@ fun InfoDialog(message: String, onDismiss: () -> Unit) {
 fun AddKmDialog(currentKm: Int?, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
     var kmText by remember { mutableStateOf("") }
     var pendingLower by remember { mutableStateOf<Int?>(null) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Update KM Odometer") },
-        text = {
-            Column {
-                if (currentKm != null) { Text("KM saat ini: ${fmtKm(currentKm)}", color = TextGray, fontSize = 12.sp); Spacer(Modifier.height(8.dp)) }
-                NumberField(kmText, { kmText = it }, "KM odometer terbaru")
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = posInt(kmText) != null, onClick = {
-                posInt(kmText)?.let { v -> if (currentKm != null && v < currentKm) pendingLower = v else onSave(v) }
-            }) { Text("Simpan") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
+    FormDialog(
+        title = "Update KM", icon = Icons.Default.Speed, onDismiss = onDismiss,
+        subtitle = currentKm?.let { "KM saat ini ${fmtKm(it)}" },
+        confirmEnabled = posInt(kmText) != null,
+        onConfirm = { posInt(kmText)?.let { v -> if (currentKm != null && v < currentKm) pendingLower = v else onSave(v) } }
+    ) {
+        NumberField(kmText, { kmText = it }, "KM odometer terbaru", icon = Icons.Default.Speed)
+    }
     pendingLower?.let { v ->
-        AlertDialog(onDismissRequest = { pendingLower = null }, title = { Text("KM lebih kecil?") },
-            text = { Text("KM ${fmtKm(v)} lebih kecil dari KM sekarang (${fmtKm(currentKm ?: 0)}). Tetap simpan?") },
-            confirmButton = { TextButton(onClick = { onSave(v) }) { Text("Tetap Simpan") } },
-            dismissButton = { TextButton(onClick = { pendingLower = null }) { Text("Batal") } })
+        ConfirmDialog("KM lebih kecil?", "KM ${fmtKm(v)} lebih kecil dari KM sekarang (${fmtKm(currentKm ?: 0)}). Tetap simpan?", "Tetap Simpan", { onSave(v) }, { pendingLower = null })
     }
 }
 
 @Composable
-fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)).background(Color(0xFF3A3A3A))) {
+fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 4.dp) {
+    Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(50)).background(Color(0xFF3A3A3A))) {
         Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(color))
     }
 }
@@ -285,8 +275,8 @@ fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
 /** Plat nomor ala plat hitam */
 @Composable
 fun PlateView(plate: String) {
-    Surface(color = Color.Black, shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, Color.White)) {
-        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 14.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+    Surface(color = Color.Black, shape = RoundedCornerShape(5.dp), border = BorderStroke(1.dp, Color.White)) {
+        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
     }
 }
 
@@ -294,10 +284,10 @@ fun PlateView(plate: String) {
 @Composable
 fun OdometerDigits(km: Int?) {
     val digits = (km ?: 0).coerceAtLeast(0).toString().padStart(6, '0')
-    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         digits.forEach { c ->
-            Box(Modifier.size(26.dp, 36.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-                Text(c.toString(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.size(22.dp, 30.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                Text(c.toString(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -309,12 +299,12 @@ private fun compact(v: Long): String = when { v >= 1_000_000 -> String.format(Lo
 @Composable
 fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modifier) {
     val max = (values.maxOrNull() ?: 0L).coerceAtLeast(1L)
-    Row(modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+    Row(modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
         values.forEachIndexed { i, v ->
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                 if (v > 0) Text(compact(v), fontSize = 9.sp, color = TextGray, maxLines = 1)
                 Spacer(Modifier.height(2.dp))
-                val h = if (v > 0) (90f * v.toFloat() / max.toFloat()).coerceAtLeast(3f) else 1f
+                val h = if (v > 0) (66f * v.toFloat() / max.toFloat()).coerceAtLeast(3f) else 1f
                 Box(Modifier.fillMaxWidth().height(h.dp).clip(RoundedCornerShape(4.dp)).background(if (v > 0) LavenderPrimary else Color(0xFF3A3A3A)))
                 Spacer(Modifier.height(4.dp))
                 Text(labels.getOrElse(i) { "" }, fontSize = 10.sp, color = TextGray, maxLines = 1)
@@ -326,10 +316,10 @@ fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modi
 @Composable
 fun PercentBar(label: String, value: Long, total: Long) {
     val pct = if (total > 0) (value * 100 / total).toInt() else 0
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, Modifier.weight(1f), color = TextWhite, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${rupiah(value)} ($pct%)", color = TextGray, fontSize = 12.sp)
+            Text(label, Modifier.weight(1f), color = TextWhite, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${rupiah(value)} ($pct%)", color = TextGray, fontSize = 11.sp)
         }
         Spacer(Modifier.height(4.dp))
         ProgressBar(if (total > 0) value.toFloat() / total.toFloat() else 0f, LavenderPrimary)
@@ -337,19 +327,17 @@ fun PercentBar(label: String, value: Long, total: Long) {
 }
 
 @Composable
-fun StatCard(value: String, label: String, modifier: Modifier = Modifier) {
-    Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(16.dp), modifier = modifier) {
-        Column(Modifier.padding(16.dp)) {
-            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(label, fontSize = 12.sp, color = TextGray)
+fun StatCard(value: String, label: String, modifier: Modifier = Modifier, icon: ImageVector? = null) {
+    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = modifier) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+                Spacer(Modifier.width(10.dp))
+            }
+            Column {
+                Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(label, fontSize = 11.sp, color = TextGray, maxLines = 1)
+            }
         }
-    }
-}
-
-/** Pilihan satuan Hari / Bulan / Tahun */
-@Composable
-fun UnitChips(selected: IntervalUnit, onSelect: (IntervalUnit) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        IntervalUnit.values().forEach { u -> FilterChip(selected = selected == u, onClick = { onSelect(u) }, label = { Text(u.label) }) }
     }
 }

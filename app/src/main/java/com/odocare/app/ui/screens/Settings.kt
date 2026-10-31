@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -75,48 +77,57 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Spacer(Modifier.height(8.dp))
-        Text("Kendaraan", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Spacer(Modifier.height(6.dp))
+        ScreenTitle("Kendaraan", "Kelola kendaraan dan pengaturan")
 
-        SectionCard("Kendaraan Saya") {
-            if (vehicles.isEmpty()) Text("Belum ada kendaraan.", color = TextGray)
-            vehicles.forEach { v ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("${v.name} (${vehicleTypeLabel(v.type)})", color = TextWhite, fontWeight = if (v.id == active?.id) FontWeight.Bold else FontWeight.Normal)
-                        if (v.plate.isNotBlank()) Text(v.plate, color = TextGray, fontSize = 12.sp)
+        SectionCard("Kendaraan Saya", Icons.Default.DirectionsCar) {
+            if (vehicles.isEmpty()) {
+                EmptyState(Icons.Default.DirectionsCar, "Belum ada kendaraan", "Tambahkan motor atau mobilmu.", compact = true, actionLabel = "Tambah", onAction = { showAdd = true })
+            } else {
+                vehicles.forEach { v ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(if (v.id == active?.id) PillSelected else SurfaceDark), contentAlignment = Alignment.Center) {
+                            Icon(if (v.type == "MOBIL") Icons.Default.DirectionsCar else Icons.Default.TwoWheeler, null, tint = if (v.id == active?.id) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp))
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(v.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(listOf(vehicleTypeLabel(v.type), v.plate).filter { it.isNotBlank() }.joinToString(" · "), color = TextGray, fontSize = 11.sp)
+                        }
+                        if (v.id == active?.id) StatusBadge("Aktif", StatusGreenBg to StatusGreenText)
+                        else TextButton(onClick = { vm.setActiveVehicle(v.id) }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) { Text("Aktifkan", color = LavenderPrimary, fontSize = 12.sp) }
+                        ItemMenu(onEdit = { editTarget = v }, onDelete = { deleteTarget = v })
                     }
-                    if (v.id != active?.id) TextButton(onClick = { vm.setActiveVehicle(v.id) }) { Text("Aktifkan", color = LavenderPrimary) }
-                    ItemMenu(onEdit = { editTarget = v }, onDelete = { deleteTarget = v })
+                }
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth().height(38.dp), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder)) {
+                    Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = LavenderPrimary)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Tambah Kendaraan", fontSize = 13.sp, color = LavenderPrimary)
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Button(onClick = { showAdd = true }, colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black)) { Text("Tambah Kendaraan") }
         }
 
-        SectionCard("Master Kategori") {
-            Text("Atur daftar komponen servis bawaan untuk motor dan mobil.", color = TextGray, fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onOpenMaster, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Kelola Master", color = LavenderPrimary) }
+        SectionCard("Master Kategori", Icons.Default.Category) {
+            ActionRow(Icons.Default.Tune, "Kelola master kategori", subtitle = "Daftar komponen servis bawaan motor & mobil", onClick = onOpenMaster)
         }
 
-        SectionCard("Pengingat Update KM") {
+        SectionCard("Pengingat Update KM", Icons.Default.Speed) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Ingatkan update KM jika belum dicatat selama:", Modifier.weight(1f), color = TextGray, fontSize = 13.sp)
-                Spacer(Modifier.width(8.dp))
-                Switch(checked = kmEnabled, onCheckedChange = { kmEnabled = it })
+                Text("Ingatkan jika KM belum dicatat selama:", Modifier.weight(1f), color = TextGray, fontSize = 12.sp)
+                Switch(checked = kmEnabled, onCheckedChange = { kmEnabled = it }, modifier = Modifier.scale(0.8f))
             }
             if (kmEnabled) {
                 Spacer(Modifier.height(8.dp))
-                NumberField(kmValueText, { kmValueText = it }, "Lama (angka)")
-                Spacer(Modifier.height(8.dp))
-                UnitChips(kmUnit) { kmUnit = it }
-                Spacer(Modifier.height(8.dp))
-                TimeField("Jam notifikasi", kmHour, kmMinute) { h, m -> kmHour = h; kmMinute = m }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumberField(kmValueText, { kmValueText = it }, "Lama (angka)", icon = Icons.Default.Timer)
+                    UnitChips(kmUnit) { kmUnit = it }
+                    TimeField("Jam notifikasi", kmHour, kmMinute) { h, m -> kmHour = h; kmMinute = m }
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            Button(colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black), onClick = {
+            Spacer(Modifier.height(10.dp))
+            Button(modifier = Modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(12.dp), onClick = {
                 val v = kmValueText.toIntOrNull() ?: 0
                 if (kmEnabled && v <= 0) {
                     message = "Isi angka interval dulu, atau matikan pengingat."
@@ -125,19 +136,18 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
                     Notif.schedulePolling(ctx)
                     message = if (kmEnabled) "Pengingat update KM: setiap $v ${kmUnit.label.lowercase()} pukul ${fmtTime(kmHour, kmMinute)} (diulang selama KM belum diperbarui)." else "Pengingat update KM dimatikan."
                 }
-            }) { Text("Simpan") }
+            }) { Text("Simpan", fontSize = 13.sp) }
         }
 
-        SectionCard("Pengingat Pajak & Dokumen") {
+        SectionCard("Pengingat Pajak & Dokumen", Icons.Default.EventAvailable) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Notifikasi jatuh tempo", color = TextWhite)
-                    Text("Berapa lama sebelum jatuh tempo diatur per dokumen di menu Pajak & Dokumen.", color = TextGray, fontSize = 12.sp)
+                    Text("Notifikasi jatuh tempo", color = TextWhite, fontSize = 13.sp)
+                    Text("Waktu pengingat diatur per dokumen.", color = TextGray, fontSize = 11.sp)
                 }
-                Spacer(Modifier.width(8.dp))
                 Switch(checked = docEnabled, onCheckedChange = {
                     docEnabled = it; Notif.setDocReminder(ctx, docEnabled, docHour, docMinute); Notif.schedulePolling(ctx)
-                })
+                }, modifier = Modifier.scale(0.8f))
             }
             if (docEnabled) {
                 Spacer(Modifier.height(8.dp))
@@ -147,46 +157,41 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
             }
         }
 
-        SectionCard("Notifikasi & Kalender") {
-            Text("Pastikan izin notifikasi aktif. Jam pengiriman diatur di tiap pengingat; pengecekan berjalan berkala sehingga bisa telat beberapa menit.", color = TextGray, fontSize = 13.sp)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
-                    if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    else message = "Notifikasi sudah aktif."
-                }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Aktifkan", color = LavenderPrimary) }
-                OutlinedButton(onClick = { vm.testNotification() }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Kirim Tes", color = LavenderPrimary) }
+        SectionCard("Notifikasi & Kalender", Icons.Default.Notifications) {
+            FormNote("Pengecekan berjalan berkala, jadi notifikasi bisa telat beberapa menit.")
+            Spacer(Modifier.height(4.dp))
+            ActionRow(Icons.Default.NotificationsActive, "Aktifkan notifikasi") {
+                if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else message = "Notifikasi sudah aktif."
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(enabled = allDocs.isNotEmpty(), onClick = {
+            ActionRow(Icons.Default.NotificationAdd, "Kirim notifikasi tes") { vm.testNotification() }
+            ActionRow(Icons.Default.CalendarMonth, "Ekspor ke kalender (.ics)", enabled = allDocs.isNotEmpty(), subtitle = if (allDocs.isEmpty()) "Belum ada dokumen untuk diekspor" else null) {
                 try {
                     val ics = Exports.icsText(vehicles, allDocs, ::docTypeLabel)
                     Exports.shareFile(ctx, "odocare-pajak.ics", "text/calendar", ics.toByteArray(Charsets.UTF_8))
                 } catch (e: Exception) { message = "Gagal ekspor: ${e.message}" }
-            }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Ekspor ke Kalender (.ics)", color = LavenderPrimary) }
-        }
-
-        SectionCard("Backup & Data") {
-            Text(if (lastBackup == 0L) "Belum pernah backup." else "Backup terakhir: ${fmtDateTime(lastBackup)}", color = TextWhite, fontSize = 13.sp)
-            Text("$changes perubahan sejak backup terakhir", color = if (changes > 0) StatusYellowText else TextGray, fontSize = 12.sp)
-            Spacer(Modifier.height(8.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(colors = ButtonDefaults.buttonColors(containerColor = LavenderPrimary, contentColor = Color.Black), onClick = {
-                    vm.exportBackup { json ->
-                        try {
-                            val name = "odocare-backup-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm")) + ".json"
-                            Exports.shareFile(ctx, name, "application/json", json.toByteArray(Charsets.UTF_8))
-                            vm.markBackedUp()
-                        } catch (e: Exception) { message = "Gagal menyimpan backup: ${e.message}" }
-                    }
-                }) { Text("Simpan File Backup") }
-                OutlinedButton(onClick = { openLauncher.launch(arrayOf("*/*")) }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Buka File Backup", color = LavenderPrimary) }
-                OutlinedButton(onClick = { vm.exportBackup { json -> clipboard.setText(AnnotatedString(json)); vm.markBackedUp(); message = "Teks backup disalin ke clipboard." } }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Salin Teks Backup", color = LavenderPrimary) }
-                OutlinedButton(onClick = { showPaste = true }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Tempel Teks untuk Restore", color = LavenderPrimary) }
-                OutlinedButton(onClick = { showSnapshots = true }, border = BorderStroke(1.dp, LavenderPrimary)) { Text("Snapshot Otomatis", color = LavenderPrimary) }
             }
         }
-        Spacer(Modifier.height(24.dp))
+
+        SectionCard("Backup & Data", Icons.Default.Backup) {
+            Text(if (lastBackup == 0L) "Belum pernah backup." else "Backup terakhir: ${fmtDateTime(lastBackup)}", color = TextWhite, fontSize = 12.sp)
+            Text("$changes perubahan sejak backup terakhir", color = if (changes > 0) StatusYellowText else TextGray, fontSize = 11.sp)
+            Spacer(Modifier.height(6.dp))
+            ActionRow(Icons.Default.Save, "Simpan file backup") {
+                vm.exportBackup { json ->
+                    try {
+                        val name = "odocare-backup-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm")) + ".json"
+                        Exports.shareFile(ctx, name, "application/json", json.toByteArray(Charsets.UTF_8))
+                        vm.markBackedUp()
+                    } catch (e: Exception) { message = "Gagal menyimpan backup: ${e.message}" }
+                }
+            }
+            ActionRow(Icons.Default.FolderOpen, "Buka file backup") { openLauncher.launch(arrayOf("*/*")) }
+            ActionRow(Icons.Default.ContentCopy, "Salin teks backup") { vm.exportBackup { json -> clipboard.setText(AnnotatedString(json)); vm.markBackedUp(); message = "Teks backup disalin ke clipboard." } }
+            ActionRow(Icons.Default.ContentPaste, "Tempel teks untuk restore") { showPaste = true }
+            ActionRow(Icons.Default.Restore, "Snapshot otomatis") { showSnapshots = true }
+        }
+        Spacer(Modifier.height(20.dp))
     }
 
     if (showAdd) VehicleFormDialog("Tambah Kendaraan", null, { showAdd = false }) { n, p, t, k -> vm.addVehicle(n, p, t, k); showAdd = false }
@@ -195,21 +200,24 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
 
     if (showPaste) {
         var text by remember { mutableStateOf("") }
-        AlertDialog(onDismissRequest = { showPaste = false }, title = { Text("Tempel Teks Backup") },
-            text = { OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Teks backup (JSON)") }, modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 240.dp)) },
-            confirmButton = { TextButton(enabled = text.isNotBlank(), onClick = { pendingRestore = text; showPaste = false }) { Text("Lanjut") } },
-            dismissButton = { TextButton(onClick = { showPaste = false }) { Text("Batal") } })
+        FormDialog("Tempel Teks Backup", Icons.Default.ContentPaste, { showPaste = false }, onConfirm = { pendingRestore = text; showPaste = false }, confirmLabel = "Lanjut", confirmEnabled = text.isNotBlank()) {
+            AppTextField(text, { text = it }, "Teks backup (JSON)", Icons.Default.Code, singleLine = false, minLines = 5, modifier = Modifier.fillMaxWidth())
+        }
     }
     if (showSnapshots) {
         val snaps = remember { Snapshots.list(ctx) }
-        AlertDialog(onDismissRequest = { showSnapshots = false }, title = { Text("Snapshot Otomatis") },
+        AlertDialog(onDismissRequest = { showSnapshots = false }, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark, title = { Text("Snapshot Otomatis", fontSize = 16.sp, color = TextWhite) },
             text = {
-                if (snaps.isEmpty()) Text("Belum ada snapshot. Snapshot dibuat otomatis saat data berubah (maks. satu per 10 menit, 30 terakhir).")
+                if (snaps.isEmpty()) EmptyState(Icons.Default.Restore, "Belum ada snapshot", "Dibuat otomatis saat data berubah (maks. satu per 10 menit, 30 terakhir).", compact = true)
                 else Column(Modifier.verticalScroll(rememberScrollState())) {
                     snaps.forEach { (time, file) ->
-                        Text(fmtDateTime(time), color = TextWhite, modifier = Modifier.fillMaxWidth().clickable {
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
                             try { pendingRestore = file.readText(); showSnapshots = false } catch (e: Exception) { message = "Gagal membaca snapshot." }
-                        }.padding(vertical = 12.dp))
+                        }.padding(vertical = 10.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Restore, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(fmtDateTime(time), color = TextWhite, fontSize = 13.sp)
+                        }
                     }
                 }
             },
@@ -222,26 +230,4 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         }, { pendingRestore = null })
     }
     message?.let { InfoDialog(it) { message = null } }
-}
-
-@Composable
-private fun VehicleFormDialog(title: String, initial: Vehicle?, onDismiss: () -> Unit, onSave: (name: String, plate: String, type: String, initialKm: Int) -> Unit) {
-    var name by remember { mutableStateOf(initial?.name ?: "") }
-    var plate by remember { mutableStateOf(initial?.plate ?: "") }
-    var type by remember { mutableStateOf(initial?.type ?: "MOTOR") }
-    var kmT by remember { mutableStateOf(initial?.initialKm?.takeIf { it > 0 }?.toString() ?: "") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama kendaraan") }, singleLine = true)
-                OutlinedTextField(value = plate, onValueChange = { plate = it.uppercase() }, label = { Text("Plat nomor") }, singleLine = true)
-                if (initial == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("MOTOR", "MOBIL").forEach { t -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(vehicleTypeLabel(t)) }) }
-                }
-                NumberField(kmT, { kmT = it }, "KM odometer saat ini")
-                if (initial == null) Text("Jadwal servis dan dokumen bawaan dibuat otomatis sesuai jenis kendaraan. Atur jatuh tempo dokumen di menu Pajak & Dokumen.", color = TextGray, fontSize = 12.sp)
-            }
-        },
-        confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onSave(name, plate, type, kmT.toIntOrNull() ?: 0) }) { Text("Simpan") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
 }

@@ -2,20 +2,18 @@
 
 package com.odocare.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,7 +22,7 @@ import com.odocare.app.MainViewModel
 import com.odocare.app.data.MasterCategory
 import com.odocare.app.ui.*
 
-/** Master kategori: dipakai untuk kendaraan baru dan dropdown tambah kategori. Tidak mengubah kendaraan yang sudah ada. */
+/** Master kategori: dipakai untuk kendaraan baru dan dropdown tambah komponen. Tidak mengubah kendaraan yang sudah ada. */
 @Composable
 fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
     val masters by vm.masters.collectAsStateWithLifecycle()
@@ -33,24 +31,33 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
     var deleteTarget by remember { mutableStateOf<MasterCategory?>(null) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = NoInsets,
         topBar = { BackTopBar("Master Kategori", onBack) },
         floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
-        LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp)) {
-            item { Text("Perubahan di sini tidak mengubah jadwal kendaraan yang sudah ada.", color = TextGray, fontSize = 12.sp) }
-            items(masters, key = { it.id }) { m ->
-                Card(colors = CardDefaults.cardColors(containerColor = SurfaceVariantDark)) {
-                    Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(m.name, color = TextWhite, fontWeight = FontWeight.Bold)
-                            val parts = mutableListOf(vehicleTypeLabel(m.vehicleType))
-                            if (m.defaultKm > 0) parts += "${fmtKm(m.defaultKm)} km"
-                            if (m.defaultMonths > 0) parts += "${m.defaultMonths} bulan"
-                            if (m.defaultKm > 0 || m.defaultMonths > 0) parts += if (m.notifyEnabled) "🔔 ${fmtTime(m.notifyHour, m.notifyMinute)}" else "🔕 Mati"
-                            Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = TextGray)
+        if (masters.isEmpty()) {
+            EmptyState(Icons.Default.Category, "Belum ada master kategori", "Master dipakai sebagai daftar komponen bawaan saat menambah jadwal servis.", Modifier.padding(pad).padding(top = 48.dp), actionLabel = "Tambah Master", onAction = { showAdd = true })
+        } else {
+            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+                item { Text("Perubahan di sini tidak mengubah jadwal kendaraan yang sudah ada.", color = TextGray, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp)) }
+                items(masters, key = { it.id }) { m ->
+                    Surface(color = SurfaceVariantDark, shape = CardShape) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
+                                Icon(when (m.vehicleType) { "MOBIL" -> Icons.Default.DirectionsCar; "MOTOR" -> Icons.Default.TwoWheeler; else -> Icons.Default.Build }, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(m.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                val parts = mutableListOf(vehicleTypeLabel(m.vehicleType))
+                                if (m.defaultKm > 0) parts += "${fmtKm(m.defaultKm)} km"
+                                if (m.defaultMonths > 0) parts += "${m.defaultMonths} bulan"
+                                if (m.defaultKm > 0 || m.defaultMonths > 0) parts += if (m.notifyEnabled) fmtTime(m.notifyHour, m.notifyMinute) else "Notif mati"
+                                Text(parts.joinToString(" · "), fontSize = 11.sp, color = TextGray)
+                            }
+                            ItemMenu(onEdit = { editTarget = m }, onDelete = { deleteTarget = m })
                         }
-                        ItemMenu(onEdit = { editTarget = m }, onDelete = { deleteTarget = m })
                     }
                 }
             }
@@ -73,21 +80,24 @@ private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss:
     var warnKmT by remember { mutableStateOf(initial?.warnKm?.takeIf { it > 0 }?.toString() ?: "") }
     var warnDaysT by remember { mutableStateOf(initial?.warnDays?.takeIf { it > 0 }?.toString() ?: "") }
     val hasInterval = posInt(kmT) != null || posInt(moT) != null
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama kategori") }, singleLine = true)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("ALL", "MOTOR", "MOBIL").forEach { t -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(vehicleTypeLabel(t)) }) }
-                }
-                NumberField(kmT, { kmT = it }, "Ganti tiap (km)", hint = "Kosongkan jika tidak dipakai")
-                NumberField(moT, { moT = it }, "Ganti tiap (bulan)", hint = "Kosongkan jika tidak dipakai")
-                posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
-                if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", hint = "Kosong = otomatis 30 hari")
-                // Opsi notifikasi baru muncul setelah interval diisi
-                if (hasInterval) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
-            }
-        },
-        confirmButton = { TextButton(enabled = name.isNotBlank() && (posInt(kmT) != null || posInt(moT) != null), onClick = { onSave(name.trim(), type, kmT.toIntOrNull() ?: 0, moT.toIntOrNull() ?: 0, notifyOn, notifyHour, notifyMinute, if (posInt(kmT) != null) warnKmT.toIntOrNull() ?: 0 else 0, if (posInt(moT) != null) warnDaysT.toIntOrNull() ?: 0 else 0) }) { Text("Simpan") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } })
+    FormDialog(
+        title = title, icon = Icons.Default.Category, onDismiss = onDismiss, confirmEnabled = name.isNotBlank() && hasInterval,
+        onConfirm = { onSave(name.trim(), type, kmT.toIntOrNull() ?: 0, moT.toIntOrNull() ?: 0, notifyOn, notifyHour, notifyMinute, if (posInt(kmT) != null) warnKmT.toIntOrNull() ?: 0 else 0, if (posInt(moT) != null) warnDaysT.toIntOrNull() ?: 0 else 0) }
+    ) {
+        AppTextField(name, { name = it }, "Nama kategori", Icons.Default.Edit)
+        FormGroupLabel("Berlaku untuk")
+        SegmentedChoice(listOf("ALL", "MOTOR", "MOBIL"), type, { vehicleTypeLabel(it) }, { type = it })
+        FormGroupLabel("Interval bawaan")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.weight(1f)) { NumberField(kmT, { kmT = it }, "Tiap (km)", icon = Icons.Default.Speed) }
+            Box(Modifier.weight(1f)) { NumberField(moT, { moT = it }, "Tiap (bulan)", icon = Icons.Default.Event) }
+        }
+        FormNote("Isi salah satu atau keduanya.")
+        if (hasInterval) {
+            FormGroupLabel("Peringatan \"Segera\"")
+            posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", icon = Icons.Default.Warning, hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
+            if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", icon = Icons.Default.Warning, hint = "Kosong = otomatis 30 hari")
+            NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
+        }
+    }
 }
