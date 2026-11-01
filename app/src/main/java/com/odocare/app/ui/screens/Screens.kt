@@ -115,31 +115,31 @@ fun HomeScreen(
                 Spacer(Modifier.height(Spacing.M))
             }
 
-            Surface(onClick = { showAddKm = true }, color = SurfaceVariantDark, shape = RoundedCornerShape(18.dp), border = CardBorder, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(PillSelected, SurfaceVariantDark))).padding(Spacing.L)) {
+            Surface(onClick = { showAddKm = true }, color = HeroEnd, shape = RoundedCornerShape(18.dp), shadowElevation = if (IsDarkTheme) 0.dp else 8.dp, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(HeroStart, HeroEnd))).padding(Spacing.L)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(StatusBlueBg), contentAlignment = Alignment.Center) {
-                            Icon(VehicleTypes.icon(v.type), null, tint = LavenderPrimary, modifier = Modifier.size(22.dp))
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(HeroText.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                            Icon(VehicleTypes.icon(v.type), null, tint = HeroText, modifier = Modifier.size(22.dp))
                         }
                         Spacer(Modifier.width(Spacing.M))
                         Column(Modifier.weight(1f)) {
-                            Text(v.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(vehicleTypeLabel(v.type), fontSize = 12.sp, color = TextGray)
+                            Text(v.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = HeroText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(vehicleTypeLabel(v.type), fontSize = 12.sp, color = HeroTextMuted)
                         }
                         if (v.plate.isNotBlank()) PlateView(v.plate)
                     }
                     Spacer(Modifier.height(Spacing.L))
-                    Text("Odometer", color = TextGray, fontSize = 12.sp)
+                    Text("Odometer", color = HeroTextMuted, fontSize = 12.sp)
                     Spacer(Modifier.height(Spacing.XS))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         OdometerDigits(km, large = true)
                         Spacer(Modifier.width(Spacing.S))
-                        Text("km", color = TextGray, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("km", color = HeroText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.weight(1f))
-                        Icon(Icons.Default.Edit, "Update KM", tint = LavenderPrimary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Edit, "Update KM", tint = HeroText, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.height(Spacing.XS))
-                    Text("Ketuk untuk update KM", color = TextGray, fontSize = 12.sp)
+                    Text("Ketuk untuk update KM", color = HeroTextMuted, fontSize = 12.sp)
                 }
             }
             Spacer(Modifier.height(Spacing.M))

@@ -409,9 +409,13 @@ fun PlateView(plate: String) {
 fun OdometerDigits(km: Int?, large: Boolean = false) {
     val digits = (km ?: 0).coerceAtLeast(0).toString().padStart(6, '0')
     Row(horizontalArrangement = Arrangement.spacedBy(if (large) 6.dp else 4.dp)) {
-        digits.forEach { c ->
-            Box(Modifier.size(if (large) 30.dp else 22.dp, if (large) 44.dp else 30.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-                Text(c.toString(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = if (large) 24.sp else 16.sp, fontWeight = FontWeight.Bold)
+        digits.forEachIndexed { i, c ->
+            val boxBg = if (large) HeroDigitBg else Color(0xFF0B0B0B)
+            val boxBorder = if (large) Color.White.copy(alpha = 0.15f) else Color(0xFF3A3A3A)
+            // Di kartu hero, digit terakhir diberi warna terang seperti angka yang sedang berjalan.
+            val digitColor = if (large && i == digits.lastIndex) HeroDigitHighlight else Color.White
+            Box(Modifier.size(if (large) 30.dp else 22.dp, if (large) 44.dp else 30.dp).background(boxBg, RoundedCornerShape(4.dp)).border(1.dp, boxBorder, RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                Text(c.toString(), color = digitColor, fontFamily = FontFamily.Monospace, fontSize = if (large) 24.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
