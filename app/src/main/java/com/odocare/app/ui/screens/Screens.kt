@@ -76,13 +76,13 @@ fun HomeScreen(
         Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Speed, null, tint = Accent, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("OdoCare", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                Text("OdoCare", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onNavigateToNotifications) {
                     BadgedBox(badge = { if (unreadNotifications > 0) Badge { Text(if (unreadNotifications > 99) "99+" else "$unreadNotifications", fontSize = 9.sp) } }) {
-                        Icon(if (unreadNotifications > 0) Icons.Default.NotificationsActive else Icons.Default.Notifications, "Notifikasi", tint = TextWhite, modifier = Modifier.size(22.dp))
+                        Icon(if (unreadNotifications > 0) Icons.Default.NotificationsActive else Icons.Default.Notifications, "Notifikasi", tint = TextPrimary, modifier = Modifier.size(22.dp))
                     }
                 }
             }
@@ -115,16 +115,16 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            Surface(onClick = { showAddKm = true }, color = SurfaceVariantDark, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Surface(onClick = { showAddKm = true }, color = CardBg, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(StatusBlueBg), contentAlignment = Alignment.Center) {
-                            Icon(VehicleTypes.icon(v.type), null, tint = LavenderPrimary, modifier = Modifier.size(22.dp))
+                            Icon(VehicleTypes.icon(v.type), null, tint = Accent, modifier = Modifier.size(22.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(v.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(vehicleTypeLabel(v.type), fontSize = 12.sp, color = TextGray)
+                            Text(v.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(vehicleTypeLabel(v.type), fontSize = 12.sp, color = TextMuted)
                         }
                         if (v.plate.isNotBlank()) PlateView(v.plate)
                     }
@@ -132,11 +132,11 @@ fun HomeScreen(
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         OdometerDigits(km)
                         Spacer(Modifier.width(8.dp))
-                        Text("km", color = TextGray, fontSize = 12.sp)
+                        Text("km", color = TextMuted, fontSize = 12.sp)
                         Spacer(Modifier.weight(1f))
-                        Text("Ketuk untuk update", color = TextGray, fontSize = 12.sp)
+                        Text("Ketuk untuk update", color = TextMuted, fontSize = 12.sp)
                         Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Default.Edit, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Edit, null, tint = Accent, modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -175,11 +175,11 @@ fun HomeScreen(
                 documents.take(4).forEach { d ->
                     val dv = Engines.documentView(d)
                     val colors = docColor(dv.status)
-                    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(CardShape).clickable(onClick = onNavigateToDocuments)) {
+                    Surface(color = CardBg, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(CardShape).clickable(onClick = onNavigateToDocuments)) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(docTypeLabel(d.type), color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Jatuh tempo ${fmtDate(d.expiryDate)}", color = TextGray, fontSize = 12.sp)
+                                Text(docTypeLabel(d.type), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Jatuh tempo ${fmtDate(d.expiryDate)}", color = TextMuted, fontSize = 12.sp)
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 DocStatusChip(dv.status)
@@ -198,22 +198,22 @@ fun HomeScreen(
     if (showAddKm) AddKmDialog(km, { showAddKm = false }) { vm.addOdometer(it); showAddKm = false }
     if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { showAddFuel = false }) { date, kmV, liters, total, full, lp -> vm.addFuel(date, kmV, liters, total, full, lp); showAddFuel = false }
     if (showPicker) {
-        AlertDialog(onDismissRequest = { showPicker = false }, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
-            title = { Text("Servis apa yang dicatat?", fontSize = 16.sp, color = TextWhite) },
+        AlertDialog(onDismissRequest = { showPicker = false }, shape = RoundedCornerShape(20.dp), containerColor = SurfaceBg,
+            title = { Text("Servis apa yang dicatat?", fontSize = 16.sp, color = TextPrimary) },
             text = {
                 if (schedules.isEmpty()) EmptyState(Icons.Default.Build, "Belum ada jadwal", "Tambahkan komponen dulu di tab Servis.", compact = true)
                 else Column(Modifier.verticalScroll(rememberScrollState())) {
                     schedules.forEach { s ->
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { showPicker = false; recordTarget = s }.padding(vertical = 12.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Build, null, tint = Accent, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text(s.name, fontSize = 14.sp, color = TextWhite)
+                            Text(s.name, fontSize = 14.sp, color = TextPrimary)
                         }
                     }
                 }
             },
             confirmButton = { if (schedules.isEmpty()) TextButton(onClick = { showPicker = false; onNavigateToSchedule() }) { Text("Buka Jadwal") } },
-            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Batal", color = TextGray) } })
+            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Batal", color = TextMuted) } })
     }
     recordTarget?.let { s ->
         RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, parts, labor, notes, img ->
@@ -236,12 +236,12 @@ private fun HomeComponentCard(view: ScheduleView) {
     val nextKm: Int? = if (ik != null && lk != null) lk + ik else null
     val nextDate: Long? = if (im != null && ld != null) localDateToMillis(msToLocalDate(ld).plusMonths(im.toLong())) else null
     val statusColor = serviceColor(view.status).second
-    val conditionColor = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor
+    val conditionColor = if (view.status == ServiceStatus.NORMAL) Accent else statusColor
 
-    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+    Surface(color = CardBg, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(s.name, Modifier.weight(1f), color = TextWhite, style = AppType.CardTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(s.name, Modifier.weight(1f), color = TextPrimary, style = AppType.CardTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.width(8.dp))
                 StatusChip(view.status)
             }
@@ -252,7 +252,7 @@ private fun HomeComponentCard(view: ScheduleView) {
                 InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
                 InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                    Text("Kondisi", style = AppType.Caption, color = TextGray)
+                    Text("Kondisi", style = AppType.Caption, color = TextMuted)
                     conditionLines(view).forEach { Text(it, style = AppType.Value, color = conditionColor, textAlign = TextAlign.End) }
                 }
             }
@@ -270,10 +270,10 @@ private fun WelcomeEmpty(onAdd: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         // Ilustrasi: lingkaran bertingkat + ikon melayang
         Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(210.dp).clip(CircleShape).background(SurfaceVariantDark.copy(alpha = 0.45f)))
-            Box(Modifier.size(150.dp).clip(CircleShape).background(SurfaceVariantDark))
+            Box(Modifier.size(210.dp).clip(CircleShape).background(CardBg.copy(alpha = 0.45f)))
+            Box(Modifier.size(150.dp).clip(CircleShape).background(CardBg))
             Box(Modifier.size(100.dp).clip(CircleShape).background(PillSelected), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(48.dp))
+                Icon(Icons.Default.Speed, null, tint = Accent, modifier = Modifier.size(48.dp))
             }
             FloatBadge(Icons.Default.DirectionsCar, Modifier.align(Alignment.TopStart).offset(x = 14.dp, y = 30.dp), StatusBlueBg, StatusBlueText)
             FloatBadge(Icons.Default.TwoWheeler, Modifier.align(Alignment.TopEnd).offset(x = (-10).dp, y = 22.dp), StatusGreenBg, StatusGreenText)
@@ -281,9 +281,9 @@ private fun WelcomeEmpty(onAdd: () -> Unit) {
             FloatBadge(Icons.Default.Description, Modifier.align(Alignment.BottomEnd).offset(x = (-14).dp, y = (-34).dp), StatusRedBg, StatusRedText)
         }
         Spacer(Modifier.height(24.dp))
-        Text("Selamat datang di OdoCare", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
+        Text("Selamat datang di OdoCare", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
-        Text("Belum ada kendaraan. Tambahkan kendaraan pertamamu untuk mulai memantau servis dan pajak.", fontSize = 13.sp, color = TextGray, textAlign = TextAlign.Center)
+        Text("Belum ada kendaraan. Tambahkan kendaraan pertamamu untuk mulai memantau servis dan pajak.", fontSize = 13.sp, color = TextMuted, textAlign = TextAlign.Center)
         Spacer(Modifier.height(24.dp))
         Button(onClick = onAdd, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(46.dp)) {
             Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
@@ -291,7 +291,7 @@ private fun WelcomeEmpty(onAdd: () -> Unit) {
             Text("Tambah Kendaraan", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(24.dp))
-        Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
+        Surface(color = CardBg, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 WelcomePoint(Icons.Default.Speed, "Pantau KM odometer", "Catat KM kapan saja, riwayatnya tersimpan.")
                 WelcomePoint(Icons.Default.Build, "Jadwal servis otomatis", "Oli, rem, ban, dan lainnya dengan status Aman / Segera / Lewat.")
@@ -310,11 +310,11 @@ private fun FloatBadge(icon: ImageVector, modifier: Modifier, bg: Color, fg: Col
 @Composable
 private fun WelcomePoint(icon: ImageVector, title: String, desc: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+        Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Accent, modifier = Modifier.size(16.dp)) }
         Spacer(Modifier.width(12.dp))
         Column {
-            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
-            Text(desc, fontSize = 12.sp, color = TextGray)
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text(desc, fontSize = 12.sp, color = TextMuted)
         }
     }
 }
@@ -323,8 +323,8 @@ private fun WelcomePoint(icon: ImageVector, title: String, desc: String) {
 private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, isPrimary: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick, modifier = modifier.height(52.dp), shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = if (isPrimary) LavenderPrimary else Color.Transparent, contentColor = if (isPrimary) Color(0xFF0D1B3E) else TextWhite),
-        border = if (!isPrimary) BorderStroke(1.dp, Color(0xFF3A3B47)) else null, contentPadding = PaddingValues(0.dp)
+        colors = ButtonDefaults.buttonColors(containerColor = if (isPrimary) Accent else Color.Transparent, contentColor = if (isPrimary) OnAccent else TextPrimary),
+        border = if (!isPrimary) BorderStroke(1.dp, FieldBorder) else null, contentPadding = PaddingValues(0.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, null, modifier = Modifier.size(18.dp))
@@ -367,13 +367,13 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
         } else {
             LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
                 items(logs, key = { it.id }) { log ->
-                    Surface(color = SurfaceVariantDark, shape = CardShape) {
+                    Surface(color = CardBg, shape = CardShape) {
                         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+                            CategoryIconBox(Icons.Default.Speed)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("${fmtKm(log.km)} km", fontSize = 14.sp, color = TextWhite, fontWeight = FontWeight.Bold)
-                                Text(fmtDate(log.recordedAt), fontSize = 12.sp, color = TextGray)
+                                Text("${fmtKm(log.km)} km", fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
+                                Text(fmtDate(log.recordedAt), fontSize = 12.sp, color = TextMuted)
                             }
                             ItemMenu(onEdit = { editTarget = log }, onDelete = { vm.deleteOdometer(log.id) })
                         }
@@ -421,7 +421,7 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     ) { pad ->
         Column(Modifier.padding(pad).statusBarsPadding()) {
             ServiceSectionTitle(vm, vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 12.dp)) {
-                IconButton(onClick = onOpenMaster) { Icon(Icons.Default.Category, "Master Kategori", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
+                IconButton(onClick = onOpenMaster) { Icon(Icons.Default.Category, "Master Kategori", tint = Accent, modifier = Modifier.size(22.dp)) }
             }
             if (vehicle == null) {
                 NoVehicleState(vm, Modifier.padding(top = 24.dp))
@@ -429,7 +429,7 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     StatusFilterRow(
                         filterLabels, listOf(views.size, late.size, soon.size, safe.size),
-                        listOf(PillSelected to TextWhite, StatusRedBg to StatusRedText, StatusYellowBg to StatusYellowText, StatusGreenBg to StatusGreenText),
+                        listOf(PillSelected to TextPrimary, StatusRedBg to StatusRedText, StatusYellowBg to StatusYellowText, StatusGreenBg to StatusGreenText),
                         tab
                     ) { tab = it }
                 }
@@ -476,11 +476,11 @@ private fun conditionLines(v: ScheduleView): List<String> {
 }
 
 @Composable
-private fun InfoCol(label: String, value: String, sub: String?, modifier: Modifier, color: Color = TextWhite, end: Boolean = false) {
+private fun InfoCol(label: String, value: String, sub: String?, modifier: Modifier, color: Color = TextPrimary, end: Boolean = false) {
     Column(modifier, horizontalAlignment = if (end) Alignment.End else Alignment.Start) {
-        Text(label, style = AppType.Caption, color = TextGray)
+        Text(label, style = AppType.Caption, color = TextMuted)
         Text(value, style = AppType.Value, color = color, textAlign = if (end) TextAlign.End else TextAlign.Start)
-        if (sub != null) Text(sub, style = AppType.Caption, color = TextGray, textAlign = if (end) TextAlign.End else TextAlign.Start)
+        if (sub != null) Text(sub, style = AppType.Caption, color = TextMuted, textAlign = if (end) TextAlign.End else TextAlign.Start)
     }
 }
 
@@ -495,19 +495,19 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
     val nextKm: Int? = if (ik != null && lk != null) lk + ik else null
     val nextDate: Long? = if (im != null && ld != null) localDateToMillis(msToLocalDate(ld).plusMonths(im.toLong())) else null
     val statusColor = serviceColor(view.status).second
-    val conditionColor = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor
+    val conditionColor = if (view.status == ServiceStatus.NORMAL) Accent else statusColor
     val lines = conditionLines(view)
 
-    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
+    Surface(color = CardBg, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(start = 16.dp, top = 8.dp, end = 4.dp, bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(s.name, style = AppType.CardTitle, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(s.name, style = AppType.CardTitle, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val interval = intervalLabel(ik, im)
-                        if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 12.sp, color = TextGray)
+                        if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 12.sp, color = TextMuted)
                         Spacer(Modifier.width(8.dp))
-                        Icon(if (s.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray.copy(alpha = 0.7f), modifier = Modifier.size(11.dp))
+                        Icon(if (s.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextMuted.copy(alpha = 0.7f), modifier = Modifier.size(11.dp))
                     }
                 }
                 StatusChip(view.status)
@@ -521,14 +521,14 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
                     InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
                     InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                        Text("Kondisi", style = AppType.Caption, color = TextGray)
+                        Text("Kondisi", style = AppType.Caption, color = TextMuted)
                         lines.forEach { Text(it, style = AppType.Value, color = conditionColor, textAlign = TextAlign.End) }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
                 FilledTonalButton(
                     onClick = onRecord, modifier = Modifier.fillMaxWidth().height(36.dp), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = ButtonSlate, contentColor = TextWhite)
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = ButtonSlate, contentColor = TextPrimary)
                 ) {
                     Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
@@ -668,9 +668,9 @@ fun ServiceFormDialog(
             TextButton(
                 onClick = { breakdown = true }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 8.dp)
             ) {
-                Icon(Icons.Default.Tune, null, modifier = Modifier.size(15.dp), tint = LavenderPrimary)
+                Icon(Icons.Default.Tune, null, modifier = Modifier.size(15.dp), tint = Accent)
                 Spacer(Modifier.width(8.dp))
-                Text("Rincikan", fontSize = 12.sp, color = LavenderPrimary)
+                Text("Rincikan", fontSize = 12.sp, color = Accent)
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -684,9 +684,9 @@ fun ServiceFormDialog(
                     breakdown = false; partsText = ""; laborText = ""
                 }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 8.dp)
             ) {
-                Icon(Icons.Default.Close, null, modifier = Modifier.size(15.dp), tint = TextGray)
+                Icon(Icons.Default.Close, null, modifier = Modifier.size(15.dp), tint = TextMuted)
                 Spacer(Modifier.width(8.dp))
-                Text("Tutup rincian", fontSize = 12.sp, color = TextGray)
+                Text("Tutup rincian", fontSize = 12.sp, color = TextMuted)
             }
         }
         AppTextField(notes, { notes = it }, "Catatan (opsional)", Icons.Default.EditNote, singleLine = false, minLines = 2)

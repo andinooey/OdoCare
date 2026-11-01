@@ -56,8 +56,8 @@ fun SectionCard(title: String, icon: ImageVector? = null, content: @Composable C
     Surface(modifier = Modifier.fillMaxWidth(), shape = CardShape, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
-                Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
+                if (icon != null) { Icon(icon, null, tint = Accent, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
+                Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             }
             Spacer(Modifier.height(12.dp))
             content()
@@ -70,18 +70,18 @@ fun SectionCard(title: String, icon: ImageVector? = null, content: @Composable C
  * Posisi buka/tutup tidak disimpan: tiap layar dibuka kembali ke [initiallyExpanded].
  */
 @Composable
-fun CollapsibleSectionCard(title: String, icon: ImageVector? = null, summary: String? = null, summaryColor: Color = TextGray, initiallyExpanded: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+fun CollapsibleSectionCard(title: String, icon: ImageVector? = null, summary: String? = null, summaryColor: Color = TextMuted, initiallyExpanded: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     var expanded by remember { mutableStateOf(initiallyExpanded) }
     val arrow by animateFloatAsState(if (expanded) 180f else 0f, label = "arrow")
     Surface(modifier = Modifier.fillMaxWidth().animateContentSize(), shape = CardShape, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column {
             Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
+                if (icon != null) { Icon(icon, null, tint = Accent, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
                 Column(Modifier.weight(1f)) {
-                    Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
+                    Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                     if (summary != null) Text(summary, fontSize = 12.sp, color = summaryColor)
                 }
-                Icon(Icons.Default.ExpandMore, if (expanded) "Tutup" else "Buka", tint = TextGray, modifier = Modifier.size(22.dp).rotate(arrow))
+                Icon(Icons.Default.ExpandMore, if (expanded) "Tutup" else "Buka", tint = TextMuted, modifier = Modifier.size(22.dp).rotate(arrow))
             }
             AnimatedVisibility(visible = expanded) {
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), content = content)
@@ -93,7 +93,7 @@ fun CollapsibleSectionCard(title: String, icon: ImageVector? = null, summary: St
 /** Kartu dengan garis status di sisi kiri. */
 @Composable
 fun StatusStripeCard(stripe: Color, content: @Composable ColumnScope.() -> Unit) {
-    Surface(color = SurfaceVariantDark, shape = CardShape) {
+    Surface(color = CardBg, shape = CardShape) {
         Row(Modifier.height(IntrinsicSize.Min)) {
             Box(Modifier.width(4.dp).fillMaxHeight().background(stripe))
             Column(Modifier.padding(start = 12.dp, top = 12.dp, end = 4.dp, bottom = 12.dp).weight(1f), content = content)
@@ -140,11 +140,11 @@ fun DocStatusChip(status: DocStatus) {
 fun ItemMenu(onEdit: () -> Unit, onDelete: () -> Unit, editLabel: String = "Edit", deleteLabel: String = "Hapus") {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.MoreVert, "Menu", tint = TextGray, modifier = Modifier.size(18.dp)) }
+        IconButton(onClick = { open = true }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.MoreVert, "Menu", tint = TextMuted, modifier = Modifier.size(18.dp)) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(MenuBg)) {
             DropdownMenuItem(
-                text = { Text(editLabel, color = TextWhite, fontSize = 14.sp) },
-                leadingIcon = { Icon(Icons.Default.Edit, null, tint = TextWhite, modifier = Modifier.size(18.dp)) },
+                text = { Text(editLabel, color = TextPrimary, fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Default.Edit, null, tint = TextPrimary, modifier = Modifier.size(18.dp)) },
                 onClick = { open = false; onEdit() }
             )
             DropdownMenuItem(
@@ -159,7 +159,7 @@ fun ItemMenu(onEdit: () -> Unit, onDelete: () -> Unit, editLabel: String = "Edit
 /** Tombol tambah (+) persegi membulat, seragam di semua layar. */
 @Composable
 fun AddFab(onClick: () -> Unit) {
-    FloatingActionButton(onClick = onClick, modifier = Modifier.size(48.dp), shape = RoundedCornerShape(14.dp), containerColor = LavenderPrimary, contentColor = Color(0xFF0D1B3E)) {
+    FloatingActionButton(onClick = onClick, modifier = Modifier.size(48.dp), shape = RoundedCornerShape(14.dp), containerColor = Accent, contentColor = OnAccent) {
         Icon(Icons.Default.Add, "Tambah", modifier = Modifier.size(22.dp))
     }
 }
@@ -169,8 +169,8 @@ fun AddFab(onClick: () -> Unit) {
 fun ScreenTitle(title: String, subtitle: String? = null, modifier: Modifier = Modifier, actions: @Composable RowScope.() -> Unit = {}) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = AppType.ScreenTitle, color = TextWhite)
-            if (subtitle != null) Text(subtitle, style = AppType.Caption, color = TextGray)
+            Text(title, style = AppType.ScreenTitle, color = TextPrimary)
+            if (subtitle != null) Text(subtitle, style = AppType.Caption, color = TextMuted)
         }
         actions()
     }
@@ -180,10 +180,10 @@ fun ScreenTitle(title: String, subtitle: String? = null, modifier: Modifier = Mo
 @Composable
 fun SectionHeader(title: String, action: String? = null, onAction: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = AppType.Section, color = TextWhite, modifier = Modifier.weight(1f))
+        Text(title, style = AppType.Section, color = TextPrimary, modifier = Modifier.weight(1f))
         if (action != null && onAction != null) {
             TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp), modifier = Modifier.height(28.dp)) {
-                Text(action, color = LavenderPrimary, fontSize = 12.sp)
+                Text(action, color = Accent, fontSize = 12.sp)
             }
         }
     }
@@ -199,32 +199,32 @@ fun EmptyState(
     compact: Boolean = false, actionLabel: String? = null, onAction: (() -> Unit)? = null
 ) {
     if (compact) {
-        Surface(color = SurfaceVariantDark, shape = CardShape, modifier = modifier.fillMaxWidth()) {
+        Surface(color = CardBg, shape = CardShape, modifier = modifier.fillMaxWidth()) {
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(36.dp).clip(CircleShape).background(PillSelected), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
+                    Icon(icon, null, tint = Accent, modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
-                    Text(message, fontSize = 12.sp, color = TextGray)
+                    Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    Text(message, fontSize = 12.sp, color = TextMuted)
                 }
                 if (actionLabel != null && onAction != null) {
-                    TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(actionLabel, fontSize = 12.sp, color = LavenderPrimary) }
+                    TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(actionLabel, fontSize = 12.sp, color = Accent) }
                 }
             }
         }
     } else {
         Column(modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(96.dp).clip(CircleShape).background(SurfaceVariantDark), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(96.dp).clip(CircleShape).background(CardBg), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(68.dp).clip(CircleShape).background(PillSelected), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(32.dp))
+                    Icon(icon, null, tint = Accent, modifier = Modifier.size(32.dp))
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, textAlign = TextAlign.Center)
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, textAlign = TextAlign.Center)
             Spacer(Modifier.height(4.dp))
-            Text(message, fontSize = 12.sp, color = TextGray, textAlign = TextAlign.Center)
+            Text(message, fontSize = 12.sp, color = TextMuted, textAlign = TextAlign.Center)
             if (actionLabel != null && onAction != null) {
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = onAction, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
@@ -240,18 +240,18 @@ fun EmptyState(
 /** Baris aksi minimalis: ikon + label + panah. */
 @Composable
 fun ActionRow(icon: ImageVector, label: String, enabled: Boolean = true, subtitle: String? = null, onClick: () -> Unit) {
-    val c = if (enabled) TextWhite else TextGray.copy(alpha = 0.5f)
+    val c = if (enabled) TextPrimary else TextMuted.copy(alpha = 0.5f)
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).let { if (enabled) it.clickable(onClick = onClick) else it }.padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = if (enabled) LavenderPrimary else c, modifier = Modifier.size(18.dp))
+        Icon(icon, null, tint = if (enabled) Accent else c, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(label, fontSize = 13.sp, color = c)
-            if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray)
+            if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextMuted)
         }
-        Icon(Icons.Default.ChevronRight, null, tint = TextGray, modifier = Modifier.size(18.dp))
+        Icon(Icons.Default.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -265,14 +265,31 @@ fun StatusFilterRow(labels: List<String>, counts: List<Int>, colors: List<Pair<C
             Surface(
                 onClick = { onSelect(i) }, modifier = Modifier.weight(1f).height(34.dp), shape = RoundedCornerShape(10.dp),
                 color = if (on) bg else Color.Transparent,
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (on) fg.copy(alpha = 0.6f) else Color(0xFF3A3B47))
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (on) fg.copy(alpha = 0.6f) else FieldBorder)
             ) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    Text(label, fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = if (on) fg else TextGray, maxLines = 1)
+                    Text(label, fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = if (on) fg else TextMuted, maxLines = 1)
                     Spacer(Modifier.width(4.dp))
-                    Text("${counts[i]}", fontSize = 12.sp, color = if (on) fg else TextGray.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                    Text("${counts[i]}", fontSize = 12.sp, color = if (on) fg else TextMuted.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                 }
             }
         }
+    }
+}
+
+/** Warna kategori dari ikonnya: BBM amber, servis biru, dokumen teal, odometer ungu; selain itu aksen utama. */
+fun categoryTint(icon: ImageVector): Color = when (icon) {
+    Icons.Default.LocalGasStation -> CatFuel
+    Icons.Default.Build -> CatService
+    Icons.Default.Description -> CatDoc
+    Icons.Default.Speed -> CatOdo
+    else -> Accent
+}
+
+/** Kotak ikon berwarna kategori: latar transparan 16% dari warna yang sama dengan ikonnya. */
+@Composable
+fun CategoryIconBox(icon: ImageVector, modifier: Modifier = Modifier, tint: Color = categoryTint(icon), size: androidx.compose.ui.unit.Dp = 32.dp, shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(8.dp)) {
+    Box(modifier.size(size).clip(shape).background(tint.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(size / 2))
     }
 }

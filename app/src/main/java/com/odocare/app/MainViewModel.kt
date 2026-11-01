@@ -170,6 +170,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun finishOnboarding() { sp.edit().putBoolean("onboarding_done", true).apply(); onboardingState = 2 }
 
+    // ---- Tema: AUTO (ikut sistem) / DARK / LIGHT ----
+    var themeMode by mutableStateOf(sp.getString("theme_mode", "AUTO") ?: "AUTO")
+        private set
+    fun setThemeMode(m: String) { themeMode = m; sp.edit().putString("theme_mode", m).apply() }
+
     /** Dari banner Home: buka tab Kendaraan dengan bagian Backup & Data langsung terbuka. */
     var expandBackupSection by mutableStateOf(false)
 

@@ -35,25 +35,25 @@ fun OnboardingScreen(onDone: () -> Unit) {
     val last = step == onboardingSteps.lastIndex
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
-            if (!last) TextButton(onClick = onDone) { Text("Lewati", color = TextGray) }
+            if (!last) TextButton(onClick = onDone) { Text("Lewati", color = TextMuted) }
         }
         Crossfade(step, Modifier.weight(1f).fillMaxWidth(), label = "onboarding") { i ->
             val s = onboardingSteps[i]
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Box(Modifier.size(160.dp).clip(CircleShape).background(SurfaceVariantDark), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(160.dp).clip(CircleShape).background(CardBg), contentAlignment = Alignment.Center) {
                     Box(Modifier.size(100.dp).clip(CircleShape).background(PillSelected), contentAlignment = Alignment.Center) {
-                        Icon(s.icon, null, tint = LavenderPrimary, modifier = Modifier.size(48.dp))
+                        Icon(s.icon, null, tint = Accent, modifier = Modifier.size(48.dp))
                     }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text(s.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
+                Text(s.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextPrimary, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(12.dp))
-                Text(s.body, fontSize = 14.sp, color = TextGray, textAlign = TextAlign.Center, lineHeight = 20.sp)
+                Text(s.body, fontSize = 14.sp, color = TextMuted, textAlign = TextAlign.Center, lineHeight = 20.sp)
             }
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.Center) {
             onboardingSteps.indices.forEach { i ->
-                Box(Modifier.padding(horizontal = 4.dp).size(if (i == step) 10.dp else 8.dp).clip(CircleShape).background(if (i == step) LavenderPrimary else SurfaceVariantDark))
+                Box(Modifier.padding(horizontal = 4.dp).size(if (i == step) 10.dp else 8.dp).clip(CircleShape).background(if (i == step) Accent else CardBg))
             }
         }
         Button(onClick = { if (last) onDone() else step++ }, modifier = Modifier.fillMaxWidth().height(48.dp).padding(bottom = 0.dp)) {

@@ -40,21 +40,21 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
             EmptyState(Icons.Default.Category, "Belum ada master kategori", "Master dipakai sebagai daftar komponen bawaan saat menambah jadwal servis.", Modifier.padding(pad).padding(top = 24.dp), actionLabel = "Tambah Master", onAction = { showAdd = true })
         } else {
             LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
-                item { Text("Perubahan di sini tidak mengubah jadwal kendaraan yang sudah ada.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
+                item { Text("Perubahan di sini tidak mengubah jadwal kendaraan yang sudah ada.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
                 items(masters, key = { it.id }) { m ->
-                    Surface(color = SurfaceVariantDark, shape = CardShape) {
+                    Surface(color = CardBg, shape = CardShape) {
                         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
-                                Icon(if (m.vehicleType == "ALL") Icons.Default.Build else VehicleTypes.icon(m.vehicleType), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                                Icon(if (m.vehicleType == "ALL") Icons.Default.Build else VehicleTypes.icon(m.vehicleType), null, tint = Accent, modifier = Modifier.size(16.dp))
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(m.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(m.name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 val parts = mutableListOf(vehicleTypeLabel(m.vehicleType))
                                 if (m.defaultKm > 0) parts += "${fmtKm(m.defaultKm)} km"
                                 if (m.defaultMonths > 0) parts += "${m.defaultMonths} bulan"
                                 if (m.defaultKm > 0 || m.defaultMonths > 0) parts += if (m.notifyEnabled) fmtTime(m.notifyHour, m.notifyMinute) else "Notif mati"
-                                Text(parts.joinToString(" · "), fontSize = 12.sp, color = TextGray)
+                                Text(parts.joinToString(" · "), fontSize = 12.sp, color = TextMuted)
                             }
                             ItemMenu(onEdit = { editTarget = m }, onDelete = { deleteTarget = m })
                         }

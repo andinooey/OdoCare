@@ -43,18 +43,18 @@ fun VehicleTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
             EmptyState(Icons.Default.DirectionsCar, "Belum ada jenis kendaraan", "Tambahkan jenis seperti motor, mobil, truk, atau sepeda listrik.", Modifier.padding(pad).padding(top = 24.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
         } else {
             LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
-                item { Text("Jenis kendaraan dipakai saat menambah kendaraan dan di Master Kategori. Jenis yang masih dipakai kendaraan tidak bisa dihapus.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
+                item { Text("Jenis kendaraan dipakai saat menambah kendaraan dan di Master Kategori. Jenis yang masih dipakai kendaraan tidak bisa dihapus.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
                 items(types, key = { it.code }) { t ->
                     val used = vehicles.count { it.type == t.code }
-                    Surface(color = SurfaceVariantDark, shape = CardShape) {
+                    Surface(color = CardBg, shape = CardShape) {
                         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
-                                Icon(VehicleTypes.icon(t.code), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
+                                Icon(VehicleTypes.icon(t.code), null, tint = Accent, modifier = Modifier.size(16.dp))
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(t.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text(if (used > 0) "$used kendaraan" else "Belum dipakai", fontSize = 12.sp, color = TextGray)
+                                Text(t.name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(if (used > 0) "$used kendaraan" else "Belum dipakai", fontSize = 12.sp, color = TextMuted)
                             }
                             ItemMenu(onEdit = { editTarget = t }, onDelete = {
                                 if (used > 0) message = "\"${t.name}\" masih dipakai $used kendaraan. Ubah atau hapus kendaraannya dulu."
@@ -95,9 +95,9 @@ private fun VehicleTypeFormDialog(title: String, initial: VehicleType?, onDismis
                     Surface(
                         onClick = { icon = key }, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(10.dp),
                         color = if (on) PillSelected else androidx.compose.ui.graphics.Color.Transparent,
-                        border = BorderStroke(1.dp, if (on) LavenderPrimary else FieldBorder)
+                        border = BorderStroke(1.dp, if (on) Accent else FieldBorder)
                     ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(vec, null, tint = if (on) LavenderPrimary else TextGray, modifier = Modifier.size(22.dp)) }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(vec, null, tint = if (on) Accent else TextMuted, modifier = Modifier.size(22.dp)) }
                     }
                 }
                 repeat(5 - row.size) { Spacer(Modifier.weight(1f)) }
