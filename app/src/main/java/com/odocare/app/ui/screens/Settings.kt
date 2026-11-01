@@ -124,7 +124,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         }
 
         SectionCard("Tampilan", Icons.Default.Palette) {
-            SegmentedChoice(listOf("system", "light", "dark"), vm.themeMode, { when (it) { "light" -> "Terang"; "dark" -> "Gelap"; else -> "Sistem" } }, { vm.setThemeMode(it) })
+            SegmentedChoice(listOf("system", "light", "dark"), vm.themeMode, { when (it) { "light" -> "Terang"; "dark" -> "Gelap"; else -> "Sistem" } }, { vm.changeThemeMode(it) })
         }
 
         SectionCard("Master Data", Icons.Default.Category) {

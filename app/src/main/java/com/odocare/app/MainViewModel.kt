@@ -155,7 +155,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Mode tampilan: "system" (ikut perangkat), "light", atau "dark". */
     var themeMode by mutableStateOf(sp.getString("theme_mode", "system") ?: "system")
         private set
-    fun setThemeMode(mode: String) { themeMode = mode; sp.edit().putString("theme_mode", mode).apply() }
+    fun changeThemeMode(mode: String) { themeMode = mode; sp.edit().putString("theme_mode", mode).apply() }
     /** Banner pengingat backup disembunyikan sampai waktu ini (ms). */
     var backupSnoozeUntil by mutableStateOf(sp.getLong("backup_snooze_until", 0L))
         private set
