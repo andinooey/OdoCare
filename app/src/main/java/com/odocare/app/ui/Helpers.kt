@@ -55,6 +55,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 val NoInsets = WindowInsets(0, 0, 0, 0)
@@ -147,6 +148,75 @@ fun sixMonthSeries(records: List<ServiceRecord>): Pair<List<String>, List<Long>>
     val months = (5 downTo 0).map { now.minusMonths(it.toLong()) }
     val sums = months.map { ym -> records.filter { YearMonth.from(msToLocalDate(it.date)) == ym }.sumOf { it.cost } }
     return months.map { it.month.getDisplayName(TextStyle.SHORT, idLocale) } to sums
+}
+
+/** Data grafik biaya: judul, label sumbu, dan nilai per kelompok. */
+data class CostSeries(val title: String, val labels: List<String>, val values: List<Long>)
+
+/**
+ * Grafik biaya yang mengikuti rentang laporan. Kelompok menyesuaikan panjang rentang agar batang tetap terbaca:
+ * sampai 45 hari per minggu, sampai 12 bulan per bulan, sampai 36 bulan per kuartal, selebihnya per tahun.
+ * [records] sudah difilter ke rentang [start]..[end].
+ */
+fun costSeries(records: List<ServiceRecord>, start: LocalDate, end: LocalDate): CostSeries {
+    fun sum(from: LocalDate, to: LocalDate) = records.filter { val d = msToLocalDate(it.date); !d.isBefore(from) && !d.isAfter(to) }.sumOf { it.cost }
+    val labels = mutableListOf<String>(); val values = mutableListOf<Long>()
+    val days = ChronoUnit.DAYS.between(start, end) + 1
+    val sm = YearMonth.from(start); val em = YearMonth.from(end)
+    val months = ChronoUnit.MONTHS.between(sm, em) + 1
+    val title: String
+    if (days <= 45) {
+        title = "Biaya per Minggu"
+        var s = start
+        while (!s.isAfter(end)) {
+            val e = if (s.plusDays(6).isAfter(end)) end else s.plusDays(6)
+            labels += "${s.dayOfMonth}/${s.monthValue}"; values += sum(s, e)
+            s = s.plusDays(7)
+        }
+    } else if (months <= 12) {
+        title = "Biaya per Bulan"
+        var ym = sm
+        while (!ym.isAfter(em)) { labels += ym.month.getDisplayName(TextStyle.SHORT, idLocale); values += sum(ym.atDay(1), ym.atEndOfMonth()); ym = ym.plusMonths(1) }
+    } else if (months <= 36) {
+        title = "Biaya per Kuartal"
+        var qStart = YearMonth.of(sm.year, (sm.monthValue - 1) / 3 * 3 + 1)
+        while (!qStart.isAfter(em)) {
+            labels += "Q${(qStart.monthValue - 1) / 3 + 1}'${qStart.year % 100}"
+            values += sum(qStart.atDay(1), qStart.plusMonths(2).atEndOfMonth())
+            qStart = qStart.plusMonths(3)
+        }
+    } else {
+        title = "Biaya per Tahun"
+        for (y in sm.year..em.year) { labels += y.toString(); values += sum(LocalDate.of(y, 1, 1), LocalDate.of(y, 12, 31)) }
+    }
+    return CostSeries(title, labels, values)
+}
+
+/** Dialog pilih rentang tanggal (mulai - akhir). Tanggal setelah hari ini tidak bisa dipilih; satu tanggal saja berarti rentang sehari. */
+@Composable
+fun DateRangePickerDialogX(initialStart: LocalDate?, initialEnd: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalDate, LocalDate) -> Unit) {
+    fun toUtc(d: LocalDate) = d.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    fun fromUtc(ms: Long) = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
+    val todayUtc = toUtc(LocalDate.now())
+    val state = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = initialStart?.let { toUtc(it) },
+        initialSelectedEndDateMillis = initialEnd?.let { toUtc(it) },
+        selectableDates = object : androidx.compose.material3.SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= todayUtc
+        }
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(enabled = state.selectedStartDateMillis != null, onClick = {
+                state.selectedStartDateMillis?.let { startMs ->
+                    val s = fromUtc(startMs)
+                    onPicked(s, state.selectedEndDateMillis?.let { fromUtc(it) } ?: s)
+                }
+            }) { Text("Pilih") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } }
+    ) { DateRangePicker(state = state, modifier = Modifier.height(480.dp), title = null, headline = null, showModeToggle = false) }
 }
 
 @Composable

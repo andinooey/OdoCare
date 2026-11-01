@@ -19,11 +19,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.odocare.app.MainViewModel
+import com.odocare.app.data.OdometerLog
 import com.odocare.app.ui.*
 import com.odocare.app.util.Exports
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import kotlin.math.roundToInt
 
-private enum class Period(val label: String) { MONTH("Bulan ini"), M3("3 bulan"), YEAR("Tahun ini"), M12("12 bulan"), ALL("Semua") }
+private enum class Period(val label: String) { MONTH("Bulan ini"), M3("3 bulan"), YEAR("Tahun ini"), M12("12 bulan"), ALL("Semua"), CUSTOM("Pilih tanggal") }
 
 private fun Period.start(today: LocalDate): LocalDate? = when (this) {
     Period.MONTH -> today.withDayOfMonth(1)
@@ -31,6 +35,31 @@ private fun Period.start(today: LocalDate): LocalDate? = when (this) {
     Period.YEAR -> today.withDayOfYear(1)
     Period.M12 -> today.minusMonths(12)
     Period.ALL -> null
+    Period.CUSTOM -> null   // rentang kustom disimpan terpisah di layar
+}
+
+private fun fmtLocal(d: LocalDate): String = fmtDate(d.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
+
+private data class KmStats(val avgPerMonth: Int?, val totalKm: Int, val days: Long, val perVehicle: List<Pair<String, Int>>)
+
+/**
+ * Rata-rata KM per bulan dari log odometer dalam rentang. Dihitung per kendaraan (jarak KM awal ke KM akhir / jumlah hari x 30),
+ * lalu dijumlahkan agar KM kendaraan berbeda tidak tercampur. Kendaraan dengan kurang dari 2 catatan di rentang itu dilewati.
+ */
+private fun kmStats(logs: List<OdometerLog>, start: LocalDate?, end: LocalDate?): KmStats {
+    var total = 0; var sumMonthly = 0.0; var maxDays = 0L
+    val per = mutableListOf<Pair<String, Int>>()
+    for ((vid, all) in logs.groupBy { it.vehicleId }) {
+        val inRange = all.filter { val d = msToLocalDate(it.recordedAt); (start == null || !d.isBefore(start)) && (end == null || !d.isAfter(end)) }.sortedBy { it.recordedAt }
+        if (inRange.size < 2) continue
+        val first = inRange.first(); val last = inRange.last()
+        val dist = (last.km - first.km).coerceAtLeast(0)
+        val days = ChronoUnit.DAYS.between(msToLocalDate(first.recordedAt), msToLocalDate(last.recordedAt)).coerceAtLeast(1)
+        val monthly = dist * 30.0 / days
+        total += dist; maxDays = maxOf(maxDays, days); sumMonthly += monthly
+        per += vid to monthly.roundToInt()
+    }
+    return KmStats(if (per.isEmpty()) null else sumMonthly.roundToInt(), total, maxDays, per)
 }
 
 @Composable
@@ -40,21 +69,29 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
     val allRecords by vm.allRecords.collectAsStateWithLifecycle()
     var vehicleFilter by remember { mutableStateOf<String?>(null) }
     var period by remember { mutableStateOf(Period.YEAR) }
+    var customStart by remember { mutableStateOf<LocalDate?>(null) }
+    var customEnd by remember { mutableStateOf<LocalDate?>(null) }
+    var showRangePicker by remember { mutableStateOf(false) }
+    val allOdometer by vm.allOdometer.collectAsStateWithLifecycle()
     var info by remember { mutableStateOf<String?>(null) }
 
     val activeFilter = vehicleFilter?.takeIf { id -> vehicles.any { it.id == id } }
     val names = vehicles.associate { it.id to it.name }
     val byVehicle = allRecords.filter { activeFilter == null || it.vehicleId == activeFilter }
-    val start = period.start(LocalDate.now())
-    val records = byVehicle.filter { start == null || !msToLocalDate(it.date).isBefore(start) }
+    val today = LocalDate.now()
+    val custom = period == Period.CUSTOM
+    val start = if (custom) customStart else period.start(today)
+    val endBound = if (custom) customEnd else null   // batas akhir hanya untuk rentang kustom
+    val records = byVehicle.filter { r -> val d = msToLocalDate(r.date); (start == null || !d.isBefore(start)) && (endBound == null || !d.isAfter(endBound)) }
 
     val total = records.sumOf { it.cost }
     val count = records.size
-    val average = if (count > 0) total / count else 0L
+    val km = kmStats(allOdometer.filter { activeFilter == null || it.vehicleId == activeFilter }, start, endBound)
     val last = records.maxOfOrNull { it.date }
     val perCategory = records.groupBy { it.title }.mapValues { (_, l) -> l.sumOf { it.cost } }.toList().sortedByDescending { it.second }
     val perVehicle = records.groupBy { it.vehicleId }.mapValues { (_, l) -> l.sumOf { it.cost } }.toList().sortedByDescending { it.second }
-    val (labels, values) = sixMonthSeries(byVehicle)
+    // Grafik mengikuti rentang yang dipilih ("Semua" mulai dari servis tertua)
+    val series = if (records.isEmpty()) null else costSeries(records, start ?: records.minOf { msToLocalDate(it.date) }, endBound ?: today)
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(16.dp))
@@ -76,7 +113,15 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
             }
             Spacer(Modifier.height(4.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Period.values().forEach { p -> FilterChip(selected = period == p, onClick = { period = p }, label = { Text(p.label, fontSize = 12.sp) }) }
+                Period.values().forEach { p ->
+                    if (p == Period.CUSTOM) {
+                        FilterChip(
+                            selected = custom, onClick = { showRangePicker = true },
+                            leadingIcon = { Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(16.dp)) },
+                            label = { Text(if (custom && customStart != null && customEnd != null) "${fmtLocal(customStart!!)} – ${fmtLocal(customEnd!!)}" else p.label, fontSize = 12.sp) }
+                        )
+                    } else FilterChip(selected = period == p, onClick = { period = p }, label = { Text(p.label, fontSize = 12.sp) })
+                }
             }
 
             if (records.isEmpty()) {
@@ -89,8 +134,21 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatCard(rupiah(average), "Rata-rata", Modifier.weight(1f), Icons.Default.Calculate)
+                    StatCard(km.avgPerMonth?.let { "${fmtKm(it)} km" } ?: "-", "Rata-rata KM / bulan", Modifier.weight(1f), Icons.Default.Speed)
                     StatCard(last?.let { fmtDate(it) } ?: "-", "Servis terakhir", Modifier.weight(1f), Icons.Default.Event)
+                }
+                // Keterangan rata-rata KM: dasar hitungan, atau alasan kenapa belum bisa dihitung
+                Spacer(Modifier.height(4.dp))
+                if (km.avgPerMonth == null) {
+                    Text("Rata-rata KM butuh minimal 2 catatan KM pada periode ini.", color = TextGray, fontSize = 11.sp)
+                } else {
+                    val basis = when {
+                        km.days < 7 -> "perkiraan, data baru ${km.days} hari"
+                        km.perVehicle.size == 1 -> "dalam ${km.days} hari"
+                        else -> "dari semua kendaraan"
+                    }
+                    Text("Dari ${fmtKm(km.totalKm)} km tercatat, $basis.", color = TextGray, fontSize = 11.sp)
+                    if (km.perVehicle.size > 1) Text(km.perVehicle.joinToString(" · ") { (vid, v) -> "${names[vid] ?: "-"} ${fmtKm(v)}" } + " km/bulan", color = TextGray, fontSize = 11.sp)
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -106,9 +164,11 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(12.dp))
-                SectionHeader("6 Bulan Terakhir")
-                Spacer(Modifier.height(8.dp))
-                Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) { Box(Modifier.padding(12.dp)) { BarChart(labels, values) } }
+                if (series != null) {
+                    SectionHeader(series.title)
+                    Spacer(Modifier.height(8.dp))
+                    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) { Box(Modifier.padding(12.dp)) { BarChart(series.labels, series.values) } }
+                }
 
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -137,6 +197,9 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+    if (showRangePicker) DateRangePickerDialogX(customStart, customEnd, { showRangePicker = false }) { s, e ->
+        customStart = s; customEnd = e; period = Period.CUSTOM; showRangePicker = false
     }
     info?.let { InfoDialog(it) { info = null } }
 }
