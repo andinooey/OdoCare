@@ -126,7 +126,13 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
             ActionRow(Icons.Default.Description, "Master jenis dokumen", subtitle = "Pajak, STNK, SIM, asuransi, dan jenis lain", onClick = onOpenDocTypes)
         }
 
-        SectionCard("Pengingat Update KM", Icons.Default.Speed) {
+        val kmSaved = Notif.kmReminderValue(ctx)
+        val kmSummary = when {
+            !Notif.kmReminderEnabled(ctx) -> "Mati"
+            kmSaved == 0 -> "Hari ini saja · ${fmtTime(Notif.kmReminderHour(ctx), Notif.kmReminderMinute(ctx))}"
+            else -> "Tiap $kmSaved ${Notif.kmReminderUnit(ctx).label.lowercase()} · ${fmtTime(Notif.kmReminderHour(ctx), Notif.kmReminderMinute(ctx))}"
+        }
+        CollapsibleSectionCard("Pengingat Update KM", Icons.Default.Speed, kmSummary) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Ingatkan jika KM belum dicatat selama:", Modifier.weight(1f), color = TextGray, fontSize = 12.sp)
                 Switch(checked = kmEnabled, onCheckedChange = { kmEnabled = it }, modifier = Modifier.scale(0.8f))
@@ -161,7 +167,11 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
             }) { Text("Simpan", fontSize = 13.sp) }
         }
 
-        SectionCard("Notifikasi & Kalender", Icons.Default.Notifications) {
+        CollapsibleSectionCard(
+            "Notifikasi & Kalender", Icons.Default.Notifications,
+            summary = if (Build.VERSION.SDK_INT >= 31 && !exactAlarmOk) "Izin alarm tepat waktu belum aktif" else "Siap",
+            summaryColor = if (Build.VERSION.SDK_INT >= 31 && !exactAlarmOk) StatusYellowText else TextGray
+        ) {
             FormNote("Notifikasi muncul tepat di jam yang diatur. Jam & on/off pajak/dokumen diatur di form dokumen, komponen servis di form komponen.")
             Spacer(Modifier.height(4.dp))
             if (Build.VERSION.SDK_INT >= 31 && !exactAlarmOk) {
@@ -183,7 +193,11 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
             }
         }
 
-        SectionCard("Backup & Data", Icons.Default.Backup) {
+        CollapsibleSectionCard(
+            "Backup & Data", Icons.Default.Backup,
+            summary = if (lastBackup == 0L) "Belum pernah backup" else "Backup terakhir ${fmtDate(lastBackup)}",
+            summaryColor = if (lastBackup == 0L) StatusYellowText else TextGray
+        ) {
             Text(if (lastBackup == 0L) "Belum pernah backup." else "Backup terakhir: ${fmtDateTime(lastBackup)}", color = TextWhite, fontSize = 12.sp)
             Text("$changes perubahan sejak backup terakhir", color = if (changes > 0) StatusYellowText else TextGray, fontSize = 11.sp)
             Spacer(Modifier.height(6.dp))
@@ -249,7 +263,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
 private fun AboutCard() {
     val ctx = LocalContext.current
     val version = remember { try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "" } catch (e: Exception) { "" } }
-    SectionCard("Tentang OdoCare", Icons.Default.Info) {
+    CollapsibleSectionCard("Tentang OdoCare", Icons.Default.Info, summary = "Kolaborasi Andino & Muh. Nur Ali") {
         Text("OdoCare membantu merawat kendaraanmu: catat KM odometer, pantau jadwal servis tiap komponen, dan dapat pengingat sebelum pajak atau dokumen jatuh tempo.", color = TextWhite, fontSize = 12.sp, lineHeight = 17.sp)
         Spacer(Modifier.height(10.dp))
         listOf(
@@ -265,6 +279,6 @@ private fun AboutCard() {
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text("Dibuat oleh Andino" + if (version.isNotBlank()) " · Versi $version" else "", color = TextGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text("Kolaborasi Andino & Muh. Nur Ali" + if (version.isNotBlank()) " · Versi $version" else "", color = TextGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
