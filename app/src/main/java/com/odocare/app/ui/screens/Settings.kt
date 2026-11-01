@@ -54,6 +54,9 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
     val active by vm.activeVehicle.collectAsStateWithLifecycle()
     val allDocs by vm.allDocuments.collectAsStateWithLifecycle()
     val lastBackup by vm.lastBackup.collectAsStateWithLifecycle()
+    // Dari banner pengingat backup di Home: bagian Backup & Data langsung terbuka
+    val expandBackup = remember { vm.expandBackupSection }
+    LaunchedEffect(Unit) { vm.expandBackupSection = false }
     val changes by vm.changesSinceBackup.collectAsStateWithLifecycle()
 
     var showAdd by remember { mutableStateOf(false) }
@@ -104,7 +107,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(v.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            Text(listOf(vehicleTypeLabel(v.type), v.plate).filter { it.isNotBlank() }.joinToString(" · "), color = TextGray, fontSize = 11.sp)
+                            Text(listOf(vehicleTypeLabel(v.type), v.plate).filter { it.isNotBlank() }.joinToString(" · "), color = TextGray, fontSize = 12.sp)
                         }
                         if (v.id == active?.id) StatusBadge("Aktif", StatusGreenBg to StatusGreenText)
                         else TextButton(onClick = { vm.setActiveVehicle(v.id) }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) { Text("Aktifkan", color = LavenderPrimary, fontSize = 12.sp) }
@@ -194,12 +197,12 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         }
 
         CollapsibleSectionCard(
-            "Backup & Data", Icons.Default.Backup,
+            "Backup & Data", Icons.Default.Backup, initiallyExpanded = expandBackup,
             summary = if (lastBackup == 0L) "Belum pernah backup" else "Backup terakhir ${fmtDate(lastBackup)}",
             summaryColor = if (lastBackup == 0L) StatusYellowText else TextGray
         ) {
             Text(if (lastBackup == 0L) "Belum pernah backup." else "Backup terakhir: ${fmtDateTime(lastBackup)}", color = TextWhite, fontSize = 12.sp)
-            Text("$changes perubahan sejak backup terakhir", color = if (changes > 0) StatusYellowText else TextGray, fontSize = 11.sp)
+            Text("$changes perubahan sejak backup terakhir", color = if (changes > 0) StatusYellowText else TextGray, fontSize = 12.sp)
             Spacer(Modifier.height(6.dp))
             ActionRow(Icons.Default.Save, "Simpan file backup") {
                 vm.exportBackup { json ->
@@ -279,6 +282,6 @@ private fun AboutCard() {
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text("Kolaborasi Andino & Muh. Nur Ali" + if (version.isNotBlank()) " · Versi $version" else "", color = TextGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text("Kolaborasi Andino & Muh. Nur Ali" + if (version.isNotBlank()) " · Versi $version" else "", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }

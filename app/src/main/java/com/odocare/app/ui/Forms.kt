@@ -57,7 +57,7 @@ fun FormDialog(
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Tutup", tint = TextGray, modifier = Modifier.size(18.dp)) }
                 }
@@ -90,7 +90,7 @@ fun AppTextField(
     hint: String? = null, singleLine: Boolean = true, minLines: Int = 1, modifier: Modifier = Modifier.fillMaxWidth()
 ) {
     val iconSlot: (@Composable () -> Unit)? = if (icon != null) { { Icon(icon, null, modifier = Modifier.size(18.dp)) } } else null
-    val hintSlot: (@Composable () -> Unit)? = if (hint != null) { { Text(hint, fontSize = 11.sp) } } else null
+    val hintSlot: (@Composable () -> Unit)? = if (hint != null) { { Text(hint, fontSize = 12.sp) } } else null
     OutlinedTextField(
         value = value, onValueChange = onChange, modifier = modifier,
         label = { Text(label, fontSize = 12.sp) }, singleLine = singleLine, minLines = minLines,
@@ -106,7 +106,7 @@ fun NumberField(value: String, onChange: (String) -> Unit, label: String, curren
     val prefixSlot: (@Composable () -> Unit)? = if (currency) { { Text("Rp ", fontSize = 14.sp) } } else null
     val iconSlot: (@Composable () -> Unit)? = if (icon != null) { { Icon(icon, null, modifier = Modifier.size(18.dp)) } } else null
     // Pesan error menggantikan hint dan mewarnai kotak merah
-    val hintSlot: (@Composable () -> Unit)? = if (error != null) { { Text(error, fontSize = 11.sp) } } else if (hint != null) { { Text(hint, fontSize = 11.sp) } } else null
+    val hintSlot: (@Composable () -> Unit)? = if (error != null) { { Text(error, fontSize = 12.sp) } } else if (hint != null) { { Text(hint, fontSize = 12.sp) } } else null
     OutlinedTextField(
         isError = error != null,
         value = value, onValueChange = { raw ->
@@ -135,7 +135,7 @@ fun PickerField(label: String, value: String?, icon: ImageVector, placeholder: S
             Icon(icon, null, tint = TextGray, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(label, fontSize = 11.sp, color = TextGray)
+                Text(label, fontSize = 12.sp, color = TextGray)
                 Text(value ?: placeholder, fontSize = 14.sp, color = if (value != null) TextWhite else TextGray)
             }
             if (trailing != null) Icon(trailing, null, tint = TextGray, modifier = Modifier.size(18.dp))
@@ -152,7 +152,7 @@ fun SwitchRow(icon: ImageVector, title: String, subtitle: String?, checked: Bool
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, fontSize = 13.sp, color = TextWhite)
-                if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = TextGray, lineHeight = 14.sp)
+                if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, lineHeight = 14.sp)
             }
             Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.scale(0.8f))
         }
@@ -168,7 +168,7 @@ fun FormGroupLabel(text: String) {
 /** Catatan kecil di bawah isian. */
 @Composable
 fun FormNote(text: String, color: Color = TextGray) {
-    Text(text, fontSize = 11.sp, color = color, lineHeight = 15.sp)
+    Text(text, fontSize = 12.sp, color = color, lineHeight = 15.sp)
 }
 
 /** Baris pilihan tunggal berbentuk segmen (mis. Motor / Mobil, Hari / Bulan / Tahun). */

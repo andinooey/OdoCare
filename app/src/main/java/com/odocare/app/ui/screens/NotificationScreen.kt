@@ -29,10 +29,9 @@ import java.time.ZoneId
 
 /** Riwayat semua notifikasi yang sudah muncul. Yang belum dibaca ditandai titik dan latar berbeda; ketuk untuk menandai dibaca. */
 @Composable
-fun NotificationScreen(vm: MainViewModel, onBack: () -> Unit) {
+fun NotificationScreen(vm: MainViewModel, onBack: () -> Unit, onOpenTarget: (AppNotification) -> Unit) {
     val items by vm.notifications.collectAsStateWithLifecycle()
     val unread by vm.unreadNotifications.collectAsStateWithLifecycle()
-    var confirmClear by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -42,7 +41,7 @@ fun NotificationScreen(vm: MainViewModel, onBack: () -> Unit) {
                 IconButton(enabled = unread > 0, onClick = { vm.markAllNotificationsRead() }) {
                     Icon(Icons.Default.DoneAll, "Tandai semua dibaca", tint = if (unread > 0) LavenderPrimary else TextGray, modifier = Modifier.size(22.dp))
                 }
-                IconButton(enabled = items.isNotEmpty(), onClick = { confirmClear = true }) {
+                IconButton(enabled = items.isNotEmpty(), onClick = { vm.clearNotifications() }) {
                     Icon(Icons.Default.DeleteSweep, "Hapus semua", tint = if (items.isNotEmpty()) TextWhite else TextGray, modifier = Modifier.size(22.dp))
                 }
             }
@@ -55,12 +54,11 @@ fun NotificationScreen(vm: MainViewModel, onBack: () -> Unit) {
                 item {
                     Text(if (unread > 0) "$unread belum dibaca · ${items.size} notifikasi" else "Semua sudah dibaca · ${items.size} notifikasi", fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(bottom = 4.dp))
                 }
-                items(items, key = { it.id }) { n -> NotificationRow(n, onOpen = { if (!n.isRead) vm.markNotificationRead(n.id) }, onDelete = { vm.deleteNotification(n.id) }) }
+                items(items, key = { it.id }) { n -> NotificationRow(n, onOpen = { if (!n.isRead) vm.markNotificationRead(n.id); if (n.target != null) onOpenTarget(n) }, onDelete = { vm.deleteNotification(n) }) }
             }
         }
     }
 
-    if (confirmClear) ConfirmDialog("Hapus semua notifikasi?", "Seluruh riwayat notifikasi (${items.size}) akan dihapus. Pengingat yang akan datang tidak terpengaruh.", "Hapus semua", { vm.clearNotifications(); confirmClear = false }, { confirmClear = false })
 }
 
 @Composable
@@ -79,7 +77,7 @@ private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, onDelete: ()
                     if (!n.isRead) { Spacer(Modifier.width(6.dp)); Box(Modifier.size(8.dp).clip(CircleShape).background(LavenderPrimary)) }
                 }
                 Text(n.body, fontSize = 12.sp, color = if (n.isRead) TextGray else TextWhite, modifier = Modifier.padding(top = 2.dp))
-                Text(notifTime(n.createdAt), fontSize = 10.sp, color = TextGray, modifier = Modifier.padding(top = 4.dp))
+                Text(notifTime(n.createdAt), fontSize = 11.sp, color = TextGray, modifier = Modifier.padding(top = 4.dp))
             }
             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus notifikasi", tint = TextGray, modifier = Modifier.size(18.dp)) }
         }

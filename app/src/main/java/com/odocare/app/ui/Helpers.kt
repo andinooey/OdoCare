@@ -288,7 +288,7 @@ fun NotifyOptions(enabled: Boolean, hour: Int, minute: Int, onChange: (enabled: 
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("Notifikasi pengingat", fontSize = 13.sp, color = TextWhite)
-                Text(if (enabled) "Aktif" else "Mati", fontSize = 11.sp, color = TextGray)
+                Text(if (enabled) "Aktif" else "Mati", fontSize = 12.sp, color = TextGray)
             }
             Switch(checked = enabled, onCheckedChange = { onChange(it, hour, minute) }, modifier = Modifier.scale(0.8f))
         }
@@ -375,7 +375,7 @@ fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, he
 @Composable
 fun PlateView(plate: String) {
     Surface(color = Color.Black, shape = RoundedCornerShape(5.dp), border = BorderStroke(1.dp, Color.White)) {
-        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
     }
 }
 
@@ -406,7 +406,7 @@ fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modi
                 val h = if (v > 0) (66f * v.toFloat() / max.toFloat()).coerceAtLeast(3f) else 1f
                 Box(Modifier.fillMaxWidth().height(h.dp).clip(RoundedCornerShape(4.dp)).background(if (v > 0) LavenderPrimary else Color(0xFF3A3A3A)))
                 Spacer(Modifier.height(4.dp))
-                Text(labels.getOrElse(i) { "" }, fontSize = 10.sp, color = TextGray, maxLines = 1)
+                Text(labels.getOrElse(i) { "" }, fontSize = 11.sp, color = TextGray, maxLines = 1)
             }
         }
     }
@@ -418,7 +418,7 @@ fun PercentBar(label: String, value: Long, total: Long) {
     Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, Modifier.weight(1f), color = TextWhite, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${rupiah(value)} ($pct%)", color = TextGray, fontSize = 11.sp)
+            Text("${rupiah(value)} ($pct%)", color = TextGray, fontSize = 12.sp)
         }
         Spacer(Modifier.height(4.dp))
         ProgressBar(if (total > 0) value.toFloat() / total.toFloat() else 0f, LavenderPrimary)
@@ -435,7 +435,7 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, icon: 
             }
             Column {
                 Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(label, fontSize = 11.sp, color = TextGray, maxLines = 1)
+                Text(label, fontSize = 12.sp, color = TextGray, maxLines = 1)
             }
         }
     }

@@ -112,20 +112,20 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
                                 if (!d.number.isNullOrBlank()) meta += "No. ${d.number}"
                                 d.lastRenewedDate?.let { meta += "Diperpanjang ${fmtDate(it)}" }
                                 if (d.intervalValue != null && unit != null) meta += "Berlaku ${d.intervalValue} ${unit.label.lowercase()}"
-                                if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 11.sp, color = TextGray)
+                                if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 12.sp, color = TextGray)
                                 if (d.attachmentPath != null) {
                                     val ctx = LocalContext.current
                                     var openFailed by remember { mutableStateOf(false) }
                                     Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { openFailed = !AttachmentStore.open(ctx, d.attachmentPath) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Icon(if (AttachmentStore.isImage(d.attachmentPath)) Icons.Default.Image else Icons.Default.AttachFile, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 11.sp, color = if (openFailed) DangerText else LavenderPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 12.sp, color = if (openFailed) DangerText else LavenderPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(if (d.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray, modifier = Modifier.size(12.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text(if (d.notifyEnabled) "${Reminders.summary(d.reminders)} · ${fmtTime(d.notifyHour, d.notifyMinute)}" else "Notifikasi mati", fontSize = 11.sp, color = TextGray, modifier = Modifier.weight(1f))
+                                    Text(if (d.notifyEnabled) "${Reminders.summary(d.reminders)} · ${fmtTime(d.notifyHour, d.notifyMinute)}" else "Notifikasi mati", fontSize = 12.sp, color = TextGray, modifier = Modifier.weight(1f))
                                     TextButton(onClick = { renewTarget = d }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) {
                                         Icon(Icons.Default.Autorenew, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))

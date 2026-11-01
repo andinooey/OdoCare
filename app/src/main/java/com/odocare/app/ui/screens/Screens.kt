@@ -52,7 +52,7 @@ fun HomeScreen(
     vm: MainViewModel,
     onNavigateToSchedule: () -> Unit, onNavigateToHistory: () -> Unit,
     onNavigateToDocuments: () -> Unit, onNavigateToOdometer: () -> Unit,
-    onNavigateToNotifications: () -> Unit
+    onNavigateToNotifications: () -> Unit, onNavigateToSettings: () -> Unit
 ) {
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
@@ -60,6 +60,7 @@ fun HomeScreen(
     val schedules by vm.schedules.collectAsStateWithLifecycle()
     val documents by vm.documents.collectAsStateWithLifecycle()
     val unreadNotifications by vm.unreadNotifications.collectAsStateWithLifecycle()
+    val lastBackup by vm.lastBackup.collectAsStateWithLifecycle()
     var showAddKm by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
     var showAddVehicle by remember { mutableStateOf(false) }
@@ -87,8 +88,27 @@ fun HomeScreen(
 
             // Pindah kendaraan aktif langsung dari Home (hanya tampil bila punya lebih dari satu)
             if (vehicles.size > 1) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    vehicles.forEach { item -> FilterChip(selected = item.id == v.id, onClick = { vm.setActiveVehicle(item.id) }, label = { Text(item.name, fontSize = 12.sp) }) }
+                VehicleChips(vm)
+                Spacer(Modifier.height(10.dp))
+            }
+
+            // Pengingat backup: belum pernah backup (setelah 7 hari dipakai) atau backup terakhir lebih dari 30 hari. "Nanti" menyembunyikannya 7 hari.
+            val nowMs = System.currentTimeMillis()
+            val dayMs = 86_400_000L
+            val firstUse = vehicles.minOfOrNull { it.createdAt } ?: nowMs
+            val backupDue = if (lastBackup == 0L) nowMs - firstUse >= 7 * dayMs else nowMs - lastBackup >= 30 * dayMs
+            if (backupDue && nowMs >= vm.backupSnoozeUntil) {
+                Surface(color = StatusYellowBg, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Backup, null, tint = StatusYellowText, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Amankan data kamu", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = StatusYellowText)
+                            Text(if (lastBackup == 0L) "Belum pernah backup." else "Backup terakhir ${((nowMs - lastBackup) / dayMs)} hari lalu.", fontSize = 12.sp, color = StatusYellowText)
+                        }
+                        TextButton(onClick = { vm.expandBackupSection = true; onNavigateToSettings() }) { Text("Backup", color = StatusYellowText, fontWeight = FontWeight.Bold) }
+                        IconButton(onClick = { vm.snoozeBackupReminder() }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Ingatkan lagi nanti", tint = StatusYellowText, modifier = Modifier.size(18.dp)) }
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
             }
@@ -112,7 +132,7 @@ fun HomeScreen(
                         Spacer(Modifier.width(8.dp))
                         Text("km", color = TextGray, fontSize = 12.sp)
                         Spacer(Modifier.weight(1f))
-                        Text("Ketuk untuk update", color = TextGray, fontSize = 11.sp)
+                        Text("Ketuk untuk update", color = TextGray, fontSize = 12.sp)
                         Spacer(Modifier.width(4.dp))
                         Icon(Icons.Default.Edit, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                     }
@@ -156,12 +176,12 @@ fun HomeScreen(
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(docTypeLabel(d.type), color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Jatuh tempo ${fmtDate(d.expiryDate)}", color = TextGray, fontSize = 11.sp)
+                                Text("Jatuh tempo ${fmtDate(d.expiryDate)}", color = TextGray, fontSize = 12.sp)
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 DocStatusChip(dv.status)
                                 Spacer(Modifier.height(3.dp))
-                                Text(docDaysText(dv.daysRemaining), color = colors.second, fontSize = 11.sp)
+                                Text(docDaysText(dv.daysRemaining), color = colors.second, fontSize = 12.sp)
                             }
                         }
                     }
@@ -222,7 +242,7 @@ private fun HomeComponentCard(view: ScheduleView) {
             ProgressBar(view.progress, statusColor)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (next != null) "Berikutnya $next" else "", Modifier.weight(1f), color = TextGray, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(if (next != null) "Berikutnya $next" else "", Modifier.weight(1f), color = TextGray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(conditionText(view), color = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
             }
         }
@@ -283,7 +303,7 @@ private fun WelcomePoint(icon: ImageVector, title: String, desc: String) {
         Spacer(Modifier.width(12.dp))
         Column {
             Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
-            Text(desc, fontSize = 11.sp, color = TextGray)
+            Text(desc, fontSize = 12.sp, color = TextGray)
         }
     }
 }
@@ -298,7 +318,7 @@ private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.height(2.dp))
-            Text(label, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1)
+            Text(label, fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 1)
         }
     }
 }
@@ -311,7 +331,7 @@ private fun SummaryCard(value: String, label: String, icon: ImageVector, bgColor
             Spacer(Modifier.width(8.dp))
             Column {
                 Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor, lineHeight = 20.sp)
-                Text(label, fontSize = 11.sp, color = textColor)
+                Text(label, fontSize = 12.sp, color = textColor)
             }
         }
     }
@@ -342,7 +362,7 @@ fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("${fmtKm(log.km)} km", fontSize = 14.sp, color = TextWhite, fontWeight = FontWeight.Bold)
-                                Text(fmtDate(log.recordedAt), fontSize = 11.sp, color = TextGray)
+                                Text(fmtDate(log.recordedAt), fontSize = 12.sp, color = TextGray)
                             }
                             ItemMenu(onEdit = { editTarget = log }, onDelete = { vm.deleteOdometer(log.id) })
                         }
@@ -447,9 +467,9 @@ private fun conditionLines(v: ScheduleView): List<String> {
 @Composable
 private fun InfoCol(label: String, value: String, sub: String?, modifier: Modifier, color: Color = TextWhite, end: Boolean = false) {
     Column(modifier, horizontalAlignment = if (end) Alignment.End else Alignment.Start) {
-        Text(label, fontSize = 10.sp, color = TextGray)
+        Text(label, fontSize = 11.sp, color = TextGray)
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color, textAlign = if (end) TextAlign.End else TextAlign.Start)
-        if (sub != null) Text(sub, fontSize = 10.sp, color = TextGray, textAlign = if (end) TextAlign.End else TextAlign.Start)
+        if (sub != null) Text(sub, fontSize = 11.sp, color = TextGray, textAlign = if (end) TextAlign.End else TextAlign.Start)
     }
 }
 
@@ -474,7 +494,7 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
                     Text(s.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val interval = intervalLabel(ik, im)
-                        if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 11.sp, color = TextGray)
+                        if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 12.sp, color = TextGray)
                         Spacer(Modifier.width(6.dp))
                         Icon(if (s.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray.copy(alpha = 0.7f), modifier = Modifier.size(11.dp))
                     }
@@ -490,7 +510,7 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
                     InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
                     InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                        Text("Kondisi", fontSize = 10.sp, color = TextGray)
+                        Text("Kondisi", fontSize = 11.sp, color = TextGray)
                         lines.forEach { Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = conditionColor, textAlign = TextAlign.End) }
                     }
                 }

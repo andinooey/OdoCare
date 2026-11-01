@@ -111,15 +111,15 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                 // Keterangan rata-rata KM: dasar hitungan, atau alasan kenapa belum bisa dihitung
                 Spacer(Modifier.height(4.dp))
                 if (km.avgPerMonth == null) {
-                    Text("Rata-rata KM butuh minimal 2 catatan KM pada periode ini.", color = TextGray, fontSize = 11.sp)
+                    Text("Rata-rata KM butuh minimal 2 catatan KM pada periode ini.", color = TextGray, fontSize = 12.sp)
                 } else {
                     val basis = when {
                         km.days < 7 -> "perkiraan, data baru ${km.days} hari"
                         km.perVehicle.size == 1 -> "dalam ${km.days} hari"
                         else -> "dari semua kendaraan"
                     }
-                    Text("Dari ${fmtKm(km.totalKm)} km tercatat, $basis.", color = TextGray, fontSize = 11.sp)
-                    if (km.perVehicle.size > 1) Text(km.perVehicle.joinToString(" · ") { (vid, v) -> "${names[vid] ?: "-"} ${fmtKm(v)}" } + " km/bulan", color = TextGray, fontSize = 11.sp)
+                    Text("Dari ${fmtKm(km.totalKm)} km tercatat, $basis.", color = TextGray, fontSize = 12.sp)
+                    if (km.perVehicle.size > 1) Text(km.perVehicle.joinToString(" · ") { (vid, v) -> "${names[vid] ?: "-"} ${fmtKm(v)}" } + " km/bulan", color = TextGray, fontSize = 12.sp)
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -158,7 +158,7 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(r.title, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${fmtDate(r.date)} · ${names[r.vehicleId] ?: "-"} · ${fmtKm(r.km)} km", color = TextGray, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${fmtDate(r.date)} · ${names[r.vehicleId] ?: "-"} · ${fmtKm(r.km)} km", color = TextGray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             Spacer(Modifier.width(8.dp))
                             Text(if (r.cost > 0) rupiah(r.cost) else "-", color = LavenderPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)

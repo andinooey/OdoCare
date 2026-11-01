@@ -25,6 +25,9 @@ class Repo(private val ctx: Context) {
     suspend fun markAllNotificationsRead() = db.appNotificationDao().markAllRead()
     suspend fun deleteNotification(id: Long) = db.appNotificationDao().deleteById(id)
     suspend fun clearNotifications() = db.appNotificationDao().deleteAll()
+    /** Untuk Urungkan: pulihkan notifikasi yang baru dihapus (id lama dipertahankan). */
+    suspend fun restoreNotifications(list: List<AppNotification>) = db.withTransaction { list.forEach { db.appNotificationDao().insert(it) } }
+    suspend fun restoreRecord(r: ServiceRecord) = srDao.insert(r)
     val allOdometer: Flow<List<OdometerLog>> = oDao.observeAll()
     val allSchedules: Flow<List<MaintenanceSchedule>> = sDao.observeAllActive()
     val allRecords: Flow<List<ServiceRecord>> = srDao.observeAll()

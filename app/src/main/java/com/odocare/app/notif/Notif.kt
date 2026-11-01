@@ -41,10 +41,15 @@ object Notif {
         }
     }
 
-    fun show(ctx: Context, channel: String, title: String, body: String) {
+    fun show(ctx: Context, channel: String, title: String, body: String, target: String? = null, vehicleId: String? = null) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-        logToHistory(ctx, channel, title, body)
-        val pi = PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        logToHistory(ctx, channel, title, body, target, vehicleId)
+        // requestCode berbeda per notifikasi agar tujuan (extra) tiap notifikasi tidak saling menimpa
+        val open = Intent(ctx, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            if (target != null) { putExtra(MainActivity.EXTRA_TARGET, target); if (vehicleId != null) putExtra(MainActivity.EXTRA_VEHICLE, vehicleId) }
+        }
+        val pi = PendingIntent.getActivity(ctx, (title + body).hashCode(), open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val notif = NotificationCompat.Builder(ctx, channel).setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body)).setAutoCancel(true).setContentIntent(pi).build()
         try { NotificationManagerCompat.from(ctx).notify((title + body).hashCode(), notif) } catch (_: SecurityException) {}
     }
@@ -52,12 +57,12 @@ object Notif {
     private val ioScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
 
     /** Simpan notifikasi yang muncul ke riwayat (layar Notifikasi di Home). Gagal menyimpan tidak boleh mengganggu notifikasinya. */
-    private fun logToHistory(ctx: Context, channel: String, title: String, body: String) {
+    private fun logToHistory(ctx: Context, channel: String, title: String, body: String, target: String?, vehicleId: String?) {
         val app = ctx.applicationContext
         ioScope.launch {
             try {
                 val dao = com.odocare.app.data.AppDb.get(app).appNotificationDao()
-                dao.insert(com.odocare.app.data.AppNotification(channel = channel, title = title, body = body))
+                dao.insert(com.odocare.app.data.AppNotification(channel = channel, title = title, body = body, target = target, vehicleId = vehicleId))
                 dao.trim()
             } catch (_: Exception) {}
         }
@@ -149,9 +154,9 @@ object ReminderEngine {
             val docName = docTypeNames[d.type] ?: d.type.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
             val vehicle = vehicleNames[d.vehicleId] ?: "Kendaraan"
             when (days) {
-                0L -> Notif.show(ctx, Notif.CH_DOCUMENTS, "$docName jatuh tempo hari ini", "$vehicle. Perpanjang hari ini agar tidak terlambat.")
-                1L -> Notif.show(ctx, Notif.CH_DOCUMENTS, "$docName jatuh tempo besok", "$vehicle · ${fmtDate(d.expiryDate)}. Siapkan perpanjangannya.")
-                else -> Notif.show(ctx, Notif.CH_DOCUMENTS, "$docName jatuh tempo $days hari lagi", "$vehicle · ${fmtDate(d.expiryDate)}. Siapkan perpanjangannya.")
+                0L -> Notif.show(ctx, Notif.CH_DOCUMENTS, "$docName jatuh tempo hari ini", "$vehicle. Perpanjang hari ini agar tidak terlambat.", "documents", d.vehicleId)
+                1L -> Notif.show(ctx, Notif.CH_DOCUMENTS, "$docName jatuh tempo besok", "$vehicle · ${fmtDate(d.expiryDate)}. Siapkan perpanjangannya.", "documents", d.vehicleId)
+                else -> Notif.show(ctx, Notif.CH_DOCUMENTS, "$docName jatuh tempo $days hari lagi", "$vehicle · ${fmtDate(d.expiryDate)}. Siapkan perpanjangannya.", "documents", d.vehicleId)
             }
             prefs.edit().putLong(key, trigger).apply()
         }
@@ -174,8 +179,8 @@ object ReminderEngine {
             view.kmRemaining?.let { parts += if (it < 0) "lewat ${fmtKm(-it)} km" else "sisa ${fmtKm(it)} km" }
             view.daysRemaining?.let { parts += if (it < 0) "lewat ${-it} hari" else if (it == 0L) "jatuh tempo hari ini" else "sisa $it hari" }
             val detail = (listOf(vehicleNames[s.vehicleId] ?: "Kendaraan") + parts).joinToString(" · ")
-            if (view.status == ServiceStatus.LATE) Notif.show(ctx, Notif.CH_SERVICE, "${s.name} sudah lewat jadwal", "$detail. Segera servis.")
-            else Notif.show(ctx, Notif.CH_SERVICE, "${s.name} segera diservis", "$detail.")
+            if (view.status == ServiceStatus.LATE) Notif.show(ctx, Notif.CH_SERVICE, "${s.name} sudah lewat jadwal", "$detail. Segera servis.", "service", s.vehicleId)
+            else Notif.show(ctx, Notif.CH_SERVICE, "${s.name} segera diservis", "$detail.", "service", s.vehicleId)
             prefs.edit().putString(key, "${view.status.name}|$todayEpoch").apply()
         }
 
@@ -191,7 +196,7 @@ object ReminderEngine {
                 // Hari yang dituju sudah lewat: matikan pengingat
                 prefs.edit().putBoolean("km_reminder_enabled", false).apply()
             } else if (todayEpoch == onceDay && reached(Notif.kmReminderHour(ctx), Notif.kmReminderMinute(ctx)) && prefs.getLong("km_once_sent", -1L) != onceDay) {
-                vehicles.forEach { v -> Notif.show(ctx, Notif.CH_ODOMETER, "Update KM ${v.name}", lastKmLine(v.id) + "Catat KM terbaru hari ini.") }
+                vehicles.forEach { v -> Notif.show(ctx, Notif.CH_ODOMETER, "Update KM ${v.name}", lastKmLine(v.id) + "Catat KM terbaru hari ini.", "odometer", v.id) }
                 prefs.edit().putLong("km_once_sent", onceDay).apply()
             }
         } else if (Notif.kmReminderEnabled(ctx) && kmValue > 0 && reached(Notif.kmReminderHour(ctx), Notif.kmReminderMinute(ctx))) {
@@ -204,7 +209,7 @@ object ReminderEngine {
                     val sent = prefs.getLong(key, -1L)
                     val shouldSend = sent < due.toEpochDay() || !today.isBefore(unit.plus(LocalDate.ofEpochDay(sent), kmValue))
                     if (shouldSend) {
-                        Notif.show(ctx, Notif.CH_ODOMETER, "Update KM ${v.name}", lastKmLine(v.id) + "Catat KM terbaru sekarang.")
+                        Notif.show(ctx, Notif.CH_ODOMETER, "Update KM ${v.name}", lastKmLine(v.id) + "Catat KM terbaru sekarang.", "odometer", v.id)
                         prefs.edit().putLong(key, todayEpoch).apply()
                     }
                 }

@@ -98,7 +98,9 @@ data class DocumentType(
 data class AppNotification(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val channel: String, val title: String, val body: String,
-    val createdAt: Long = System.currentTimeMillis(), val isRead: Boolean = false
+    val createdAt: Long = System.currentTimeMillis(), val isRead: Boolean = false,
+    /** Tujuan saat diketuk: "service", "documents", atau "odometer"; null = tidak ada. */
+    val target: String? = null, val vehicleId: String? = null
 )
 
 @Dao
@@ -218,7 +220,7 @@ interface DocumentTypeDao {
     @Query("DELETE FROM document_types") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class, AppNotification::class], version = 9, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class, AppNotification::class], version = 10, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -233,7 +235,7 @@ abstract class AppDb : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build().also { INSTANCE = it }
         }
     }
 }
@@ -301,5 +303,12 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
 val MIGRATION_8_9 = object : Migration(8, 9) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS app_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, channel TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, createdAt INTEGER NOT NULL, isRead INTEGER NOT NULL)")
+    }
+}
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE app_notifications ADD COLUMN target TEXT")
+        db.execSQL("ALTER TABLE app_notifications ADD COLUMN vehicleId TEXT")
     }
 }

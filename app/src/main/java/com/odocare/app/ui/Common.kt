@@ -47,7 +47,7 @@ val CardShape = RoundedCornerShape(14.dp)
 @Composable
 fun StatusBadge(text: String, colors: Pair<Color, Color>) {
     Surface(color = colors.first, shape = RoundedCornerShape(50)) {
-        Text(text, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 10.sp, fontWeight = FontWeight.Medium, color = colors.second)
+        Text(text, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = colors.second)
     }
 }
 
@@ -79,7 +79,7 @@ fun CollapsibleSectionCard(title: String, icon: ImageVector? = null, summary: St
                 if (icon != null) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
                 Column(Modifier.weight(1f)) {
                     Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
-                    if (summary != null) Text(summary, fontSize = 11.sp, color = summaryColor)
+                    if (summary != null) Text(summary, fontSize = 12.sp, color = summaryColor)
                 }
                 Icon(Icons.Default.ExpandMore, if (expanded) "Tutup" else "Buka", tint = TextGray, modifier = Modifier.size(22.dp).rotate(arrow))
             }
@@ -107,7 +107,7 @@ private fun StatusChipBase(colors: Pair<Color, Color>, icon: ImageVector, label:
         Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = colors.second, modifier = Modifier.size(13.dp))
             Spacer(Modifier.width(4.dp))
-            Text(label, color = colors.second, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = colors.second, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -207,7 +207,7 @@ fun EmptyState(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
-                    Text(message, fontSize = 11.sp, color = TextGray)
+                    Text(message, fontSize = 12.sp, color = TextGray)
                 }
                 if (actionLabel != null && onAction != null) {
                     TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(actionLabel, fontSize = 12.sp, color = LavenderPrimary) }
@@ -249,7 +249,7 @@ fun ActionRow(icon: ImageVector, label: String, enabled: Boolean = true, subtitl
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(label, fontSize = 13.sp, color = c)
-            if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = TextGray)
+            if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray)
         }
         Icon(Icons.Default.ChevronRight, null, tint = TextGray, modifier = Modifier.size(18.dp))
     }
@@ -270,7 +270,7 @@ fun StatusFilterRow(labels: List<String>, counts: List<Int>, colors: List<Pair<C
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     Text(label, fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, color = if (on) fg else TextGray, maxLines = 1)
                     Spacer(Modifier.width(4.dp))
-                    Text("${counts[i]}", fontSize = 11.sp, color = if (on) fg else TextGray.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                    Text("${counts[i]}", fontSize = 12.sp, color = if (on) fg else TextGray.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                 }
             }
         }

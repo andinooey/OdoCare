@@ -27,6 +27,10 @@ import com.odocare.app.data.ServiceRecord
 import com.odocare.app.ui.*
 import java.time.temporal.ChronoUnit
 
+private enum class HistorySort(val label: String) {
+    NEWEST("Terbaru"), OLDEST("Terlama"), COST("Biaya tertinggi"), KM("KM tertinggi"), NAME("Nama A–Z")
+}
+
 /**
  * Tab Histori: riwayat servis kendaraan aktif, bisa difilter tanggal. Ketuk satu riwayat untuk melihat detailnya
  * (lalu ubah atau hapus dari sana). Ikon laporan di kanan atas membuka layar Laporan.
@@ -38,27 +42,64 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
     val pf = remember { PeriodFilter(Period.ALL) }
     var detailTarget by remember { mutableStateOf<ServiceRecord?>(null) }
     var editTarget by remember { mutableStateOf<ServiceRecord?>(null) }
-    var deleteTarget by remember { mutableStateOf<ServiceRecord?>(null) }
     var viewImage by remember { mutableStateOf<String?>(null) }
+    var query by remember { mutableStateOf("") }
+    var sort by remember { mutableStateOf(HistorySort.NEWEST) }
+    var sortOpen by remember { mutableStateOf(false) }
 
-    val shown = records.filter { pf.accepts(it.date) }
+    // Filter tanggal + pencarian (nama komponen atau catatan), lalu urutkan
+    val q = query.trim()
+    val shown = records
+        .filter { pf.accepts(it.date) && (q.isEmpty() || it.title.contains(q, ignoreCase = true) || it.notes?.contains(q, ignoreCase = true) == true) }
+        .let { list ->
+            when (sort) {
+                HistorySort.NEWEST -> list.sortedByDescending { it.date }
+                HistorySort.OLDEST -> list.sortedBy { it.date }
+                HistorySort.COST -> list.sortedByDescending { it.cost }
+                HistorySort.KM -> list.sortedByDescending { it.km }
+                HistorySort.NAME -> list.sortedBy { it.title.lowercase() }
+            }
+        }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding()) {
         ScreenTitle("Histori", vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 10.dp)) {
             IconButton(onClick = onOpenOdometer) { Icon(Icons.Default.Speed, "Odometer", tint = TextWhite, modifier = Modifier.size(22.dp)) }
             IconButton(onClick = onOpenReport) { Icon(Icons.Default.BarChart, "Laporan", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
         }
+        VehicleChips(vm, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
         if (vehicle == null) {
             NoVehicleState(vm, Modifier.padding(top = 32.dp))
         } else {
             Box(Modifier.padding(horizontal = 16.dp)) { DateFilterField(pf) }
+            if (records.isNotEmpty()) {
+                Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AppTextField(query, { query = it }, "Cari komponen atau catatan", Icons.Default.Search, modifier = Modifier.weight(1f))
+                    Box {
+                        IconButton(onClick = { sortOpen = true }) { Icon(Icons.Default.SwapVert, "Urutkan", tint = if (sort == HistorySort.NEWEST) TextWhite else LavenderPrimary, modifier = Modifier.size(24.dp)) }
+                        DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }, modifier = Modifier.background(MenuBg)) {
+                            HistorySort.values().forEach { o ->
+                                DropdownMenuItem(
+                                    text = { Text(o.label, fontSize = 14.sp, color = if (o == sort) LavenderPrimary else TextWhite) },
+                                    trailingIcon = if (o == sort) { { Icon(Icons.Default.Check, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) } } else null,
+                                    onClick = { sort = o; sortOpen = false }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             when {
                 records.isEmpty() -> EmptyState(Icons.Default.History, "Belum ada riwayat servis", "Tap \"Catat servis\" pada komponen di tab Servis. Riwayatnya muncul di sini.", Modifier.padding(top = 48.dp))
-                shown.isEmpty() -> EmptyState(Icons.Default.History, "Tidak ada servis pada periode ini", "Ubah filter tanggal untuk melihat riwayat lain.", Modifier.padding(top = 48.dp))
+                shown.isEmpty() -> EmptyState(
+                    Icons.Default.History,
+                    if (q.isEmpty()) "Tidak ada servis pada periode ini" else "Tidak ada hasil untuk \"$q\"",
+                    if (q.isEmpty()) "Ubah filter tanggal untuk melihat riwayat lain." else "Coba kata lain, atau ubah filter tanggal.",
+                    Modifier.padding(top = 48.dp)
+                )
                 else -> {
                     val total = shown.sumOf { it.cost }
                     Text(
-                        "${shown.size} servis" + if (total > 0) " · ${rupiah(total)}" else "",
+                        "${shown.size} servis" + (if (total > 0) " · ${rupiah(total)}" else "") + " · ${sort.label}",
                         fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp)
                     )
                     LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
@@ -72,14 +113,14 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                                             Text(r.title, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                             if (r.cost > 0) Text(rupiah(r.cost), fontSize = 12.sp, color = LavenderPrimary, fontWeight = FontWeight.Medium)
                                         }
-                                        Text("${fmtDate(r.date)} · ${fmtKm(r.km)} km", fontSize = 11.sp, color = TextGray)
-                                        if (!r.notes.isNullOrBlank()) Text(r.notes, fontSize = 11.sp, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                        Text("${fmtDate(r.date)} · ${fmtKm(r.km)} km", fontSize = 12.sp, color = TextGray)
+                                        if (!r.notes.isNullOrBlank()) Text(r.notes, fontSize = 12.sp, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                         if (r.imagePath != null) {
                                             Spacer(Modifier.height(6.dp))
                                             StoredImage(r.imagePath, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).clickable { viewImage = r.imagePath })
                                         }
                                     }
-                                    ItemMenu(onEdit = { editTarget = r }, onDelete = { deleteTarget = r })
+                                    ItemMenu(onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
                                 }
                             }
                         }
@@ -93,7 +134,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
         ServiceDetailDialog(
             r, vehicle?.name, records,
             onImage = { viewImage = it }, onDismiss = { detailTarget = null },
-            onEdit = { detailTarget = null; editTarget = r }, onDelete = { detailTarget = null; deleteTarget = r }
+            onEdit = { detailTarget = null; editTarget = r }, onDelete = { detailTarget = null; vm.deleteRecord(r.id) }
         )
     }
     editTarget?.let { r ->
@@ -105,7 +146,6 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
         AlertDialog(onDismissRequest = { viewImage = null }, containerColor = SurfaceDark, shape = RoundedCornerShape(20.dp), text = { StoredImage(path, Modifier.fillMaxWidth(), maxSide = 1600, contentScale = ContentScale.Fit) },
             confirmButton = { TextButton(onClick = { viewImage = null }) { Text("Tutup") } })
     }
-    deleteTarget?.let { r -> ConfirmDialog("Hapus riwayat?", "${r.title} (${fmtDate(r.date)}) akan dihapus. Jadwal servis tidak berubah.", "Hapus", { vm.deleteRecord(r.id); deleteTarget = null }, { deleteTarget = null }) }
 }
 
 /** Satu-satunya filter di Histori: rentang tanggal. Ketuk untuk memilih, tombol X mengembalikan ke semua tanggal. */
@@ -152,7 +192,7 @@ private fun ServiceDetailDialog(
                 if (r.cost > 0) DetailLine(Icons.Default.Payments, rupiah(r.cost))
                 if (prev != null && r.km >= prev.km) {
                     val days = ChronoUnit.DAYS.between(msToLocalDate(prev.date), msToLocalDate(r.date))
-                    Text("${fmtKm(r.km - prev.km)} km · $days hari sejak servis sebelumnya", fontSize = 11.sp, color = TextGray)
+                    Text("${fmtKm(r.km - prev.km)} km · $days hari sejak servis sebelumnya", fontSize = 12.sp, color = TextGray)
                 }
                 if (!r.notes.isNullOrBlank()) {
                     Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {

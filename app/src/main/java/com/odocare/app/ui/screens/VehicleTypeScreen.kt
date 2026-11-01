@@ -43,7 +43,7 @@ fun VehicleTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
             EmptyState(Icons.Default.DirectionsCar, "Belum ada jenis kendaraan", "Tambahkan jenis seperti motor, mobil, truk, atau sepeda listrik.", Modifier.padding(pad).padding(top = 48.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
         } else {
             LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
-                item { Text("Jenis kendaraan dipakai saat menambah kendaraan dan di Master Kategori. Jenis yang masih dipakai kendaraan tidak bisa dihapus.", color = TextGray, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp)) }
+                item { Text("Jenis kendaraan dipakai saat menambah kendaraan dan di Master Kategori. Jenis yang masih dipakai kendaraan tidak bisa dihapus.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
                 items(types, key = { it.code }) { t ->
                     val used = vehicles.count { it.type == t.code }
                     Surface(color = SurfaceVariantDark, shape = CardShape) {
@@ -54,7 +54,7 @@ fun VehicleTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(t.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text(if (used > 0) "$used kendaraan" else "Belum dipakai", fontSize = 11.sp, color = TextGray)
+                                Text(if (used > 0) "$used kendaraan" else "Belum dipakai", fontSize = 12.sp, color = TextGray)
                             }
                             ItemMenu(onEdit = { editTarget = t }, onDelete = {
                                 if (used > 0) message = "\"${t.name}\" masih dipakai $used kendaraan. Ubah atau hapus kendaraannya dulu."

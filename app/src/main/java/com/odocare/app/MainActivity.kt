@@ -1,6 +1,7 @@
 package com.odocare.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -42,17 +43,50 @@ import com.odocare.app.ui.TextWhite
 import com.odocare.app.ui.screens.*
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_TARGET = "open_target"
+        const val EXTRA_VEHICLE = "open_vehicle"
+    }
+
     private val vm: MainViewModel by viewModels()
     private val notifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
+    /** Tujuan dari ketukan notifikasi: (target, vehicleId). Dikonsumsi OdoCareRoot lalu dikosongkan. */
+    private var launchTarget by mutableStateOf<Pair<String, String?>?>(null)
+
+    private fun readTarget(i: Intent?) {
+        val t = i?.getStringExtra(EXTRA_TARGET) ?: return
+        launchTarget = t to i.getStringExtra(EXTRA_VEHICLE)
+        i.removeExtra(EXTRA_TARGET); i.removeExtra(EXTRA_VEHICLE)
+    }
+
+    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); readTarget(intent) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
+        if (savedInstanceState == null) readTarget(intent)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         setContent {
-            OdoCareTheme("dark") { OdoCareRoot(vm) }
+            OdoCareTheme("dark") {
+                when (vm.onboardingState) {
+                    0 -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+                    1 -> OnboardingScreen(onDone = { vm.finishOnboarding() })
+                    else -> OdoCareRoot(vm, launchTarget) { launchTarget = null }
+                }
+            }
         }
+    }
+}
+
+/** Buka layar tujuan notifikasi, dan pindah ke kendaraan yang bersangkutan. */
+private fun openTarget(nav: NavHostController, vm: MainViewModel, target: String, vehicleId: String?) {
+    vehicleId?.let { vm.setActiveVehicle(it) }
+    when (target) {
+        "service" -> { vm.serviceSection = 0; nav.navigateTab("schedule") }
+        "documents" -> { vm.serviceSection = 1; nav.navigateTab("schedule") }
+        "odometer" -> nav.navigate("odometer") { launchSingleTop = true }
     }
 }
 
@@ -68,8 +102,17 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 private val tabRoutes = setOf("home", "schedule", "history", "settings")
 
 @Composable
-private fun OdoCareRoot(vm: MainViewModel) {
+private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?, onTargetConsumed: () -> Unit) {
     val nav = rememberNavController()
+    val snackbarState = remember { SnackbarHostState() }
+    // Snackbar "Urungkan": dijalankan satu per satu. Tanpa diurungkan, onExpire (mis. hapus file foto) dijalankan.
+    LaunchedEffect(Unit) {
+        vm.undoEvents.collect { e ->
+            val result = snackbarState.showSnackbar(e.message, actionLabel = "Urungkan", duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) e.onUndo() else e.onExpire()
+        }
+    }
+    LaunchedEffect(launchTarget) { launchTarget?.let { (t, v) -> openTarget(nav, vm, t, v); onTargetConsumed() } }
     val tabs = listOf(
         Tab("home", "Home", Icons.Default.Home),
         Tab("schedule", "Servis", Icons.Default.Build),
@@ -85,6 +128,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbarState) },
         bottomBar = {
             Surface(color = SurfaceDark, modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 6.dp, bottom = 6.dp, start = 4.dp, end = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
@@ -98,7 +142,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
                                 Icon(tab.icon, tab.label, tint = if (selected) TextWhite else TextGray, modifier = Modifier.size(20.dp))
                             }
                             Spacer(Modifier.height(2.dp))
-                            Text(tab.label, fontSize = 11.sp, maxLines = 1, color = if (selected) TextWhite else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) TextWhite else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                         }
                     }
                 }
@@ -112,7 +156,8 @@ private fun OdoCareRoot(vm: MainViewModel) {
                     onNavigateToHistory = { nav.navigateTab("history") },
                     onNavigateToDocuments = { vm.serviceSection = 1; nav.navigateTab("schedule") },
                     onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } },
-                    onNavigateToNotifications = { nav.navigate("notifications") { launchSingleTop = true } })
+                    onNavigateToNotifications = { nav.navigate("notifications") { launchSingleTop = true } },
+                    onNavigateToSettings = { nav.navigateTab("settings") })
             }
             composable("schedule") {
                 // Tab Servis: dropdown di judul memilih Jadwal & Komponen (default) atau Pajak & Dokumen
@@ -122,7 +167,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
             composable("report") { ReportScreen(vm, onBack = { nav.popBackStack() }) }
             composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }, onOpenVehicleTypes = { nav.navigate("vehicletypes") { launchSingleTop = true } }, onOpenDocTypes = { nav.navigate("doctypes") { launchSingleTop = true } }) }
             composable("history") { HistoryScreen(vm, onOpenReport = { nav.navigate("report") { launchSingleTop = true } }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }
-            composable("notifications") { NotificationScreen(vm, onBack = { nav.popBackStack() }) }
+            composable("notifications") { NotificationScreen(vm, onBack = { nav.popBackStack() }, onOpenTarget = { n -> openTarget(nav, vm, n.target ?: "", n.vehicleId) }) }
             composable("odometer") { OdometerScreen(vm, onBack = { nav.popBackStack() }) }
             composable("master") { MasterScreen(vm, onBack = { nav.popBackStack() }) }
             composable("doctypes") { DocTypeScreen(vm, onBack = { nav.popBackStack() }) }

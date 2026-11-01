@@ -70,10 +70,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         repo.updateRecord(r)
         if (old != null && old != r.imagePath) ImageStore.delete(old)
     }
+    /** Hapus langsung dengan tombol Urungkan. File foto baru dihapus setelah kesempatan urungkan lewat. */
     fun deleteRecord(id: String) = viewModelScope.launch {
-        val old = records.value.firstOrNull { it.id == id }?.imagePath
+        val rec = records.value.firstOrNull { it.id == id } ?: return@launch
         repo.deleteRecord(id)
-        ImageStore.delete(old)
+        offerUndo("Riwayat \"${rec.title}\" dihapus", onUndo = { viewModelScope.launch { repo.restoreRecord(rec) } }, onExpire = { ImageStore.delete(rec.imagePath) })
     }
 
     // ---- Dokumen ----
@@ -120,8 +121,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ---- Riwayat notifikasi ----
     fun markNotificationRead(id: Long) = viewModelScope.launch { repo.markNotificationRead(id) }
     fun markAllNotificationsRead() = viewModelScope.launch { repo.markAllNotificationsRead() }
-    fun deleteNotification(id: Long) = viewModelScope.launch { repo.deleteNotification(id) }
-    fun clearNotifications() = viewModelScope.launch { repo.clearNotifications() }
+    fun deleteNotification(n: AppNotification) = viewModelScope.launch {
+        repo.deleteNotification(n.id)
+        offerUndo("Notifikasi dihapus", onUndo = { viewModelScope.launch { repo.restoreNotifications(listOf(n)) } })
+    }
+    fun clearNotifications() = viewModelScope.launch {
+        val all = notifications.value
+        if (all.isEmpty()) return@launch
+        repo.clearNotifications()
+        offerUndo("${all.size} notifikasi dihapus", onUndo = { viewModelScope.launch { repo.restoreNotifications(all) } })
+    }
+
+    // ---- Snackbar Urungkan (ditampilkan di MainActivity) ----
+    class UndoEvent(val message: String, val onUndo: () -> Unit, val onExpire: () -> Unit)
+    val undoEvents = kotlinx.coroutines.flow.MutableSharedFlow<UndoEvent>(extraBufferCapacity = 8)
+    private fun offerUndo(message: String, onUndo: () -> Unit, onExpire: () -> Unit = {}) { undoEvents.tryEmit(UndoEvent(message, onUndo, onExpire)) }
+
+    // ---- Pengingat backup di Home ----
+    private val sp = app.getSharedPreferences("odocare", android.content.Context.MODE_PRIVATE)
+    /** Banner pengingat backup disembunyikan sampai waktu ini (ms). */
+    var backupSnoozeUntil by mutableStateOf(sp.getLong("backup_snooze_until", 0L))
+        private set
+    fun snoozeBackupReminder(days: Int = 7) {
+        val t = System.currentTimeMillis() + days * 86_400_000L
+        backupSnoozeUntil = t; sp.edit().putLong("backup_snooze_until", t).apply()
+    }
+    // ---- Onboarding: sekali untuk pengguna baru. 0 = mengecek, 1 = tampilkan, 2 = selesai/tidak perlu ----
+    var onboardingState by mutableStateOf(if (sp.getBoolean("onboarding_done", false)) 2 else 0)
+        private set
+    init {
+        if (onboardingState == 0) viewModelScope.launch {
+            // Pengguna lama yang sudah punya kendaraan tidak perlu pengantar
+            if (repo.vehicles.first().isNotEmpty()) finishOnboarding() else onboardingState = 1
+        }
+    }
+    fun finishOnboarding() { sp.edit().putBoolean("onboarding_done", true).apply(); onboardingState = 2 }
+
+    /** Dari banner Home: buka tab Kendaraan dengan bagian Backup & Data langsung terbuka. */
+    var expandBackupSection by mutableStateOf(false)
 
     // ---- Notifikasi ----
     fun testNotification() = Notif.show(getApplication(), Notif.CH_SERVICE, "Notifikasi aktif", "Pengingat servis, pajak, dokumen, dan update KM akan muncul seperti ini.")
