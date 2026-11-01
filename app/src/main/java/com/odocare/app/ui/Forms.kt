@@ -46,12 +46,12 @@ fun FormDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
-                Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(start = Spacing.XS, end = Spacing.M, top = Spacing.S, bottom = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) }
                     Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                         Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(Spacing.M))
                     Column(Modifier.weight(1f)) {
                         Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -59,11 +59,11 @@ fun FormDialog(
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Column(
-                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp), content = content
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.L, vertical = Spacing.L),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.M), content = content
                 )
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.L, vertical = Spacing.M), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                     OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(46.dp), shape = FieldShape, border = BorderStroke(1.dp, FieldBorder)) { Text("Batal", color = TextGray) }
                     Button(onClick = onConfirm, enabled = confirmEnabled, modifier = Modifier.weight(1f).height(46.dp), shape = FieldShape) { Text(confirmLabel) }
                 }
@@ -143,11 +143,11 @@ fun DecimalField(value: String, onChange: (String) -> Unit, label: String, suffi
 @Composable
 fun CheckRow(icon: ImageVector, title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Surface(onClick = { onChange(!checked) }, color = SurfaceVariantDark.copy(alpha = 0.45f), shape = FieldShape, border = BorderStroke(1.dp, if (checked) LavenderPrimary else FieldBorder), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = Spacing.L, end = Spacing.S, top = Spacing.XS, bottom = Spacing.XS), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = if (checked) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 13.sp, color = TextWhite)
+                Text(title, fontSize = 14.sp, color = TextWhite)
                 if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, lineHeight = 14.sp)
             }
             Checkbox(checked = checked, onCheckedChange = onChange)
@@ -162,9 +162,9 @@ fun PickerField(label: String, value: String?, icon: ImageVector, placeholder: S
         onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = FieldShape,
         color = SurfaceVariantDark.copy(alpha = 0.45f), border = BorderStroke(1.dp, FieldBorder)
     ) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = Spacing.L, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = TextGray, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
                 Text(label, fontSize = 12.sp, color = TextGray)
                 Text(value ?: placeholder, fontSize = 14.sp, color = if (value != null) TextWhite else TextGray)
@@ -178,14 +178,14 @@ fun PickerField(label: String, value: String?, icon: ImageVector, placeholder: S
 @Composable
 fun SwitchRow(icon: ImageVector, title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = FieldShape, border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = Spacing.L, end = Spacing.S, top = Spacing.S, bottom = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = if (checked) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 13.sp, color = TextWhite)
+                Text(title, fontSize = 14.sp, color = TextWhite)
                 if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, lineHeight = 14.sp)
             }
-            Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.scale(0.8f))
+            Switch(checked = checked, onCheckedChange = onChange)
         }
     }
 }
@@ -193,7 +193,7 @@ fun SwitchRow(icon: ImageVector, title: String, subtitle: String?, checked: Bool
 /** Judul kelompok isian dalam form. */
 @Composable
 fun FormGroupLabel(text: String) {
-    Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = LavenderPrimary, modifier = Modifier.padding(top = 4.dp))
+    Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = LavenderPrimary, modifier = Modifier.padding(top = Spacing.XS))
 }
 
 /** Catatan kecil di bawah isian. */
@@ -205,7 +205,7 @@ fun FormNote(text: String, color: Color = TextGray) {
 /** Baris pilihan tunggal berbentuk segmen (mis. Motor / Mobil, Hari / Bulan / Tahun). */
 @Composable
 fun <T> SegmentedChoice(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, icon: ((T) -> ImageVector?)? = null) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
         options.forEach { o ->
             val on = o == selected
             Surface(
@@ -214,8 +214,8 @@ fun <T> SegmentedChoice(options: List<T>, selected: T, label: (T) -> String, onS
                 border = BorderStroke(1.dp, if (on) LavenderPrimary else FieldBorder)
             ) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    icon?.invoke(o)?.let { Icon(it, null, tint = if (on) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
-                    Text(label(o), fontSize = 13.sp, color = if (on) TextWhite else TextGray, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal)
+                    icon?.invoke(o)?.let { Icon(it, null, tint = if (on) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(Spacing.S)) }
+                    Text(label(o), fontSize = 14.sp, color = if (on) TextWhite else TextGray, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal)
                 }
             }
         }
@@ -252,11 +252,11 @@ fun DetailDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(start = Spacing.L, end = Spacing.XS, top = Spacing.S, bottom = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                         Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(24.dp))
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(Spacing.M))
                     Column(Modifier.weight(1f)) {
                         Text(title, style = AppType.ScreenTitle, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (subtitle != null) Text(subtitle, style = AppType.Caption, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -265,11 +265,11 @@ fun DetailDialog(
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Column(
-                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp), content = content
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.L, vertical = Spacing.L),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.M), content = content
                 )
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
-                Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Box(Modifier.fillMaxWidth().padding(horizontal = Spacing.L, vertical = Spacing.M)) {
                     Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(48.dp), shape = FieldShape) { Text("Tutup") }
                 }
             }
@@ -281,12 +281,12 @@ fun DetailDialog(
 @Composable
 fun ReadOnlyField(label: String, value: String, icon: ImageVector, valueColor: Color = TextWhite, emphasize: Boolean = false) {
     Surface(modifier = Modifier.fillMaxWidth(), shape = FieldShape, color = SurfaceVariantDark.copy(alpha = 0.45f), border = BorderStroke(1.dp, FieldBorder)) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = Spacing.L, vertical = Spacing.M), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = TextGray, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
                 Text(label, style = AppType.Caption, color = TextGray)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.XS))
                 Text(value, style = if (emphasize) AppType.Section else AppType.Body.copy(fontSize = 14.sp, lineHeight = 20.sp), color = valueColor)
             }
         }

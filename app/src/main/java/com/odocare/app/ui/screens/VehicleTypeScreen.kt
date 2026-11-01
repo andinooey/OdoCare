@@ -40,20 +40,20 @@ fun VehicleTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
         floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
         if (types.isEmpty()) {
-            EmptyState(Icons.Default.DirectionsCar, "Belum ada jenis kendaraan", "Tambahkan jenis seperti motor, mobil, truk, atau sepeda listrik.", Modifier.padding(pad).padding(top = 24.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
+            EmptyState(Icons.Default.DirectionsCar, "Belum ada jenis kendaraan", "Tambahkan jenis seperti motor, mobil, truk, atau sepeda listrik.", Modifier.padding(pad).padding(top = Spacing.XL), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
         } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
-                item { Text("Jenis kendaraan dipakai saat menambah kendaraan dan di Master Kategori. Jenis yang masih dipakai kendaraan tidak bisa dihapus.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
+            LazyColumn(Modifier.padding(pad).padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = 88.dp)) {
+                item { Text("Jenis kendaraan dipakai saat menambah kendaraan dan di Master Kategori. Jenis yang masih dipakai kendaraan tidak bisa dihapus.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = Spacing.XS)) }
                 items(types, key = { it.code }) { t ->
                     val used = vehicles.count { it.type == t.code }
-                    Surface(color = SurfaceVariantDark, shape = CardShape) {
-                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder) {
+                        Row(Modifier.fillMaxWidth().padding(start = Spacing.M, top = Spacing.S, bottom = Spacing.S, end = Spacing.XS), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                                 Icon(VehicleTypes.icon(t.code), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                             }
-                            Spacer(Modifier.width(12.dp))
+                            Spacer(Modifier.width(Spacing.M))
                             Column(Modifier.weight(1f)) {
-                                Text(t.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(t.name, color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 Text(if (used > 0) "$used kendaraan" else "Belum dipakai", fontSize = 12.sp, color = TextGray)
                             }
                             ItemMenu(onEdit = { editTarget = t }, onDelete = {
@@ -89,7 +89,7 @@ private fun VehicleTypeFormDialog(title: String, initial: VehicleType?, onDismis
         AppTextField(name, { name = it }, "Nama jenis", Icons.Default.Edit, hint = "Contoh: Truk, Sepeda Listrik")
         FormGroupLabel("Ikon")
         vehicleIconOptions.chunked(5).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                 row.forEach { (key, vec) ->
                     val on = key == icon
                     Surface(

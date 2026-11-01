@@ -83,40 +83,40 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     // Grafik mengikuti rentang yang dipilih ("Semua" mulai dari servis tertua)
     val series = if (records.isEmpty()) null else costSeries(records, start ?: records.minOf { msToLocalDate(it.date) }, endBound ?: today)
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-        Spacer(Modifier.height(16.dp))
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.L)) {
+        Spacer(Modifier.height(Spacing.L))
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) }
             ScreenTitle("Laporan", "Ringkasan biaya servis & BBM", Modifier.weight(1f))
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacing.M))
 
         if (vehicles.isEmpty()) {
-            NoVehicleState(vm, Modifier.padding(top = 24.dp), "Tambahkan kendaraan dan catat servis untuk melihat laporan biaya.")
+            NoVehicleState(vm, Modifier.padding(top = Spacing.XL), "Tambahkan kendaraan dan catat servis untuk melihat laporan biaya.")
         } else {
             PeriodFilterRow(pf, customFirst = true)
-            Spacer(Modifier.height(4.dp))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(Spacing.XS))
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                 FilterChip(selected = activeFilter == null, onClick = { vehicleFilter = null }, label = { Text("Semua", fontSize = 12.sp) })
                 vehicles.forEach { v -> FilterChip(selected = activeFilter == v.id, onClick = { vehicleFilter = v.id }, label = { Text(v.name, fontSize = 12.sp) }) }
             }
 
             if (records.isEmpty() && fuelInRange.isEmpty()) {
-                EmptyState(Icons.Default.BarChart, "Belum ada data", "Tidak ada servis atau BBM pada periode ini. Catat servis dari tab Servis, BBM dari tombol Catat BBM di Home, atau pilih periode lain.", Modifier.padding(top = 24.dp))
+                EmptyState(Icons.Default.BarChart, "Belum ada data", "Tidak ada servis atau BBM pada periode ini. Catat servis dari tab Servis, BBM dari tombol Catat BBM di Home, atau pilih periode lain.", Modifier.padding(top = Spacing.XL))
             } else {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Spacing.M))
                 if (records.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                     StatCard(rupiah(total), "Total biaya", Modifier.weight(1f), Icons.Default.Payments)
                     StatCard("$count", "Jumlah servis", Modifier.weight(1f), Icons.Default.Build)
                 }
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.height(Spacing.S))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                     StatCard(km.avgPerMonth?.let { "${fmtKm(it)} km" } ?: "-", "Rata-rata KM / bulan", Modifier.weight(1f), Icons.Default.Speed)
                     StatCard(last?.let { fmtDate(it) } ?: "-", "Servis terakhir", Modifier.weight(1f), Icons.Default.Event)
                 }
                 // Keterangan rata-rata KM: dasar hitungan, atau alasan kenapa belum bisa dihitung
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.XS))
                 if (km.avgPerMonth == null) {
                     Text("Rata-rata KM butuh minimal 2 catatan KM pada periode ini.", color = TextGray, fontSize = 12.sp)
                 } else {
@@ -135,14 +135,14 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                     val parts = dirinci.sumOf { it.partsCost }
                     val labor = dirinci.sumOf { it.laborCost }
                     val tanpaRincian = records.filter { !it.hasBreakdown && it.cost > 0 }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(Spacing.L))
                     SectionHeader("Suku cadang vs Jasa")
-                    Spacer(Modifier.height(4.dp))
-                    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
+                    Spacer(Modifier.height(Spacing.XS))
+                    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(Spacing.M)) {
                             PercentBar("Suku cadang", parts, parts + labor)
                             PercentBar("Jasa", labor, parts + labor)
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(Spacing.XS))
                             Text(
                                 "Dari ${dirinci.size} servis yang dirinci." + if (tanpaRincian.isNotEmpty()) " ${tanpaRincian.size} servis (${rupiah(tanpaRincian.sumOf { it.cost })}) tanpa rincian tidak dihitung." else "",
                                 color = TextGray, fontSize = 12.sp
@@ -153,19 +153,19 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }   // akhir blok servis (kartu statistik)
 
                 if (fuelInRange.isNotEmpty()) {
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(Spacing.L))
                     SectionHeader("BBM")
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spacer(Modifier.height(Spacing.S))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                         StatCard(rupiah(fuelStats.totalCost), "Total biaya BBM", Modifier.weight(1f), Icons.Default.LocalGasStation)
                         StatCard(fuelStats.kmPerLiter?.let { "${fmtKmPerL(it)} km/L" } ?: "-", "Rata-rata km / liter", Modifier.weight(1f), Icons.Default.Speed)
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spacer(Modifier.height(Spacing.S))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                         StatCard(fuelStats.costPerKm?.let { "${rupiah(Math.round(it))} / km" } ?: "-", "Biaya per km", Modifier.weight(1f), Icons.Default.Payments)
                         StatCard("${fuelStats.count}x · ${fmtLiter(fuelStats.totalLiters)} L", "Pengisian · total bensin", Modifier.weight(1f), Icons.Default.Event)
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(Spacing.XS))
                     Text(
                         if (fuelStats.kmPerLiter == null) "Km per liter dan biaya per km butuh minimal 2 pengisian \"tangki penuh\" berurutan pada periode ini."
                         else "Dihitung dari ${fmtKm(fuelStats.measuredKm)} km di antara pengisian tangki penuh.",
@@ -174,45 +174,45 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
 
                 if (records.isNotEmpty()) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.L))
                 SectionHeader("Biaya per Kategori")
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.XS))
                 perCategory.forEach { (name, v) -> PercentBar(name, v, total) }
 
                 if (perVehicle.size > 1) {
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(Spacing.M))
                     SectionHeader("Biaya per Kendaraan")
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(Spacing.XS))
                     perVehicle.forEach { (vid, v) -> PercentBar(names[vid] ?: "-", v, total) }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Spacing.M))
                 if (series != null) {
                     SectionHeader(series.title)
-                    Spacer(Modifier.height(8.dp))
-                    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) { Box(Modifier.padding(12.dp)) { BarChart(series.labels, series.values) } }
+                    Spacer(Modifier.height(Spacing.S))
+                    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) { Box(Modifier.padding(Spacing.M)) { BarChart(series.labels, series.values) } }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Spacing.M))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Transaksi terbaru", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, modifier = Modifier.weight(1f))
                     TextButton(onClick = {
                         try { Exports.shareFile(ctx, "odocare-laporan.csv", "text/csv", Exports.csvBytes(records, vehicles)) } catch (e: Exception) { info = "Gagal mengekspor: ${e.message}" }
-                    }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) {
+                    }, contentPadding = PaddingValues(horizontal = Spacing.S), modifier = Modifier.height(30.dp)) {
                         Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(16.dp), tint = LavenderPrimary)
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(Spacing.XS))
                         Text("CSV", fontSize = 12.sp, color = LavenderPrimary)
                     }
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.XS))
                 records.sortedByDescending { it.date }.take(50).forEach { r ->
-                    Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-                        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.XS)) {
+                        Row(Modifier.padding(horizontal = Spacing.M, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(r.title, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(r.title, color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text("${fmtDate(r.date)} · ${names[r.vehicleId] ?: "-"} · ${fmtKm(r.km)} km", color = TextGray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(Spacing.S))
                             Text(if (r.cost > 0) rupiah(r.cost) else "-", color = LavenderPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
@@ -220,7 +220,7 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }   // akhir blok servis (kategori, grafik, transaksi)
             }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(Spacing.XL))
     }
     info?.let { InfoDialog(it) { info = null } }
 }

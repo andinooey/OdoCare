@@ -15,6 +15,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.DisposableEffect
 import com.odocare.app.ui.isDarkFor
+import com.odocare.app.ui.Spacing
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -143,17 +144,17 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
         snackbarHost = { SnackbarHost(snackbarState) },
         bottomBar = {
             Surface(color = SurfaceDark, modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 8.dp, bottom = 8.dp, start = 4.dp, end = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = Spacing.S, bottom = Spacing.S, start = Spacing.XS, end = Spacing.XS), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                     tabs.forEach { tab ->
                         val selected = currentTab == tab.route
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { if (tab.route == "schedule") vm.serviceSection = 0; nav.navigateTab(tab.route) }.padding(vertical = 4.dp)
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { if (tab.route == "schedule") vm.serviceSection = 0; nav.navigateTab(tab.route) }.padding(vertical = Spacing.XS)
                         ) {
-                            Box(Modifier.clip(RoundedCornerShape(50)).background(if (selected) PillSelected else Color.Transparent).padding(horizontal = 24.dp, vertical = 4.dp)) {
+                            Box(Modifier.clip(RoundedCornerShape(50)).background(if (selected) PillSelected else Color.Transparent).padding(horizontal = Spacing.XL, vertical = Spacing.XS)) {
                                 Icon(tab.icon, tab.label, tint = if (selected) TextWhite else TextGray, modifier = Modifier.size(20.dp))
                             }
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(Spacing.XS))
                             Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) TextWhite else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                         }
                     }

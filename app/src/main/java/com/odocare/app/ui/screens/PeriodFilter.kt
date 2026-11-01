@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.odocare.app.ui.DateRangePickerDialogX
 import com.odocare.app.ui.fmtDate
+import com.odocare.app.ui.Spacing
 import com.odocare.app.ui.msToLocalDate
 import java.time.LocalDate
 import java.time.ZoneId
@@ -57,7 +58,7 @@ class PeriodFilter(initial: Period) {
 @Composable
 fun PeriodFilterRow(f: PeriodFilter, customFirst: Boolean = false) {
     var showPicker by remember { mutableStateOf(false) }
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
         // customFirst: "Pilih tanggal" jadi pilihan pertama
         val order = if (customFirst) listOf(Period.CUSTOM) + Period.values().filter { it != Period.CUSTOM } else Period.values().toList()
         order.forEach { p ->

@@ -33,8 +33,8 @@ private val onboardingSteps = listOf(
 fun OnboardingScreen(onDone: () -> Unit) {
     var step by remember { mutableStateOf(0) }
     val last = step == onboardingSteps.lastIndex
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().navigationBarsPadding().padding(horizontal = Spacing.XL)) {
+        Row(Modifier.fillMaxWidth().padding(top = Spacing.S), horizontalArrangement = Arrangement.End) {
             if (!last) TextButton(onClick = onDone) { Text("Lewati", color = TextGray) }
         }
         Crossfade(step, Modifier.weight(1f).fillMaxWidth(), label = "onboarding") { i ->
@@ -45,20 +45,20 @@ fun OnboardingScreen(onDone: () -> Unit) {
                         Icon(s.icon, null, tint = LavenderPrimary, modifier = Modifier.size(48.dp))
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(Spacing.XL))
                 Text(s.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Spacing.M))
                 Text(s.body, fontSize = 14.sp, color = TextGray, textAlign = TextAlign.Center, lineHeight = 20.sp)
             }
         }
-        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.Center) {
+        Row(Modifier.fillMaxWidth().padding(bottom = Spacing.M), horizontalArrangement = Arrangement.Center) {
             onboardingSteps.indices.forEach { i ->
-                Box(Modifier.padding(horizontal = 4.dp).size(if (i == step) 10.dp else 8.dp).clip(CircleShape).background(if (i == step) LavenderPrimary else SurfaceVariantDark))
+                Box(Modifier.padding(horizontal = Spacing.XS).size(if (i == step) 10.dp else 8.dp).clip(CircleShape).background(if (i == step) LavenderPrimary else SurfaceVariantDark))
             }
         }
         Button(onClick = { if (last) onDone() else step++ }, modifier = Modifier.fillMaxWidth().height(48.dp).padding(bottom = 0.dp)) {
             Text(if (last) "Mulai" else "Lanjut", fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.L))
     }
 }

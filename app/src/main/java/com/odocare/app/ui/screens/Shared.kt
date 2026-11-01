@@ -70,7 +70,7 @@ fun VehicleChips(vm: MainViewModel, modifier: Modifier = Modifier) {
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val active by vm.activeVehicle.collectAsStateWithLifecycle()
     if (vehicles.size > 1) {
-        Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
             vehicles.forEach { item -> FilterChip(selected = item.id == active?.id, onClick = { vm.setActiveVehicle(item.id) }, label = { Text(item.name, fontSize = 12.sp) }) }
         }
     }
@@ -85,8 +85,8 @@ fun ServiceSectionTitle(vm: MainViewModel, subtitle: String?, modifier: Modifier
     val section = vm.serviceSection
     Column {
         ScreenTitle("Servis", subtitle, modifier, actions)
-        VehicleChips(vm, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+        VehicleChips(vm, Modifier.padding(start = Spacing.L, end = Spacing.L, bottom = Spacing.S))
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = Spacing.L, end = Spacing.L, bottom = Spacing.M)) {
             listOf("Jadwal & Komponen", "Pajak & Dokumen").forEachIndexed { i, label ->
                 SegmentedButton(
                     selected = section == i, onClick = { vm.serviceSection = i },

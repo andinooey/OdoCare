@@ -1,9 +1,22 @@
 package com.odocare.app.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +49,7 @@ val MidnightPalette = AppPalette(
     divider = Color(0xFF232B42), track = Color(0xFF2A3350),
     danger = Color(0xFFFF8F8F), error = Color(0xFFEF4444),
     redBg = Color(0xFF3B1A22), redText = Color(0xFFFF9A9A), grayBg = Color(0xFF222A3D), grayText = Color(0xFFC4CCDD),
-    blueBg = Color(0xFF1A2A55), blueText = Color(0xFFB3C8FF), greenBg = Color(0xFF143A2C), greenText = Color(0xFF6EDDA5),
+    blueBg = Color(0xFF12343F), blueText = Color(0xFF7FD8F0), greenBg = Color(0xFF143A2C), greenText = Color(0xFF6EDDA5),
     yellowBg = Color(0xFF3E3412), yellowText = Color(0xFFFFD56B)
 )
 
@@ -49,38 +62,15 @@ val CloudPalette = AppPalette(
     divider = Color(0xFFE1E7F3), track = Color(0xFFDDE4F2),
     danger = Color(0xFFC62828), error = Color(0xFFDC2626),
     redBg = Color(0xFFFDE3E3), redText = Color(0xFFB42318), grayBg = Color(0xFFE6EAF2), grayText = Color(0xFF475069),
-    blueBg = Color(0xFFDCE8FF), blueText = Color(0xFF1D4ED8), greenBg = Color(0xFFDAF5E6), greenText = Color(0xFF117A47),
+    blueBg = Color(0xFFD7F1F8), blueText = Color(0xFF0B6B85), greenBg = Color(0xFFDAF5E6), greenText = Color(0xFF117A47),
     yellowBg = Color(0xFFFFF1CC), yellowText = Color(0xFF8A5A00)
 )
 
-/** Palet aktif. Diset oleh OdoCareTheme; isi konten di-key per mode sehingga seluruh layar dibuat ulang saat mode berganti. */
-private var ActivePalette: AppPalette = MidnightPalette
-
-val LavenderPrimary: Color get() = ActivePalette.accent
-val OnAccent: Color get() = ActivePalette.onAccent
-val BgDark: Color get() = ActivePalette.bg
-val SurfaceDark: Color get() = ActivePalette.surface
-val SurfaceVariantDark: Color get() = ActivePalette.surfaceVariant
-val TextWhite: Color get() = ActivePalette.textPrimary
-val TextGray: Color get() = ActivePalette.textSecondary
-val ButtonSlate: Color get() = ActivePalette.buttonSlate
-val PillSelected: Color get() = ActivePalette.pillSelected
-val MenuBg: Color get() = ActivePalette.menuBg
-val DangerText: Color get() = ActivePalette.danger
-val FieldBorder: Color get() = ActivePalette.fieldBorder
-val DividerColor: Color get() = ActivePalette.divider
-val TrackColor: Color get() = ActivePalette.track
-
-val StatusRedBg: Color get() = ActivePalette.redBg
-val StatusRedText: Color get() = ActivePalette.redText
-val StatusGrayBg: Color get() = ActivePalette.grayBg
-val StatusGrayText: Color get() = ActivePalette.grayText
-val StatusBlueBg: Color get() = ActivePalette.blueBg
-val StatusBlueText: Color get() = ActivePalette.blueText
-val StatusGreenBg: Color get() = ActivePalette.greenBg
-val StatusGreenText: Color get() = ActivePalette.greenText
-val StatusYellowBg: Color get() = ActivePalette.yellowBg
-val StatusYellowText: Color get() = ActivePalette.yellowText
+/**
+ * Palet aktif. Diset oleh OdoCareTheme. Berupa state Compose, jadi semua layar yang membaca warna otomatis
+ * digambar ulang saat palet berubah (tanpa membuat ulang layar, posisi navigasi tetap).
+ */
+private var ActivePalette: AppPalette by mutableStateOf(MidnightPalette)
 
 private fun schemeFor(p: AppPalette): ColorScheme =
     if (p.isDark) darkColorScheme(
@@ -100,10 +90,23 @@ fun isDarkFor(mode: String): Boolean = when (mode) { "dark" -> true; "light" -> 
 @Composable
 fun OdoCareTheme(mode: String, content: @Composable () -> Unit) {
     val dark = isDarkFor(mode)
-    val palette = if (dark) MidnightPalette else CloudPalette
+    // Pergantian tema: konten memudar keluar, palet diganti saat transparan, lalu memudar masuk. Saat pertama dibuka tidak ada animasi.
+    var shownDark by remember { mutableStateOf(dark) }
+    val fade = remember { Animatable(1f) }
+    LaunchedEffect(dark) {
+        if (dark != shownDark) {
+            fade.animateTo(0f, tween(150))
+            shownDark = dark
+        }
+        fade.animateTo(1f, tween(150))
+    }
+    val palette = if (shownDark) MidnightPalette else CloudPalette
     ActivePalette = palette
-    key(dark) {
-        MaterialTheme(colorScheme = schemeFor(palette), typography = CompactTypography, content = content)
+    val backdrop by animateColorAsState(palette.bg, tween(300), label = "themeBackdrop")
+    MaterialTheme(colorScheme = schemeFor(palette), typography = CompactTypography) {
+        Box(Modifier.fillMaxSize().background(backdrop)) {
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = fade.value }) { content() }
+        }
     }
 }
 
@@ -111,7 +114,7 @@ fun OdoCareTheme(mode: String, content: @Composable () -> Unit) {
 private const val TNUM = "tnum"
 
 /**
- * Gaya teks baku. Aturan: 12sp adalah batas bawah (tidak ada teks 11sp), judul SemiBold, angka kunci Bold/SemiBold, sisanya Normal.
+ * Gaya teks baku. Aturan: 12sp adalah batas bawah (tidak ada teks di bawah 12sp), teks isi 14sp, judul SemiBold, angka kunci Bold/SemiBold, sisanya Normal.
  * Pakai gaya ini (style = AppType.X) alih-alih menulis fontSize manual agar semua layar konsisten.
  */
 object AppType {
@@ -119,8 +122,8 @@ object AppType {
     val Section = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
     val CardTitle = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
     /** Angka kunci di kartu: biaya, liter, KM. */
-    val Value = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
-    val Body = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontFeatureSettings = TNUM)
+    val Value = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
+    val Body = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontFeatureSettings = TNUM)
     /** Label dan keterangan abu-abu. */
     val Caption = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontFeatureSettings = TNUM)
 }
@@ -130,11 +133,11 @@ val CompactTypography = Typography(
     headlineSmall = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
     titleLarge = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
     titleMedium = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
-    titleSmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
+    titleSmall = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
     bodyLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontFeatureSettings = TNUM),
-    bodyMedium = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontFeatureSettings = TNUM),
+    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontFeatureSettings = TNUM),
     bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontFeatureSettings = TNUM),
-    labelLarge = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
+    labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
     labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
     labelSmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM)
 )

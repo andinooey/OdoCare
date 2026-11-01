@@ -72,15 +72,15 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        ScreenTitle("Histori", vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 12.dp)) {
+        ScreenTitle("Histori", vehicle?.name, Modifier.padding(start = Spacing.L, end = Spacing.S, top = Spacing.L, bottom = Spacing.M)) {
             IconButton(onClick = onOpenOdometer) { Icon(Icons.Default.Speed, "Odometer", tint = TextWhite, modifier = Modifier.size(22.dp)) }
             IconButton(onClick = onOpenReport) { Icon(Icons.Default.BarChart, "Laporan", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
         }
-        VehicleChips(vm, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
+        VehicleChips(vm, Modifier.padding(start = Spacing.L, end = Spacing.L, bottom = Spacing.S))
         if (vehicle == null) {
-            NoVehicleState(vm, Modifier.padding(top = 24.dp))
+            NoVehicleState(vm, Modifier.padding(top = Spacing.XL))
         } else {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = Spacing.L, end = Spacing.L, bottom = Spacing.S)) {
                 listOf("Servis", "BBM").forEachIndexed { i, label ->
                     SegmentedButton(
                         selected = section == i, onClick = { section = i },
@@ -90,9 +90,9 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                     ) { Text(label, fontSize = 12.sp, maxLines = 1) }
                 }
             }
-            Box(Modifier.padding(horizontal = 16.dp)) { DateFilterField(pf) }
+            Box(Modifier.padding(horizontal = Spacing.L)) { DateFilterField(pf) }
             if (section == 0 && records.isNotEmpty()) {
-                Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(start = Spacing.L, end = Spacing.S, top = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
                     AppTextField(query, { query = it }, "Cari komponen atau catatan", Icons.Default.Search, modifier = Modifier.weight(1f))
                     Box {
                         IconButton(onClick = { sortOpen = true }) { Icon(Icons.Default.SwapVert, "Urutkan", tint = if (sort == HistorySort.NEWEST) TextWhite else LavenderPrimary, modifier = Modifier.size(24.dp)) }
@@ -110,25 +110,25 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
             }
             when {
                 section == 1 -> FuelHistory(fuelLogs, pf, onAdd = { showAddFuel = true }, onEdit = { editFuel = it }, onDelete = { vm.deleteFuel(it.id) })
-                records.isEmpty() -> EmptyState(Icons.Default.History, "Belum ada riwayat servis", "Tap \"Catat servis\" pada komponen di tab Servis. Riwayatnya muncul di sini.", Modifier.padding(top = 24.dp))
+                records.isEmpty() -> EmptyState(Icons.Default.History, "Belum ada riwayat servis", "Tap \"Catat servis\" pada komponen di tab Servis. Riwayatnya muncul di sini.", Modifier.padding(top = Spacing.XL))
                 shown.isEmpty() -> EmptyState(
                     Icons.Default.History,
                     if (q.isEmpty()) "Tidak ada servis pada periode ini" else "Tidak ada hasil untuk \"$q\"",
                     if (q.isEmpty()) "Ubah filter tanggal untuk melihat riwayat lain." else "Coba kata lain, atau ubah filter tanggal.",
-                    Modifier.padding(top = 24.dp)
+                    Modifier.padding(top = Spacing.XL)
                 )
                 else -> {
                     val total = shown.sumOf { it.cost }
                     Text(
                         "${shown.size} servis" + (if (total > 0) " · ${rupiah(total)}" else "") + " · ${sort.label}",
-                        fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                        fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = Spacing.L, end = Spacing.L, top = Spacing.M)
                     )
                     // Urutan Terbaru / Terlama: dikelompokkan per tanggal seperti mutasi bank. Urutan lain: daftar biasa (tanggal tampil di kartu).
                     val grouped = sort == HistorySort.NEWEST || sort == HistorySort.OLDEST
                     val card: @Composable (ServiceRecord) -> Unit = { r ->
                         ServiceCard(r, showDate = !grouped, onClick = { detailTarget = r }, onImage = { viewImage = it }, onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
                     }
-                    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)) {
+                    LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = Spacing.XL)) {
                         if (grouped) dayGroups(shown, { it.date }, { it.id }, card)
                         else items(shown, key = { it.id }) { card(it) }
                     }
@@ -136,7 +136,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
             }
         }
     }
-    if (vehicle != null && section == 1) Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) { AddFab { showAddFuel = true } }
+    if (vehicle != null && section == 1) Box(Modifier.align(Alignment.BottomEnd).padding(Spacing.L)) { AddFab { showAddFuel = true } }
     }
 
     if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { showAddFuel = false }) { date, kmV, liters, total, full, lp -> vm.addFuel(date, kmV, liters, total, full, lp); showAddFuel = false }
@@ -169,12 +169,12 @@ private fun DateFilterField(f: PeriodFilter) {
     val s = f.customStart; val e = f.customEnd
     val active = f.isCustom && s != null && e != null
     Surface(onClick = { open = true }, color = SurfaceVariantDark, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 4.dp).heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = Spacing.M, top = Spacing.XS, bottom = Spacing.XS, end = Spacing.XS).heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.CalendarMonth, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(if (active) (if (s == e) fmtLocal(s!!) else "${fmtLocal(s!!)} – ${fmtLocal(e!!)}") else "Semua tanggal", Modifier.weight(1f), fontSize = 13.sp, color = if (active) TextWhite else TextGray)
-            if (active) IconButton(onClick = { f.period = Period.ALL }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus filter tanggal", tint = TextGray, modifier = Modifier.size(18.dp)) }
-            else Icon(Icons.Default.ArrowDropDown, null, tint = TextGray, modifier = Modifier.padding(end = 8.dp).size(22.dp))
+            Spacer(Modifier.width(Spacing.M))
+            Text(if (active) (if (s == e) fmtLocal(s!!) else "${fmtLocal(s!!)} – ${fmtLocal(e!!)}") else "Semua tanggal", Modifier.weight(1f), fontSize = 14.sp, color = if (active) TextWhite else TextGray)
+            if (active) IconButton(onClick = { f.period = Period.ALL }, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Close, "Hapus filter tanggal", tint = TextGray, modifier = Modifier.size(18.dp)) }
+            else Icon(Icons.Default.ArrowDropDown, null, tint = TextGray, modifier = Modifier.padding(end = Spacing.S).size(22.dp))
         }
     }
     if (open) DateRangePickerDialogX(f.customStart, f.customEnd, { open = false }) { a, b -> f.customStart = a; f.customEnd = b; f.period = Period.CUSTOM; open = false }
@@ -195,7 +195,7 @@ private fun ServiceDetailDialog(
         FormGroupLabel("Informasi")
         ReadOnlyField("Komponen", r.title, Icons.Default.Build, emphasize = true)
         if (vehicleName != null) ReadOnlyField("Kendaraan", vehicleName, Icons.Default.DirectionsCar)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.M)) {
             Box(Modifier.weight(1f)) { ReadOnlyField("Tanggal", fmtDate(r.date), Icons.Default.Event) }
             Box(Modifier.weight(1f)) { ReadOnlyField("Odometer", "${fmtKm(r.km)} km", Icons.Default.Speed) }
         }
@@ -207,7 +207,7 @@ private fun ServiceDetailDialog(
         if (r.cost > 0) {
             ReadOnlyField("Total biaya", rupiah(r.cost), Icons.Default.Payments, valueColor = LavenderPrimary, emphasize = true)
             if (r.hasBreakdown) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.M)) {
                     Box(Modifier.weight(1f)) { ReadOnlyField("Suku cadang", rupiah(r.partsCost), Icons.Default.Settings) }
                     Box(Modifier.weight(1f)) { ReadOnlyField("Jasa", rupiah(r.laborCost), Icons.Default.Handyman) }
                 }
@@ -231,14 +231,14 @@ private fun ServiceDetailDialog(
 private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, onAdd: () -> Unit, onEdit: (FuelLog) -> Unit, onDelete: (FuelLog) -> Unit) {
     val shown = all.filter { pf.accepts(it.date) }.sortedWith(compareByDescending<FuelLog> { it.date }.thenByDescending { it.km })
     when {
-        all.isEmpty() -> EmptyState(Icons.Default.LocalGasStation, "Belum ada catatan BBM", "Catat tiap isi bensin untuk melihat km per liter dan biaya per km.", Modifier.padding(top = 24.dp), actionLabel = "Catat BBM", onAction = onAdd)
-        shown.isEmpty() -> EmptyState(Icons.Default.LocalGasStation, "Tidak ada catatan BBM pada periode ini", "Ubah filter tanggal untuk melihat catatan lain.", Modifier.padding(top = 24.dp))
+        all.isEmpty() -> EmptyState(Icons.Default.LocalGasStation, "Belum ada catatan BBM", "Catat tiap isi bensin untuk melihat km per liter dan biaya per km.", Modifier.padding(top = Spacing.XL), actionLabel = "Catat BBM", onAction = onAdd)
+        shown.isEmpty() -> EmptyState(Icons.Default.LocalGasStation, "Tidak ada catatan BBM pada periode ini", "Ubah filter tanggal untuk melihat catatan lain.", Modifier.padding(top = Spacing.XL))
         else -> {
             Text(
                 "${shown.size} pengisian · ${fmtLiter(shown.sumOf { it.liters })} L · ${rupiah(shown.sumOf { it.totalPrice })}",
-                fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = Spacing.L, end = Spacing.L, top = Spacing.M)
             )
-            LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+            LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = 88.dp)) {
                 dayGroups(shown, { it.date }, { it.id }) { f -> FuelCard(f, onEdit = { onEdit(f) }, onDelete = { onDelete(f) }) }
             }
         }
@@ -258,17 +258,17 @@ private fun <T> LazyListScope.dayGroups(list: List<T>, dateOf: (T) -> Long, key:
 private fun DayHeader(ms: Long) {
     Text(
         fmtDayHeader(ms), style = AppType.Caption.copy(fontWeight = FontWeight.SemiBold), color = TextGray,
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.M, bottom = Spacing.XS)
     )
 }
 
 /** Kartu transaksi servis. showDate = true hanya saat daftar tidak dikelompokkan per tanggal. */
 @Composable
 private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit, onImage: (String) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Surface(onClick = onClick, color = SurfaceVariantDark, shape = CardShape) {
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
-            Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
-            Spacer(Modifier.width(12.dp))
+    Surface(onClick = onClick, color = SurfaceVariantDark, shape = CardShape, border = CardBorder) {
+        Row(Modifier.fillMaxWidth().padding(start = Spacing.M, top = Spacing.S, bottom = Spacing.S, end = Spacing.XS), verticalAlignment = Alignment.Top) {
+            Box(Modifier.padding(top = Spacing.XS).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(r.title, color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
@@ -277,7 +277,7 @@ private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit
                 Text((if (showDate) "${fmtDate(r.date)} · " else "") + "${fmtKm(r.km)} km", style = AppType.Caption, color = TextGray)
                 if (!r.notes.isNullOrBlank()) Text(r.notes, style = AppType.Caption, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 if (r.imagePath != null) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Spacing.S))
                     StoredImage(r.imagePath, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).clickable { onImage(r.imagePath) })
                 }
             }
@@ -289,10 +289,10 @@ private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit
 /** Kartu transaksi BBM: liter dan harga per liter saat transaksi, KM, status tangki. */
 @Composable
 private fun FuelCard(f: FuelLog, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Surface(color = SurfaceVariantDark, shape = CardShape) {
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
-            Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalGasStation, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
-            Spacer(Modifier.width(12.dp))
+    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder) {
+        Row(Modifier.fillMaxWidth().padding(start = Spacing.M, top = Spacing.S, bottom = Spacing.S, end = Spacing.XS), verticalAlignment = Alignment.Top) {
+            Box(Modifier.padding(top = Spacing.XS).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalGasStation, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Isi BBM", color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))

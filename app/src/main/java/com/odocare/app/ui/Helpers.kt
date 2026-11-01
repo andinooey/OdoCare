@@ -290,8 +290,8 @@ fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minut
         val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = true)
         Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(shape = RoundedCornerShape(22.dp), color = SurfaceDark, modifier = Modifier.width(IntrinsicSize.Min).height(IntrinsicSize.Min)) {
-                Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(label, fontSize = 13.sp, color = TextGray, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
+                Column(Modifier.padding(Spacing.XL), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(label, fontSize = 14.sp, color = TextGray, modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.L))
                     TimePicker(state = state)
                     Row(Modifier.height(40.dp).fillMaxWidth()) {
                         Spacer(Modifier.weight(1f))
@@ -308,14 +308,14 @@ fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minut
 @Composable
 fun NotifyOptions(enabled: Boolean, hour: Int, minute: Int, onChange: (enabled: Boolean, hour: Int, minute: Int) -> Unit) {
     Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = Spacing.L, end = Spacing.S, top = Spacing.S, bottom = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
             Icon(if (enabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = if (enabled) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
-                Text("Notifikasi pengingat", fontSize = 13.sp, color = TextWhite)
+                Text("Notifikasi pengingat", fontSize = 14.sp, color = TextWhite)
                 Text(if (enabled) "Aktif" else "Mati", fontSize = 12.sp, color = TextGray)
             }
-            Switch(checked = enabled, onCheckedChange = { onChange(it, hour, minute) }, modifier = Modifier.scale(0.8f))
+            Switch(checked = enabled, onCheckedChange = { onChange(it, hour, minute) })
         }
     }
     if (enabled) TimeField("Jam notifikasi", hour, minute) { h, m -> onChange(true, h, m) }
@@ -359,7 +359,7 @@ fun DateField(label: String, millis: Long?, onPicked: (Long) -> Unit) {
 fun ConfirmDialog(title: String, text: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
         icon = { Icon(Icons.Default.WarningAmber, null, tint = DangerText, modifier = Modifier.size(28.dp)) },
-        title = { Text(title, fontSize = 16.sp, color = TextWhite) }, text = { Text(text, fontSize = 13.sp, color = TextGray) },
+        title = { Text(title, fontSize = 16.sp, color = TextWhite) }, text = { Text(text, fontSize = 14.sp, color = TextGray) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = DangerText) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal", color = TextGray) } })
 }
@@ -368,7 +368,7 @@ fun ConfirmDialog(title: String, text: String, confirmLabel: String, onConfirm: 
 fun InfoDialog(message: String, onDismiss: () -> Unit) {
     AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
         icon = { Icon(Icons.Default.Info, null, tint = LavenderPrimary, modifier = Modifier.size(28.dp)) },
-        text = { Text(message, fontSize = 13.sp, color = TextWhite) }, confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } })
+        text = { Text(message, fontSize = 14.sp, color = TextWhite) }, confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } })
 }
 
 /** Update KM; bila lebih kecil dari KM sekarang, minta konfirmasi dulu. */
@@ -400,18 +400,18 @@ fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, he
 @Composable
 fun PlateView(plate: String) {
     Surface(color = Color.Black, shape = RoundedCornerShape(5.dp), border = BorderStroke(1.dp, Color.White)) {
-        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = Spacing.S, vertical = Spacing.XS))
     }
 }
 
 /** Odometer: satu digit per kotak (minimal 6 digit) */
 @Composable
-fun OdometerDigits(km: Int?) {
+fun OdometerDigits(km: Int?, large: Boolean = false) {
     val digits = (km ?: 0).coerceAtLeast(0).toString().padStart(6, '0')
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(if (large) 6.dp else 4.dp)) {
         digits.forEach { c ->
-            Box(Modifier.size(22.dp, 30.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-                Text(c.toString(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.size(if (large) 30.dp else 22.dp, if (large) 44.dp else 30.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                Text(c.toString(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = if (large) 24.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -423,14 +423,14 @@ private fun compact(v: Long): String = when { v >= 1_000_000 -> String.format(Lo
 @Composable
 fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modifier) {
     val max = (values.maxOrNull() ?: 0L).coerceAtLeast(1L)
-    Row(modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+    Row(modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(Spacing.S), verticalAlignment = Alignment.Bottom) {
         values.forEachIndexed { i, v ->
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
-                if (v > 0) Text(compact(v), fontSize = 10.sp, color = TextGray, maxLines = 1)
-                Spacer(Modifier.height(4.dp))
+                if (v > 0) Text(compact(v), fontSize = 12.sp, color = TextGray, maxLines = 1)
+                Spacer(Modifier.height(Spacing.XS))
                 val h = if (v > 0) (66f * v.toFloat() / max.toFloat()).coerceAtLeast(3f) else 1f
                 Box(Modifier.fillMaxWidth().height(h.dp).clip(RoundedCornerShape(4.dp)).background(if (v > 0) LavenderPrimary else TrackColor))
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.XS))
                 Text(labels.getOrElse(i) { "" }, fontSize = 12.sp, color = TextGray, maxLines = 1)
             }
         }
@@ -440,23 +440,23 @@ fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modi
 @Composable
 fun PercentBar(label: String, value: Long, total: Long) {
     val pct = if (total > 0) (value * 100 / total).toInt() else 0
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = Spacing.XS)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, Modifier.weight(1f), color = TextWhite, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("${rupiah(value)} ($pct%)", color = TextGray, fontSize = 12.sp)
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(Spacing.XS))
         ProgressBar(if (total > 0) value.toFloat() / total.toFloat() else 0f, LavenderPrimary)
     }
 }
 
 @Composable
 fun StatCard(value: String, label: String, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = modifier) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = modifier) {
+        Row(Modifier.padding(horizontal = Spacing.M, vertical = Spacing.M), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(Spacing.M))
             }
             Column {
                 Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
