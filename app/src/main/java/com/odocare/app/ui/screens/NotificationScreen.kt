@@ -77,7 +77,7 @@ private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, onDelete: ()
                     if (!n.isRead) { Spacer(Modifier.width(6.dp)); Box(Modifier.size(8.dp).clip(CircleShape).background(LavenderPrimary)) }
                 }
                 Text(n.body, fontSize = 12.sp, color = if (n.isRead) TextGray else TextWhite, modifier = Modifier.padding(top = 2.dp))
-                Text(notifTime(n.createdAt), fontSize = 11.sp, color = TextGray, modifier = Modifier.padding(top = 4.dp))
+                Text(notifTime(n.createdAt), fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(top = 4.dp))
             }
             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus notifikasi", tint = TextGray, modifier = Modifier.size(18.dp)) }
         }

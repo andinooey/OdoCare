@@ -142,7 +142,7 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(12.dp))
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 ActionButton(Icons.Default.Speed, "Update KM", Modifier.weight(1f), false) { showAddKm = true }
                 ActionButton(Icons.Default.LocalGasStation, "Catat BBM", Modifier.weight(1f), false) { showAddFuel = true }
                 ActionButton(Icons.Default.Add, "Catat Servis", Modifier.weight(1f), true) { showPicker = true }
@@ -222,7 +222,10 @@ fun HomeScreen(
     }
 }
 
-/** Kartu Status Komponen di Home, sengaja ringkas: nama + status, progress, lalu target berikutnya dan sisa. */
+/**
+ * Kartu Status Komponen di Home: nama + status, progress, lalu tiga kolom Terakhir (KM + tanggal servis),
+ * Berikutnya (target), dan Kondisi (sisa). Susunannya sama dengan kartu di tab Servis.
+ */
 @Composable
 private fun HomeComponentCard(view: ScheduleView) {
     val s = view.schedule
@@ -233,21 +236,25 @@ private fun HomeComponentCard(view: ScheduleView) {
     val nextKm: Int? = if (ik != null && lk != null) lk + ik else null
     val nextDate: Long? = if (im != null && ld != null) localDateToMillis(msToLocalDate(ld).plusMonths(im.toLong())) else null
     val statusColor = serviceColor(view.status).second
-    val next = nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) }
+    val conditionColor = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor
 
     Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(s.name, Modifier.weight(1f), color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(s.name, Modifier.weight(1f), color = TextWhite, style = AppType.CardTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.width(8.dp))
                 StatusChip(view.status)
             }
             Spacer(Modifier.height(8.dp))
             ProgressBar(view.progress, statusColor)
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (next != null) "Berikutnya $next" else "", Modifier.weight(1f), color = TextGray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(conditionText(view), color = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth()) {
+                InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
+                InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                    Text("Kondisi", style = AppType.Caption, color = TextGray)
+                    conditionLines(view).forEach { Text(it, style = AppType.Value, color = conditionColor, textAlign = TextAlign.End) }
+                }
             }
         }
     }
@@ -317,12 +324,12 @@ private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = 
     Button(
         onClick = onClick, modifier = modifier.height(52.dp), shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = if (isPrimary) LavenderPrimary else Color.Transparent, contentColor = if (isPrimary) Color(0xFF0D1B3E) else TextWhite),
-        border = if (!isPrimary) BorderStroke(1.dp, Color(0xFF3A3B47)) else null, contentPadding = PaddingValues(2.dp)
+        border = if (!isPrimary) BorderStroke(1.dp, Color(0xFF3A3B47)) else null, contentPadding = PaddingValues(0.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.height(2.dp))
-            Text(label, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1)
+            Text(label, fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 1)
         }
     }
 }
@@ -471,9 +478,9 @@ private fun conditionLines(v: ScheduleView): List<String> {
 @Composable
 private fun InfoCol(label: String, value: String, sub: String?, modifier: Modifier, color: Color = TextWhite, end: Boolean = false) {
     Column(modifier, horizontalAlignment = if (end) Alignment.End else Alignment.Start) {
-        Text(label, fontSize = 11.sp, color = TextGray)
-        Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color, textAlign = if (end) TextAlign.End else TextAlign.Start)
-        if (sub != null) Text(sub, fontSize = 11.sp, color = TextGray, textAlign = if (end) TextAlign.End else TextAlign.Start)
+        Text(label, style = AppType.Caption, color = TextGray)
+        Text(value, style = AppType.Value, color = color, textAlign = if (end) TextAlign.End else TextAlign.Start)
+        if (sub != null) Text(sub, style = AppType.Caption, color = TextGray, textAlign = if (end) TextAlign.End else TextAlign.Start)
     }
 }
 
@@ -495,7 +502,7 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
         Column(Modifier.padding(start = 14.dp, top = 8.dp, end = 4.dp, bottom = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(s.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(s.name, style = AppType.CardTitle, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val interval = intervalLabel(ik, im)
                         if (interval.isNotEmpty()) Text(interval.replaceFirstChar { it.uppercase() }, fontSize = 12.sp, color = TextGray)
@@ -514,8 +521,8 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
                     InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
                     InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                        Text("Kondisi", fontSize = 11.sp, color = TextGray)
-                        lines.forEach { Text(it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = conditionColor, textAlign = TextAlign.End) }
+                        Text("Kondisi", style = AppType.Caption, color = TextGray)
+                        lines.forEach { Text(it, style = AppType.Value, color = conditionColor, textAlign = TextAlign.End) }
                     }
                 }
                 Spacer(Modifier.height(10.dp))

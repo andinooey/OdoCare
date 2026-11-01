@@ -72,17 +72,18 @@ fun toPickerMillis(sys: Long): Long = msToLocalDate(sys).atStartOfDay(ZoneOffset
 fun fromPickerMillis(pic: Long): Long = Instant.ofEpochMilli(pic).atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
 fun posInt(s: String): Int? = s.toIntOrNull()?.takeIf { it > 0 }
-/** Pemisah ribuan di seluruh aplikasi (input dan tampilan). Ganti ke '.' bila ingin gaya Indonesia: 5.000 */
-const val THOUSAND_SEP = ','
+/** Gaya Indonesia di seluruh aplikasi (input dan tampilan): ribuan titik, desimal koma. Contoh: Rp 120.000, 5,25 liter. */
+const val THOUSAND_SEP = '.'
+const val DECIMAL_SEP = ','
 fun fmtNum(n: Long): String = DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US).apply { groupingSeparator = THOUSAND_SEP }).format(n)
 fun fmtKm(n: Int): String = fmtNum(n.toLong())
 fun rupiah(n: Long): String = "Rp " + fmtNum(n)
 /** Liter dengan pemisah ribuan dan maksimal 2 desimal (titik sebagai desimal): 5.25, 1,250.5 */
-fun fmtLiter(d: Double): String = DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.US).apply { groupingSeparator = THOUSAND_SEP }).format(d)
+fun fmtLiter(d: Double): String = DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.US).apply { groupingSeparator = THOUSAND_SEP; decimalSeparator = DECIMAL_SEP }).format(d)
 /** Liter untuk isi kolom input (tanpa pemisah ribuan). */
-fun literInput(d: Double): String = DecimalFormat("0.##", DecimalFormatSymbols(Locale.US)).format(d)
+fun literInput(d: Double): String = DecimalFormat("0.##", DecimalFormatSymbols(Locale.US).apply { decimalSeparator = DECIMAL_SEP }).format(d)
 /** km per liter, satu desimal. */
-fun fmtKmPerL(d: Double): String = DecimalFormat("0.0", DecimalFormatSymbols(Locale.US)).format(d)
+fun fmtKmPerL(d: Double): String = DecimalFormat("0.0", DecimalFormatSymbols(Locale.US).apply { decimalSeparator = DECIMAL_SEP }).format(d)
 /**
  * Bersihkan ketikan angka desimal: koma dan titik sama-sama diterima sebagai pemisah desimal (disimpan sebagai titik),
  * maksimal [maxDecimals] desimal, nol di depan dibuang ("007" -> "7", ".5" -> "0.5").
@@ -94,9 +95,9 @@ fun cleanDecimal(raw: String, maxDecimals: Int = 2, maxIntDigits: Int = 5): Stri
         (c == '.' || c == ',') && !dot -> dot = true
     }
     val ip = intPart.toString().trimStart('0').ifEmpty { if (dot || intPart.isNotEmpty()) "0" else "" }
-    return if (dot) "$ip.$frac" else ip
+    return if (dot) "$ip$DECIMAL_SEP$frac" else ip
 }
-fun posDouble(s: String): Double? = s.toDoubleOrNull()?.takeIf { it > 0 }
+fun posDouble(s: String): Double? = s.replace(DECIMAL_SEP, '.').toDoubleOrNull()?.takeIf { it > 0 }
 fun fmtTime(hour: Int, minute: Int): String = String.format(Locale.US, "%02d:%02d", hour, minute)
 fun intervalLabel(km: Int?, months: Int?): String {
     val parts = mutableListOf<String>()
@@ -412,7 +413,7 @@ fun OdometerDigits(km: Int?) {
     }
 }
 
-private fun compact(v: Long): String = when { v >= 1_000_000 -> String.format(Locale.US, "%.1fjt", v / 1_000_000.0); v >= 1_000 -> "${v / 1_000}rb"; else -> v.toString() }
+private fun compact(v: Long): String = when { v >= 1_000_000 -> String.format(Locale.US, "%.1fjt", v / 1_000_000.0).replace('.', DECIMAL_SEP); v >= 1_000 -> "${v / 1_000}rb"; else -> v.toString() }
 
 /** Grafik batang dari div/Box biasa */
 @Composable
@@ -421,12 +422,12 @@ fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modi
     Row(modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
         values.forEachIndexed { i, v ->
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
-                if (v > 0) Text(compact(v), fontSize = 9.sp, color = TextGray, maxLines = 1)
+                if (v > 0) Text(compact(v), fontSize = 10.sp, color = TextGray, maxLines = 1)
                 Spacer(Modifier.height(2.dp))
                 val h = if (v > 0) (66f * v.toFloat() / max.toFloat()).coerceAtLeast(3f) else 1f
                 Box(Modifier.fillMaxWidth().height(h.dp).clip(RoundedCornerShape(4.dp)).background(if (v > 0) LavenderPrimary else Color(0xFF3A3A3A)))
                 Spacer(Modifier.height(4.dp))
-                Text(labels.getOrElse(i) { "" }, fontSize = 11.sp, color = TextGray, maxLines = 1)
+                Text(labels.getOrElse(i) { "" }, fontSize = 12.sp, color = TextGray, maxLines = 1)
             }
         }
     }
@@ -454,7 +455,7 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, icon: 
                 Spacer(Modifier.width(10.dp))
             }
             Column {
-                Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(label, fontSize = 12.sp, color = TextGray, maxLines = 1)
             }
         }

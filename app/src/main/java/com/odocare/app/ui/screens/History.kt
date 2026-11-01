@@ -130,8 +130,8 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                                     Spacer(Modifier.width(10.dp))
                                     Column(Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(r.title, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                            if (r.cost > 0) Text(rupiah(r.cost), fontSize = 12.sp, color = LavenderPrimary, fontWeight = FontWeight.Medium)
+                                            Text(r.title, color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
+                                            if (r.cost > 0) Text(rupiah(r.cost), style = AppType.Value, color = LavenderPrimary)
                                         }
                                         Text("${fmtDate(r.date)} · ${fmtKm(r.km)} km", fontSize = 12.sp, color = TextGray)
                                         if (!r.notes.isNullOrBlank()) Text(r.notes, fontSize = 12.sp, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -278,8 +278,8 @@ private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, onAdd: () -> Unit,
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${fmtLiter(f.liters)} L", color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                    Text(rupiah(f.totalPrice), fontSize = 12.sp, color = LavenderPrimary, fontWeight = FontWeight.Medium)
+                                    Text("${fmtLiter(f.liters)} L", color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
+                                    Text(rupiah(f.totalPrice), style = AppType.Value, color = LavenderPrimary)
                                 }
                                 Text("${fmtDate(f.date)} · ${fmtKm(f.km)} km", fontSize = 12.sp, color = TextGray)
                                 Text("${rupiah(f.pricePerLiter)} / L" + if (f.fullTank) " · Tangki penuh" else " · Sebagian", fontSize = 12.sp, color = TextGray)

@@ -123,7 +123,7 @@ fun NumberField(value: String, onChange: (String) -> Unit, label: String, curren
     )
 }
 
-/** Field angka desimal (mis. liter BBM). Koma dan titik sama-sama diterima; nilai disimpan dengan titik. */
+/** Field angka desimal (mis. liter BBM). Koma dan titik sama-sama diterima; ditampilkan dengan koma (gaya Indonesia). */
 @Composable
 fun DecimalField(value: String, onChange: (String) -> Unit, label: String, suffix: String? = null, hint: String? = null, icon: ImageVector? = null, maxDecimals: Int = 2) {
     val iconSlot: (@Composable () -> Unit)? = if (icon != null) { { Icon(icon, null, modifier = Modifier.size(18.dp)) } } else null

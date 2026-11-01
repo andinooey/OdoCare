@@ -47,7 +47,7 @@ val CardShape = RoundedCornerShape(14.dp)
 @Composable
 fun StatusBadge(text: String, colors: Pair<Color, Color>) {
     Surface(color = colors.first, shape = RoundedCornerShape(50)) {
-        Text(text, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = colors.second)
+        Text(text, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = colors.second)
     }
 }
 
@@ -169,8 +169,8 @@ fun AddFab(onClick: () -> Unit) {
 fun ScreenTitle(title: String, subtitle: String? = null, modifier: Modifier = Modifier, actions: @Composable RowScope.() -> Unit = {}) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray)
+            Text(title, style = AppType.ScreenTitle, color = TextWhite)
+            if (subtitle != null) Text(subtitle, style = AppType.Caption, color = TextGray)
         }
         actions()
     }
@@ -180,7 +180,7 @@ fun ScreenTitle(title: String, subtitle: String? = null, modifier: Modifier = Mo
 @Composable
 fun SectionHeader(title: String, action: String? = null, onAction: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, modifier = Modifier.weight(1f))
+        Text(title, style = AppType.Section, color = TextWhite, modifier = Modifier.weight(1f))
         if (action != null && onAction != null) {
             TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp), modifier = Modifier.height(28.dp)) {
                 Text(action, color = LavenderPrimary, fontSize = 12.sp)

@@ -41,16 +41,34 @@ fun OdoCareTheme(mode: String, content: @Composable () -> Unit) {
 val StatusYellowBg = Color(0xFF4A3F12)
 val StatusYellowText = Color(0xFFFFE082)
 
+/** Angka dengan lebar sama (tabular) agar digit KM dan Rupiah rata kolom. Dipasang di gaya dasar sehingga berlaku untuk semua Text. */
+private const val TNUM = "tnum"
+
+/**
+ * Gaya teks baku. Aturan: 12sp adalah batas bawah (tidak ada teks 11sp), judul SemiBold, angka kunci Bold/SemiBold, sisanya Normal.
+ * Pakai gaya ini (style = AppType.X) alih-alih menulis fontSize manual agar semua layar konsisten.
+ */
+object AppType {
+    val ScreenTitle = TextStyle(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
+    val Section = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
+    val CardTitle = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
+    /** Angka kunci di kartu: biaya, liter, KM. */
+    val Value = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM)
+    val Body = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontFeatureSettings = TNUM)
+    /** Label dan keterangan abu-abu. */
+    val Caption = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontFeatureSettings = TNUM)
+}
+
 /** Skala font ringkas: lebih kecil dari default Material agar tampilan minimalis. */
 val CompactTypography = Typography(
-    headlineSmall = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-    titleSmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
-    bodyLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
-    bodyMedium = TextStyle(fontSize = 13.sp, lineHeight = 18.sp),
-    bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 15.sp),
-    labelLarge = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
-    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium),
-    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium)
+    headlineSmall = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
+    titleLarge = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
+    titleMedium = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = TNUM),
+    titleSmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
+    bodyLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontFeatureSettings = TNUM),
+    bodyMedium = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontFeatureSettings = TNUM),
+    bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontFeatureSettings = TNUM),
+    labelLarge = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
+    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
+    labelSmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM)
 )
