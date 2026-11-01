@@ -286,7 +286,7 @@ fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minut
         val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = true)
         Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(shape = RoundedCornerShape(22.dp), color = SurfaceDark, modifier = Modifier.width(IntrinsicSize.Min).height(IntrinsicSize.Min)) {
-                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(label, fontSize = 13.sp, color = TextGray, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
                     TimePicker(state = state)
                     Row(Modifier.height(40.dp).fillMaxWidth()) {
@@ -304,7 +304,7 @@ fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minut
 @Composable
 fun NotifyOptions(enabled: Boolean, hour: Int, minute: Int, onChange: (enabled: Boolean, hour: Int, minute: Int) -> Unit) {
     Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(if (enabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = if (enabled) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -396,7 +396,7 @@ fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, he
 @Composable
 fun PlateView(plate: String) {
     Surface(color = Color.Black, shape = RoundedCornerShape(5.dp), border = BorderStroke(1.dp, Color.White)) {
-        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+        Text(plate, color = Color.White, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
     }
 }
 
@@ -404,7 +404,7 @@ fun PlateView(plate: String) {
 @Composable
 fun OdometerDigits(km: Int?) {
     val digits = (km ?: 0).coerceAtLeast(0).toString().padStart(6, '0')
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         digits.forEach { c ->
             Box(Modifier.size(22.dp, 30.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
                 Text(c.toString(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -423,7 +423,7 @@ fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modi
         values.forEachIndexed { i, v ->
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                 if (v > 0) Text(compact(v), fontSize = 10.sp, color = TextGray, maxLines = 1)
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(4.dp))
                 val h = if (v > 0) (66f * v.toFloat() / max.toFloat()).coerceAtLeast(3f) else 1f
                 Box(Modifier.fillMaxWidth().height(h.dp).clip(RoundedCornerShape(4.dp)).background(if (v > 0) LavenderPrimary else Color(0xFF3A3A3A)))
                 Spacer(Modifier.height(4.dp))
@@ -436,7 +436,7 @@ fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modi
 @Composable
 fun PercentBar(label: String, value: Long, total: Long) {
     val pct = if (total > 0) (value * 100 / total).toInt() else 0
-    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, Modifier.weight(1f), color = TextWhite, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("${rupiah(value)} ($pct%)", color = TextGray, fontSize = 12.sp)
@@ -449,10 +449,10 @@ fun PercentBar(label: String, value: Long, total: Long) {
 @Composable
 fun StatCard(value: String, label: String, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     Surface(color = SurfaceVariantDark, shape = CardShape, modifier = modifier) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
             }
             Column {
                 Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)

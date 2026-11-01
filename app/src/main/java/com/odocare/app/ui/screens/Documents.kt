@@ -75,11 +75,11 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
         floatingActionButton = { if (vehicle != null) AddFab { showAdd = true } }
     ) { pad ->
         Column(Modifier.padding(pad).statusBarsPadding()) {
-            ServiceSectionTitle(vm, vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 10.dp)) {
+            ServiceSectionTitle(vm, vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 12.dp)) {
                 IconButton(onClick = onOpenDocTypes) { Icon(Icons.Default.Category, "Master Jenis Dokumen", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
             }
             if (vehicle == null) {
-                NoVehicleState(vm, Modifier.padding(top = 32.dp))
+                NoVehicleState(vm, Modifier.padding(top = 24.dp))
             } else {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     StatusFilterRow(
@@ -90,13 +90,13 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
                 }
                 if (shown.isEmpty()) {
                     when (tab) {
-                        1 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang lewat", "Semua dokumen masih berlaku.", Modifier.padding(top = 32.dp))
-                        2 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang segera", "Belum ada dokumen yang mendekati jatuh tempo.", Modifier.padding(top = 32.dp))
-                        3 -> EmptyState(Icons.Default.Description, "Belum ada yang aman", "Dokumen yang masih lama jatuh temponya tampil di sini.", Modifier.padding(top = 32.dp))
-                        else -> EmptyState(Icons.Default.Description, "Belum ada dokumen", "Simpan pajak, STNK, SIM, atau asuransi agar jatuh temponya diingatkan.", Modifier.padding(top = 32.dp), actionLabel = "Tambah Dokumen", onAction = { showAdd = true })
+                        1 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang lewat", "Semua dokumen masih berlaku.", Modifier.padding(top = 24.dp))
+                        2 -> EmptyState(Icons.Default.CheckCircle, "Tidak ada yang segera", "Belum ada dokumen yang mendekati jatuh tempo.", Modifier.padding(top = 24.dp))
+                        3 -> EmptyState(Icons.Default.Description, "Belum ada yang aman", "Dokumen yang masih lama jatuh temponya tampil di sini.", Modifier.padding(top = 24.dp))
+                        else -> EmptyState(Icons.Default.Description, "Belum ada dokumen", "Simpan pajak, STNK, SIM, atau asuransi agar jatuh temponya diingatkan.", Modifier.padding(top = 24.dp), actionLabel = "Tambah Dokumen", onAction = { showAdd = true })
                     }
                 } else {
-                    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 10.dp, bottom = 88.dp)) {
+                    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp)) {
                         items(shown, key = { it.doc.id }) { view ->
                             val d = view.doc
                             val colors = docColor(view.status)
@@ -116,7 +116,7 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
                                 if (d.attachmentPath != null) {
                                     val ctx = LocalContext.current
                                     var openFailed by remember { mutableStateOf(false) }
-                                    Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { openFailed = !AttachmentStore.open(ctx, d.attachmentPath) }.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { openFailed = !AttachmentStore.open(ctx, d.attachmentPath) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Icon(if (AttachmentStore.isImage(d.attachmentPath)) Icons.Default.Image else Icons.Default.AttachFile, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
                                         Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 12.sp, color = if (openFailed) DangerText else LavenderPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -160,9 +160,9 @@ private fun approxDays(r: Reminder): Int = r.value * when (r.unit) { IntervalUni
 @Composable
 private fun ExpiryInfo(text: String) {
     Surface(color = StatusBlueBg, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.EventAvailable, null, tint = StatusBlueText, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Text(text, fontSize = 13.sp, color = StatusBlueText, fontWeight = FontWeight.Medium)
         }
     }
@@ -230,18 +230,18 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, vehicleTy
         } else {
             if (AttachmentStore.isImage(path)) StoredImage(path, Modifier.fillMaxWidth().height(130.dp).clip(RoundedCornerShape(12.dp)), maxSide = 800)
             else Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.InsertDriveFile, null, tint = LavenderPrimary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text(attachName ?: "Lampiran", fontSize = 13.sp, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = { AttachmentStore.open(ctx, path) }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.height(34.dp), border = BorderStroke(1.dp, FieldBorder)) {
-                    Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(6.dp)); Text("Buka", fontSize = 12.sp)
+                    Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(8.dp)); Text("Buka", fontSize = 12.sp)
                 }
                 OutlinedButton(onClick = { picker.launch("*/*") }, shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp), modifier = Modifier.height(34.dp), border = BorderStroke(1.dp, FieldBorder)) {
-                    Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(6.dp)); Text("Ganti", fontSize = 12.sp)
+                    Icon(Icons.Default.SwapHoriz, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(8.dp)); Text("Ganti", fontSize = 12.sp)
                 }
                 TextButton(onClick = { attachPath = null; attachName = null }, modifier = Modifier.height(34.dp)) { Text("Hapus", color = DangerText, fontSize = 12.sp) }
             }
@@ -267,9 +267,9 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, vehicleTy
         if (reminders.isEmpty()) FormNote("Hanya di hari jatuh tempo.")
         reminders.forEach { r ->
             Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.NotificationsActive, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Text(r.label(), Modifier.weight(1f), fontSize = 13.sp, color = TextWhite)
                     IconButton(onClick = { reminders = reminders - r }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus pengingat", tint = TextGray, modifier = Modifier.size(16.dp)) }
                 }
@@ -283,7 +283,7 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, vehicleTy
                 posInt(newRemText)?.let { v -> reminders = (reminders + Reminder(v, newRemUnit)).distinct().sortedByDescending { approxDays(it) } }
                 newRemText = ""
             }
-        ) { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text("Tambah pengingat", fontSize = 13.sp) }
+        ) { Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)); Text("Tambah pengingat", fontSize = 13.sp) }
         }
     }
 }

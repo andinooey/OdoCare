@@ -37,17 +37,17 @@ fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
         floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
         if (masters.isEmpty()) {
-            EmptyState(Icons.Default.Category, "Belum ada master kategori", "Master dipakai sebagai daftar komponen bawaan saat menambah jadwal servis.", Modifier.padding(pad).padding(top = 48.dp), actionLabel = "Tambah Master", onAction = { showAdd = true })
+            EmptyState(Icons.Default.Category, "Belum ada master kategori", "Master dipakai sebagai daftar komponen bawaan saat menambah jadwal servis.", Modifier.padding(pad).padding(top = 24.dp), actionLabel = "Tambah Master", onAction = { showAdd = true })
         } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
                 item { Text("Perubahan di sini tidak mengubah jadwal kendaraan yang sudah ada.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
                 items(masters, key = { it.id }) { m ->
                     Surface(color = SurfaceVariantDark, shape = CardShape) {
-                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                                 Icon(if (m.vehicleType == "ALL") Icons.Default.Build else VehicleTypes.icon(m.vehicleType), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                             }
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(m.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 val parts = mutableListOf(vehicleTypeLabel(m.vehicleType))

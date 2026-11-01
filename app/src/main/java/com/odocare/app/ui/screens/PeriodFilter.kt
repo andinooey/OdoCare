@@ -57,7 +57,7 @@ class PeriodFilter(initial: Period) {
 @Composable
 fun PeriodFilterRow(f: PeriodFilter, customFirst: Boolean = false) {
     var showPicker by remember { mutableStateOf(false) }
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         // customFirst: "Pilih tanggal" jadi pilihan pertama
         val order = if (customFirst) listOf(Period.CUSTOM) + Period.values().filter { it != Period.CUSTOM } else Period.values().toList()
         order.forEach { p ->

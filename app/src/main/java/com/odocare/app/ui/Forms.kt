@@ -52,7 +52,7 @@ fun FormDialog(
                     Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                         Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
                     }
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -60,8 +60,8 @@ fun FormDialog(
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2F3B)))
                 Column(
-                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp), content = content
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp), content = content
                 )
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2F3B)))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -144,7 +144,7 @@ fun DecimalField(value: String, onChange: (String) -> Unit, label: String, suffi
 @Composable
 fun CheckRow(icon: ImageVector, title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Surface(onClick = { onChange(!checked) }, color = SurfaceVariantDark.copy(alpha = 0.45f), shape = FieldShape, border = BorderStroke(1.dp, if (checked) LavenderPrimary else FieldBorder), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = if (checked) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -163,7 +163,7 @@ fun PickerField(label: String, value: String?, icon: ImageVector, placeholder: S
         onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = FieldShape,
         color = SurfaceVariantDark.copy(alpha = 0.45f), border = BorderStroke(1.dp, FieldBorder)
     ) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = TextGray, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -179,7 +179,7 @@ fun PickerField(label: String, value: String?, icon: ImageVector, placeholder: S
 @Composable
 fun SwitchRow(icon: ImageVector, title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = FieldShape, border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = if (checked) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -206,7 +206,7 @@ fun FormNote(text: String, color: Color = TextGray) {
 /** Baris pilihan tunggal berbentuk segmen (mis. Motor / Mobil, Hari / Bulan / Tahun). */
 @Composable
 fun <T> SegmentedChoice(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit, icon: ((T) -> ImageVector?)? = null) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEach { o ->
             val on = o == selected
             Surface(
@@ -215,7 +215,7 @@ fun <T> SegmentedChoice(options: List<T>, selected: T, label: (T) -> String, onS
                 border = BorderStroke(1.dp, if (on) LavenderPrimary else FieldBorder)
             ) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    icon?.invoke(o)?.let { Icon(it, null, tint = if (on) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)) }
+                    icon?.invoke(o)?.let { Icon(it, null, tint = if (on) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
                     Text(label(o), fontSize = 13.sp, color = if (on) TextWhite else TextGray, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal)
                 }
             }
@@ -237,6 +237,59 @@ fun DropdownField(label: String, valueLabel: String?, icon: ImageVector, items: 
         PickerField(label, valueLabel, icon, placeholder, Icons.Default.ArrowDropDown) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(MenuBg)) {
             items.forEach { (k, l) -> DropdownMenuItem(text = { Text(l, fontSize = 14.sp, color = TextWhite) }, onClick = { open = false; onSelect(k) }) }
+        }
+    }
+}
+
+/**
+ * Kerangka halaman detail (hanya baca) berupa HALAMAN PENUH: bilah atas (ikon + judul + tombol tutup),
+ * isi yang bisa di-scroll, dan satu tombol "Tutup" di bawah. Tidak ada aksi Edit atau Hapus.
+ */
+@Composable
+fun DetailDialog(
+    title: String, icon: ImageVector, onDismiss: () -> Unit, subtitle: String? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
+                        Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(title, style = AppType.ScreenTitle, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (subtitle != null) Text(subtitle, style = AppType.Caption, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Tutup", tint = TextGray, modifier = Modifier.size(24.dp)) }
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2F3B)))
+                Column(
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp), content = content
+                )
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2F3B)))
+                Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(48.dp), shape = FieldShape) { Text("Tutup") }
+                }
+            }
+        }
+    }
+}
+
+/** Isian hanya baca: tampilannya sama dengan kotak form (label kecil di atas, nilai di bawah, ikon di kiri), tapi tidak bisa diketuk. */
+@Composable
+fun ReadOnlyField(label: String, value: String, icon: ImageVector, valueColor: Color = TextWhite, emphasize: Boolean = false) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = FieldShape, color = SurfaceVariantDark.copy(alpha = 0.45f), border = BorderStroke(1.dp, FieldBorder)) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = TextGray, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(label, style = AppType.Caption, color = TextGray)
+                Spacer(Modifier.height(4.dp))
+                Text(value, style = if (emphasize) AppType.Section else AppType.Body.copy(fontSize = 14.sp, lineHeight = 20.sp), color = valueColor)
+            }
         }
     }
 }

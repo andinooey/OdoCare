@@ -46,8 +46,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val allFuel: StateFlow<List<FuelLog>> = repo.allFuel.state(emptyList())
 
     // ---- Kendaraan ----
-    fun addVehicle(name: String, plate: String, type: String, initialKm: Int, autoSchedules: Boolean, autoDocs: Boolean) = viewModelScope.launch {
-        if (name.isNotBlank()) repo.addVehicleWithDefaults(Vehicle(name = name.trim(), plate = plate.trim().uppercase(), type = type, initialKm = initialKm), autoSchedules, autoDocs)
+    fun addVehicle(name: String, plate: String, type: String, initialKm: Int, autoSchedules: Boolean, autoDocs: Boolean, fuelPrice: Long = 0L) = viewModelScope.launch {
+        if (name.isNotBlank()) repo.addVehicleWithDefaults(Vehicle(name = name.trim(), plate = plate.trim().uppercase(), type = type, initialKm = initialKm, fuelPricePerLiter = fuelPrice), autoSchedules, autoDocs)
     }
     fun updateVehicle(v: Vehicle) = viewModelScope.launch { repo.updateVehicle(v) }
     fun setActiveVehicle(id: String) = viewModelScope.launch { repo.setActive(id) }

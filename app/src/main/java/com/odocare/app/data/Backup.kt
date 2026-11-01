@@ -18,7 +18,7 @@ object Backup {
         val root = JSONObject()
         root.put("app", "odocare").put("version", 6).put("exportedAt", System.currentTimeMillis())
         root.put("vehicles", JSONArray().also { a -> db.vehicleDao().all().forEach { v ->
-            a.put(JSONObject().put("id", v.id).put("name", v.name).put("type", v.type).put("isActive", v.isActive).put("createdAt", v.createdAt).put("plate", v.plate).put("initialKm", v.initialKm))
+            a.put(JSONObject().put("id", v.id).put("name", v.name).put("type", v.type).put("isActive", v.isActive).put("createdAt", v.createdAt).put("plate", v.plate).put("initialKm", v.initialKm).put("fuelPricePerLiter", v.fuelPricePerLiter))
         } })
         root.put("odometer", JSONArray().also { a -> db.odometerDao().all().forEach { o ->
             a.put(JSONObject().put("id", o.id).put("vehicleId", o.vehicleId).put("km", o.km).put("recordedAt", o.recordedAt))
@@ -60,7 +60,7 @@ object Backup {
         val root = JSONObject(json.trim().removePrefix("\uFEFF"))
         require(root.optString("app") == "odocare") { "Bukan file backup OdoCare." }
 
-        val vehicles = root.getJSONArray("vehicles").mapObjects { Vehicle(it.getString("id"), it.getString("name"), it.getString("type"), it.optBoolean("isActive", false), it.optLong("createdAt", System.currentTimeMillis()), it.optString("plate", ""), it.optInt("initialKm", 0)) }
+        val vehicles = root.getJSONArray("vehicles").mapObjects { Vehicle(it.getString("id"), it.getString("name"), it.getString("type"), it.optBoolean("isActive", false), it.optLong("createdAt", System.currentTimeMillis()), it.optString("plate", ""), it.optInt("initialKm", 0), it.optLong("fuelPricePerLiter", 0L)) }
         val odometer = root.getJSONArray("odometer").mapObjects { OdometerLog(it.getString("id"), it.getString("vehicleId"), it.getInt("km"), it.getLong("recordedAt")) }
         val schedules = root.getJSONArray("schedules").mapObjects { MaintenanceSchedule(it.getString("id"), it.getString("vehicleId"), it.getString("name"), it.intOrNull("intervalKm"), it.intOrNull("intervalMonths"), it.intOrNull("lastServiceKm"), it.longOrNull("lastServiceDate"), it.optBoolean("archived", false), it.optLong("createdAt", System.currentTimeMillis()), it.optBoolean("notifyEnabled", true), it.optInt("notifyHour", 9), it.optInt("notifyMinute", 0), it.optInt("warnKm", 0), it.optInt("warnDays", 0)) }
         val records = root.getJSONArray("records").mapObjects { ServiceRecord(it.getString("id"), it.getString("vehicleId"), it.strOrNull("scheduleId"), it.getString("title"), it.getInt("km"), it.getLong("date"), it.optLong("cost", 0L), it.strOrNull("notes"), it.optLong("createdAt", System.currentTimeMillis()), it.strOrNull("imagePath"), it.optLong("partsCost", 0L), it.optLong("laborCost", 0L)) }

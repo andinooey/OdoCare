@@ -47,19 +47,19 @@ val CardShape = RoundedCornerShape(14.dp)
 @Composable
 fun StatusBadge(text: String, colors: Pair<Color, Color>) {
     Surface(color = colors.first, shape = RoundedCornerShape(50)) {
-        Text(text, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = colors.second)
+        Text(text, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = colors.second)
     }
 }
 
 @Composable
 fun SectionCard(title: String, icon: ImageVector? = null, content: @Composable ColumnScope.() -> Unit) {
     Surface(modifier = Modifier.fillMaxWidth(), shape = CardShape, color = MaterialTheme.colorScheme.surfaceVariant) {
-        Column(Modifier.padding(14.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
                 Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             content()
         }
     }
@@ -75,7 +75,7 @@ fun CollapsibleSectionCard(title: String, icon: ImageVector? = null, summary: St
     val arrow by animateFloatAsState(if (expanded) 180f else 0f, label = "arrow")
     Surface(modifier = Modifier.fillMaxWidth().animateContentSize(), shape = CardShape, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column {
-            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
                 Column(Modifier.weight(1f)) {
                     Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite)
@@ -84,7 +84,7 @@ fun CollapsibleSectionCard(title: String, icon: ImageVector? = null, summary: St
                 Icon(Icons.Default.ExpandMore, if (expanded) "Tutup" else "Buka", tint = TextGray, modifier = Modifier.size(22.dp).rotate(arrow))
             }
             AnimatedVisibility(visible = expanded) {
-                Column(Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp), content = content)
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), content = content)
             }
         }
     }
@@ -96,7 +96,7 @@ fun StatusStripeCard(stripe: Color, content: @Composable ColumnScope.() -> Unit)
     Surface(color = SurfaceVariantDark, shape = CardShape) {
         Row(Modifier.height(IntrinsicSize.Min)) {
             Box(Modifier.width(4.dp).fillMaxHeight().background(stripe))
-            Column(Modifier.padding(start = 12.dp, top = 10.dp, end = 4.dp, bottom = 10.dp).weight(1f), content = content)
+            Column(Modifier.padding(start = 12.dp, top = 12.dp, end = 4.dp, bottom = 12.dp).weight(1f), content = content)
         }
     }
 }
@@ -215,7 +215,7 @@ fun EmptyState(
             }
         }
     } else {
-        Column(modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(96.dp).clip(CircleShape).background(SurfaceVariantDark), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(68.dp).clip(CircleShape).background(PillSelected), contentAlignment = Alignment.Center) {
                     Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(32.dp))
@@ -227,9 +227,9 @@ fun EmptyState(
             Text(message, fontSize = 12.sp, color = TextGray, textAlign = TextAlign.Center)
             if (actionLabel != null && onAction != null) {
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = onAction, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
+                Button(onClick = onAction, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
                     Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(actionLabel, fontSize = 13.sp)
                 }
             }
@@ -242,7 +242,7 @@ fun EmptyState(
 fun ActionRow(icon: ImageVector, label: String, enabled: Boolean = true, subtitle: String? = null, onClick: () -> Unit) {
     val c = if (enabled) TextWhite else TextGray.copy(alpha = 0.5f)
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).let { if (enabled) it.clickable(onClick = onClick) else it }.padding(vertical = 8.dp, horizontal = 2.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).let { if (enabled) it.clickable(onClick = onClick) else it }.padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, tint = if (enabled) LavenderPrimary else c, modifier = Modifier.size(18.dp))
@@ -258,7 +258,7 @@ fun ActionRow(icon: ImageVector, label: String, enabled: Boolean = true, subtitl
 /** Chip filter status (Semua / Lewat / Segera / Aman) dengan jumlah. */
 @Composable
 fun StatusFilterRow(labels: List<String>, counts: List<Int>, colors: List<Pair<Color, Color>>, selected: Int, onSelect: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         labels.forEachIndexed { i, label ->
             val on = selected == i
             val (bg, fg) = colors[i]

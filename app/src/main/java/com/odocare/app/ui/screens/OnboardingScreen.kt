@@ -45,9 +45,9 @@ fun OnboardingScreen(onDone: () -> Unit) {
                         Icon(s.icon, null, tint = LavenderPrimary, modifier = Modifier.size(48.dp))
                     }
                 }
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(24.dp))
                 Text(s.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(s.body, fontSize = 14.sp, color = TextGray, textAlign = TextAlign.Center, lineHeight = 20.sp)
             }
         }

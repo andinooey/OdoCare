@@ -40,18 +40,18 @@ fun VehicleTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
         floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
         if (types.isEmpty()) {
-            EmptyState(Icons.Default.DirectionsCar, "Belum ada jenis kendaraan", "Tambahkan jenis seperti motor, mobil, truk, atau sepeda listrik.", Modifier.padding(pad).padding(top = 48.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
+            EmptyState(Icons.Default.DirectionsCar, "Belum ada jenis kendaraan", "Tambahkan jenis seperti motor, mobil, truk, atau sepeda listrik.", Modifier.padding(pad).padding(top = 24.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
         } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
                 item { Text("Jenis kendaraan dipakai saat menambah kendaraan dan di Master Kategori. Jenis yang masih dipakai kendaraan tidak bisa dihapus.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
                 items(types, key = { it.code }) { t ->
                     val used = vehicles.count { it.type == t.code }
                     Surface(color = SurfaceVariantDark, shape = CardShape) {
-                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                                 Icon(VehicleTypes.icon(t.code), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                             }
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(t.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 Text(if (used > 0) "$used kendaraan" else "Belum dipakai", fontSize = 12.sp, color = TextGray)

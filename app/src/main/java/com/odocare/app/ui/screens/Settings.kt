@@ -91,8 +91,8 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         }
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Spacer(Modifier.height(6.dp))
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Spacer(Modifier.height(8.dp))
         ScreenTitle("Kendaraan", "Kelola kendaraan dan pengaturan")
 
         SectionCard("Kendaraan Saya", Icons.Default.DirectionsCar) {
@@ -100,24 +100,24 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
                 EmptyState(Icons.Default.DirectionsCar, "Belum ada kendaraan", "Tambahkan motor atau mobilmu.", compact = true, actionLabel = "Tambah", onAction = { showAdd = true })
             } else {
                 vehicles.forEach { v ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(if (v.id == active?.id) PillSelected else SurfaceDark), contentAlignment = Alignment.Center) {
                             Icon(VehicleTypes.icon(v.type), null, tint = if (v.id == active?.id) LavenderPrimary else TextGray, modifier = Modifier.size(16.dp))
                         }
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(v.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            Text(listOf(vehicleTypeLabel(v.type), v.plate).filter { it.isNotBlank() }.joinToString(" · "), color = TextGray, fontSize = 12.sp)
+                            Text(listOf(vehicleTypeLabel(v.type), v.plate, if (v.fuelPricePerLiter > 0) "BBM ${rupiah(v.fuelPricePerLiter)}/L" else "").filter { it.isNotBlank() }.joinToString(" · "), color = TextGray, fontSize = 12.sp)
                         }
                         if (v.id == active?.id) StatusBadge("Aktif", StatusGreenBg to StatusGreenText)
                         else TextButton(onClick = { vm.setActiveVehicle(v.id) }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) { Text("Aktifkan", color = LavenderPrimary, fontSize = 12.sp) }
                         ItemMenu(onEdit = { editTarget = v }, onDelete = { deleteTarget = v })
                     }
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth().height(38.dp), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder)) {
                     Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = LavenderPrimary)
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text("Tambah Kendaraan", fontSize = 13.sp, color = LavenderPrimary)
                 }
             }
@@ -149,7 +149,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
                     TimeField("Jam notifikasi", kmHour, kmMinute) { h, m -> kmHour = h; kmMinute = m }
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Button(modifier = Modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(12.dp), onClick = {
                 val v = kmValueText.toIntOrNull()
                 if (kmEnabled && v == null) {
@@ -203,7 +203,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         ) {
             Text(if (lastBackup == 0L) "Belum pernah backup." else "Backup terakhir: ${fmtDateTime(lastBackup)}", color = TextWhite, fontSize = 12.sp)
             Text("$changes perubahan sejak backup terakhir", color = if (changes > 0) StatusYellowText else TextGray, fontSize = 12.sp)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             ActionRow(Icons.Default.Save, "Simpan file backup") {
                 vm.exportBackup { json ->
                     try {
@@ -220,11 +220,11 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         }
 
         AboutCard()
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(24.dp))
     }
 
-    if (showAdd) VehicleFormDialog("Tambah Kendaraan", null, { showAdd = false }) { n, p, t, k, a, d -> vm.addVehicle(n, p, t, k, a, d); showAdd = false }
-    editTarget?.let { v -> VehicleFormDialog("Ubah Kendaraan", v, { editTarget = null }) { n, p, _, k, _, _ -> vm.updateVehicle(v.copy(name = n.trim(), plate = p.trim().uppercase(), initialKm = k)); editTarget = null } }
+    if (showAdd) VehicleFormDialog("Tambah Kendaraan", null, { showAdd = false }) { n, p, t, k, a, d, f -> vm.addVehicle(n, p, t, k, a, d, f); showAdd = false }
+    editTarget?.let { v -> VehicleFormDialog("Ubah Kendaraan", v, { editTarget = null }) { n, p, _, k, _, _, f -> vm.updateVehicle(v.copy(name = n.trim(), plate = p.trim().uppercase(), initialKm = k, fuelPricePerLiter = f)); editTarget = null } }
     deleteTarget?.let { v -> ConfirmDialog("Hapus kendaraan?", "\"${v.name}\" beserta seluruh odometer, jadwal servis, riwayat, dan dokumennya akan dihapus permanen.", "Hapus", { vm.deleteVehicle(v.id); deleteTarget = null }, { deleteTarget = null }) }
 
     if (showPaste) {
@@ -242,9 +242,9 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
                     snaps.forEach { (time, file) ->
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
                             try { pendingRestore = file.readText(); showSnapshots = false } catch (e: Exception) { message = "Gagal membaca snapshot." }
-                        }.padding(vertical = 10.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        }.padding(vertical = 12.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Restore, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
                             Text(fmtDateTime(time), color = TextWhite, fontSize = 13.sp)
                         }
                     }
@@ -268,20 +268,20 @@ private fun AboutCard() {
     val version = remember { try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "" } catch (e: Exception) { "" } }
     CollapsibleSectionCard("Tentang OdoCare", Icons.Default.Info, summary = "Kolaborasi Andino & Muh. Nur Ali") {
         Text("OdoCare membantu merawat kendaraanmu: catat KM odometer, pantau jadwal servis tiap komponen, dan dapat pengingat sebelum pajak atau dokumen jatuh tempo.", color = TextWhite, fontSize = 12.sp, lineHeight = 17.sp)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         listOf(
             Icons.Default.Speed to "Catat KM dan lihat riwayatnya",
             Icons.Default.Build to "Status servis: Aman, Segera, Lewat",
             Icons.Default.Description to "Pajak, STNK, SIM, dan asuransi diingatkan",
             Icons.Default.Backup to "Data tersimpan di HP, bisa di-backup"
         ).forEach { (icon, text) ->
-            Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(text, color = TextGray, fontSize = 12.sp)
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         Text("Kolaborasi Andino & Muh. Nur Ali" + if (version.isNotBlank()) " · Versi $version" else "", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }

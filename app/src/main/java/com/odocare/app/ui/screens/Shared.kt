@@ -26,17 +26,18 @@ import com.odocare.app.ui.*
 
 /** Form tambah / ubah kendaraan. Jenis dan opsi pembuatan otomatis hanya ada saat menambah. */
 @Composable
-fun VehicleFormDialog(title: String, initial: Vehicle?, onDismiss: () -> Unit, onSave: (name: String, plate: String, type: String, initialKm: Int, autoSchedules: Boolean, autoDocs: Boolean) -> Unit) {
+fun VehicleFormDialog(title: String, initial: Vehicle?, onDismiss: () -> Unit, onSave: (name: String, plate: String, type: String, initialKm: Int, autoSchedules: Boolean, autoDocs: Boolean, fuelPrice: Long) -> Unit) {
     val types = VehicleTypes.all
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var plate by remember { mutableStateOf(initial?.plate ?: "") }
     var type by remember { mutableStateOf(initial?.type ?: types.firstOrNull()?.code ?: "MOTOR") }
     var kmT by remember { mutableStateOf(initial?.initialKm?.takeIf { it > 0 }?.toString() ?: "") }
+    var fuelT by remember { mutableStateOf(initial?.fuelPricePerLiter?.takeIf { it > 0 }?.toString() ?: "") }
     var autoSchedules by remember { mutableStateOf(true) }
     var autoDocs by remember { mutableStateOf(true) }
     FormDialog(
         title = title, icon = VehicleTypes.icon(type), onDismiss = onDismiss,
-        confirmEnabled = name.isNotBlank(), onConfirm = { onSave(name, plate, type, kmT.toIntOrNull() ?: 0, initial == null && autoSchedules, initial == null && autoDocs) }
+        confirmEnabled = name.isNotBlank(), onConfirm = { onSave(name, plate, type, kmT.toIntOrNull() ?: 0, initial == null && autoSchedules, initial == null && autoDocs, fuelT.toLongOrNull() ?: 0L) }
     ) {
         if (initial == null) {
             if (types.size <= 3) SegmentedChoice(types.map { it.code }, type, { VehicleTypes.label(it) }, { type = it }, icon = { VehicleTypes.icon(it) })
@@ -45,6 +46,7 @@ fun VehicleFormDialog(title: String, initial: Vehicle?, onDismiss: () -> Unit, o
         AppTextField(name, { name = it }, "Nama kendaraan", Icons.Default.Badge, hint = "Contoh: Honda Vario")
         AppTextField(plate, { plate = it.uppercase() }, "Plat nomor (opsional)", Icons.Default.Pin)
         NumberField(kmT, { kmT = it }, "KM odometer saat ini", icon = Icons.Default.Speed)
+        NumberField(fuelT, { fuelT = it }, "Harga BBM per liter (opsional)", currency = true, icon = Icons.Default.LocalGasStation, hint = "Dipakai menghitung liter otomatis saat catat BBM. Ubah kapan saja bila harga naik atau turun.")
         if (initial == null) {
             FormGroupLabel("Dibuat otomatis")
             SwitchRow(Icons.Default.Build, "Jadwal servis", "Komponen bawaan sesuai jenis kendaraan (Master Kategori)", autoSchedules) { autoSchedules = it }
@@ -59,7 +61,7 @@ fun VehicleFormDialog(title: String, initial: Vehicle?, onDismiss: () -> Unit, o
 fun NoVehicleState(vm: MainViewModel, modifier: Modifier = Modifier, message: String = "Tambahkan kendaraan dulu untuk mulai mencatat servis, odometer, dan pajak.") {
     var show by remember { mutableStateOf(false) }
     EmptyState(Icons.Default.DirectionsCar, "Belum ada kendaraan", message, modifier, actionLabel = "Tambah Kendaraan", onAction = { show = true })
-    if (show) VehicleFormDialog("Tambah Kendaraan", null, { show = false }) { n, p, t, k, a, d -> vm.addVehicle(n, p, t, k, a, d); show = false }
+    if (show) VehicleFormDialog("Tambah Kendaraan", null, { show = false }) { n, p, t, k, a, d, f -> vm.addVehicle(n, p, t, k, a, d, f); show = false }
 }
 
 /** Pemilih kendaraan aktif (chip). Hanya tampil bila punya lebih dari satu kendaraan; dipakai seragam di Home, Servis, dan Histori. */
@@ -68,7 +70,7 @@ fun VehicleChips(vm: MainViewModel, modifier: Modifier = Modifier) {
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val active by vm.activeVehicle.collectAsStateWithLifecycle()
     if (vehicles.size > 1) {
-        Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             vehicles.forEach { item -> FilterChip(selected = item.id == active?.id, onClick = { vm.setActiveVehicle(item.id) }, label = { Text(item.name, fontSize = 12.sp) }) }
         }
     }
@@ -84,7 +86,7 @@ fun ServiceSectionTitle(vm: MainViewModel, subtitle: String?, modifier: Modifier
     Column {
         ScreenTitle("Servis", subtitle, modifier, actions)
         VehicleChips(vm, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
             listOf("Jadwal & Komponen", "Pajak & Dokumen").forEachIndexed { i, label ->
                 SegmentedButton(
                     selected = section == i, onClick = { vm.serviceSection = i },

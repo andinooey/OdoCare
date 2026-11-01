@@ -48,9 +48,9 @@ fun NotificationScreen(vm: MainViewModel, onBack: () -> Unit, onOpenTarget: (App
         }
     ) { pad ->
         if (items.isEmpty()) {
-            EmptyState(Icons.Default.NotificationsNone, "Belum ada notifikasi", "Pengingat servis, pajak, dokumen, dan update KM yang muncul akan tersimpan di sini.", Modifier.padding(pad).padding(top = 48.dp))
+            EmptyState(Icons.Default.NotificationsNone, "Belum ada notifikasi", "Pengingat servis, pajak, dokumen, dan update KM yang muncul akan tersimpan di sini.", Modifier.padding(pad).padding(top = 24.dp))
         } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)) {
+            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)) {
                 item {
                     Text(if (unread > 0) "$unread belum dibaca · ${items.size} notifikasi" else "Semua sudah dibaca · ${items.size} notifikasi", fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(bottom = 4.dp))
                 }
@@ -66,17 +66,17 @@ private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, onDelete: ()
     val icon = when (n.channel) { Notif.CH_DOCUMENTS -> Icons.Default.Description; Notif.CH_ODOMETER -> Icons.Default.Speed; else -> Icons.Default.Build }
     // Belum dibaca: latar biru lembut, judul tebal putih, titik di kanan. Sudah dibaca: latar biasa, teks redup.
     Surface(onClick = onOpen, color = if (n.isRead) SurfaceVariantDark else StatusBlueBg, shape = CardShape) {
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 2.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                 Icon(icon, null, tint = if (n.isRead) TextGray else LavenderPrimary, modifier = Modifier.size(16.dp))
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(n.title, Modifier.weight(1f, fill = false), fontSize = 13.sp, fontWeight = if (n.isRead) FontWeight.Normal else FontWeight.Bold, color = if (n.isRead) TextGray else TextWhite)
-                    if (!n.isRead) { Spacer(Modifier.width(6.dp)); Box(Modifier.size(8.dp).clip(CircleShape).background(LavenderPrimary)) }
+                    if (!n.isRead) { Spacer(Modifier.width(8.dp)); Box(Modifier.size(8.dp).clip(CircleShape).background(LavenderPrimary)) }
                 }
-                Text(n.body, fontSize = 12.sp, color = if (n.isRead) TextGray else TextWhite, modifier = Modifier.padding(top = 2.dp))
+                Text(n.body, fontSize = 12.sp, color = if (n.isRead) TextGray else TextWhite, modifier = Modifier.padding(top = 4.dp))
                 Text(notifTime(n.createdAt), fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(top = 4.dp))
             }
             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus notifikasi", tint = TextGray, modifier = Modifier.size(18.dp)) }

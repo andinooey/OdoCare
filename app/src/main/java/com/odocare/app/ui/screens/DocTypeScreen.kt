@@ -40,18 +40,18 @@ fun DocTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
         floatingActionButton = { AddFab { showAdd = true } }
     ) { pad ->
         if (types.isEmpty()) {
-            EmptyState(Icons.Default.Description, "Belum ada jenis dokumen", "Tambahkan jenis seperti pajak, STNK, SIM, atau asuransi.", Modifier.padding(pad).padding(top = 48.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
+            EmptyState(Icons.Default.Description, "Belum ada jenis dokumen", "Tambahkan jenis seperti pajak, STNK, SIM, atau asuransi.", Modifier.padding(pad).padding(top = 24.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
         } else {
-            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+            LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
                 item { Text("Daftar ini muncul di pilihan \"Jenis dokumen\" saat menambah dokumen. Jenis yang masih dipakai dokumen tidak bisa dihapus.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
                 items(types, key = { it.code }) { t ->
                     val used = docs.count { it.type == t.code }
                     Surface(color = SurfaceVariantDark, shape = CardShape) {
-                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                                 Icon(if (t.vehicleType == "ALL") Icons.Default.Description else VehicleTypes.icon(t.vehicleType), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                             }
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(t.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 val parts = mutableListOf(vehicleTypeLabel(t.vehicleType))

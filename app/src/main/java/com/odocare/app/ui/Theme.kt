@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 val LavenderPrimary = Color(0xFFB8C5FF)
@@ -72,3 +73,17 @@ val CompactTypography = Typography(
     labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM),
     labelSmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM)
 )
+
+/**
+ * Skala spacing baku (kelipatan 4): XS 4 · S 8 · M 12 · L 16 · XL 24.
+ * Dipakai untuk padding, jarak antar elemen (Spacer / spacedBy), dan contentPadding. Ukuran komponen (ikon, tinggi tombol) tidak termasuk.
+ * FabClearance = ruang kosong di bawah daftar agar item terakhir tidak tertutup tombol tambah (+).
+ */
+object Spacing {
+    val XS = 4.dp
+    val S = 8.dp
+    val M = 12.dp
+    val L = 16.dp
+    val XL = 24.dp
+    val FabClearance = 88.dp
+}
