@@ -392,7 +392,7 @@ fun AddKmDialog(currentKm: Int?, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
 @Composable
 fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 4.dp) {
     Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(50)).background(TrackColor)) {
-        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(color))
+        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f).let { if (it > 0f) it.coerceAtLeast(0.04f) else 0f }).fillMaxHeight().background(color))
     }
 }
 

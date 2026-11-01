@@ -66,7 +66,7 @@ val CloudPalette = AppPalette(
     redBg = Color(0xFFFDE3E3), redText = Color(0xFFB42318), grayBg = Color(0xFFE6EAF2), grayText = Color(0xFF475069),
     blueBg = Color(0xFFD7F1F8), blueText = Color(0xFF0B6B85), greenBg = Color(0xFFDAF5E6), greenText = Color(0xFF117A47),
     yellowBg = Color(0xFFFFF1CC), yellowText = Color(0xFF8A5A00),
-    heroStart = Color(0xFF1B49D0), heroEnd = Color(0xFF2A62EA)
+    heroStart = Color(0xFF1E3A8A), heroEnd = Color(0xFF1D4ED8)
 )
 
 /**

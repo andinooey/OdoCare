@@ -182,7 +182,7 @@ fun SectionHeader(title: String, action: String? = null, onAction: (() -> Unit)?
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = AppType.Section, color = TextWhite, modifier = Modifier.weight(1f))
         if (action != null && onAction != null) {
-            TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = Spacing.S, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
+            TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
                 Text(action, color = LavenderPrimary, fontSize = 12.sp)
             }
         }

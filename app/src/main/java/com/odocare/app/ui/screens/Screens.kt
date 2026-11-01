@@ -128,23 +128,23 @@ fun HomeScreen(
                         }
                         if (v.plate.isNotBlank()) PlateView(v.plate)
                     }
-                    Spacer(Modifier.height(Spacing.L))
-                    Text("Odometer", color = HeroTextMuted, fontSize = 12.sp)
+                    Spacer(Modifier.height(Spacing.M))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Odometer", color = HeroTextMuted, fontSize = 12.sp)
+                        Spacer(Modifier.weight(1f))
+                        Text("Ketuk untuk update", color = HeroTextMuted, fontSize = 12.sp)
+                    }
                     Spacer(Modifier.height(Spacing.XS))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         OdometerDigits(km, large = true)
                         Spacer(Modifier.width(Spacing.S))
                         Text("km", color = HeroText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.weight(1f))
-                        Icon(Icons.Default.Edit, "Update KM", tint = HeroText, modifier = Modifier.size(18.dp))
                     }
-                    Spacer(Modifier.height(Spacing.XS))
-                    Text("Ketuk untuk update KM", color = HeroTextMuted, fontSize = 12.sp)
                 }
             }
             Spacer(Modifier.height(Spacing.M))
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.XS)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                 ActionButton(Icons.Default.Speed, "Update KM", Modifier.weight(1f), false) { showAddKm = true }
                 ActionButton(Icons.Default.LocalGasStation, "Catat BBM", Modifier.weight(1f), false) { showAddFuel = true }
                 ActionButton(Icons.Default.Add, "Catat Servis", Modifier.weight(1f), true) { showPicker = true }
@@ -249,15 +249,16 @@ private fun HomeComponentCard(view: ScheduleView) {
             }
             Spacer(Modifier.height(Spacing.S))
             ProgressBar(view.progress, statusColor)
-            Spacer(Modifier.height(Spacing.M))
-            Row(Modifier.fillMaxWidth()) {
-                InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
-                InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                    Text("Kondisi", style = AppType.Caption, color = TextGray)
-                    conditionLines(view).forEach { Text(it, style = AppType.Value, color = conditionColor, textAlign = TextAlign.End) }
-                }
+            Spacer(Modifier.height(Spacing.S))
+            // Baris utama: kondisi (sisa/lewat). Baris kecil: terakhir dan berikutnya.
+            Text(conditionLines(view).joinToString(" · "), style = AppType.Value, color = conditionColor)
+            val lastText = if (lk != null) "Terakhir ${fmtKm(lk)} km" + (ld?.let { " (${fmtDate(it)})" } ?: "") else ld?.let { "Terakhir ${fmtDate(it)}" } ?: "Terakhir -"
+            val nextText = when {
+                nextKm != null -> "Berikutnya ${fmtKm(nextKm)} km" + (nextDate?.let { " (${fmtDate(it)})" } ?: "")
+                nextDate != null -> "Berikutnya ${fmtDate(nextDate)}"
+                else -> "Berikutnya -"
             }
+            Text("$lastText · $nextText", style = AppType.Caption, color = TextGray)
         }
     }
 }
@@ -338,13 +339,17 @@ private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = 
 
 @Composable
 private fun SummaryCard(value: String, label: String, icon: ImageVector, bgColor: Color, textColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = bgColor, shape = CardShape, modifier = modifier) {
+    // Angka 0 = tidak ada yang perlu perhatian: kartu dibuat netral supaya warna menyala hanya muncul saat ada isinya.
+    val zero = value == "0"
+    val cardBg = if (zero) SurfaceVariantDark else bgColor
+    val fg = if (zero) TextGray else textColor
+    Surface(onClick = onClick, color = cardBg, shape = CardShape, border = if (zero) CardBorder else null, modifier = modifier) {
         Row(Modifier.padding(horizontal = Spacing.M, vertical = Spacing.M), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = textColor, modifier = Modifier.size(16.dp))
+            Icon(icon, null, tint = if (zero) fg.copy(alpha = 0.6f) else fg, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(Spacing.S))
             Column {
-                Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor, lineHeight = 20.sp)
-                Text(label, fontSize = 12.sp, color = textColor)
+                Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = fg, lineHeight = 20.sp)
+                Text(label, fontSize = 12.sp, color = fg)
             }
         }
     }

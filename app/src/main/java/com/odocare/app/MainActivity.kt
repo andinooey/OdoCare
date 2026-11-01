@@ -152,10 +152,10 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
                             modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { if (tab.route == "schedule") vm.serviceSection = 0; nav.navigateTab(tab.route) }.padding(vertical = Spacing.XS)
                         ) {
                             Box(Modifier.clip(RoundedCornerShape(50)).background(if (selected) PillSelected else Color.Transparent).padding(horizontal = Spacing.XL, vertical = Spacing.XS)) {
-                                Icon(tab.icon, tab.label, tint = if (selected) TextWhite else TextGray, modifier = Modifier.size(20.dp))
+                                Icon(tab.icon, tab.label, tint = if (selected) LavenderPrimary else TextGray, modifier = Modifier.size(20.dp))
                             }
                             Spacer(Modifier.height(Spacing.XS))
-                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) TextWhite else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) LavenderPrimary else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                         }
                     }
                 }
