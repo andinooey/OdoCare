@@ -121,8 +121,8 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
         }
 
         SectionCard("Master Data", Icons.Default.Category) {
-            ActionRow(Icons.Default.Tune, "Master kategori", subtitle = "Daftar komponen servis bawaan per jenis kendaraan", onClick = onOpenMaster)
             ActionRow(Icons.Default.DirectionsCar, "Master jenis kendaraan", subtitle = "Motor, mobil, dan jenis lain yang kamu tambahkan", onClick = onOpenVehicleTypes)
+            ActionRow(Icons.Default.Tune, "Master kategori", subtitle = "Daftar komponen servis bawaan per jenis kendaraan", onClick = onOpenMaster)
             ActionRow(Icons.Default.Description, "Master jenis dokumen", subtitle = "Pajak, STNK, SIM, asuransi, dan jenis lain", onClick = onOpenDocTypes)
         }
 

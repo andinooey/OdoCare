@@ -65,7 +65,7 @@ private fun NavHostController.navigateTab(route: String) = navigate(route) {
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-private val tabRoutes = setOf("home", "schedule", "report", "settings")
+private val tabRoutes = setOf("home", "schedule", "history", "settings")
 
 @Composable
 private fun OdoCareRoot(vm: MainViewModel) {
@@ -73,12 +73,12 @@ private fun OdoCareRoot(vm: MainViewModel) {
     val tabs = listOf(
         Tab("home", "Home", Icons.Default.Home),
         Tab("schedule", "Servis", Icons.Default.Build),
-        Tab("report", "Laporan", Icons.Default.BarChart),
+        Tab("history", "Histori", Icons.Default.History),
         Tab("settings", "Kendaraan", Icons.Default.TwoWheeler)
     )
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    // Halaman non-tab (Riwayat, Odometer, Master) tetap menyalakan tab asalnya
+    // Halaman non-tab (Laporan, Odometer, Master) tetap menyalakan tab asalnya
     var lastTab by remember { mutableStateOf("home") }
     LaunchedEffect(route) { if (route in tabRoutes) lastTab = route!! }
     val currentTab = if (route in tabRoutes) route else lastTab
@@ -109,7 +109,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
             composable("home") {
                 HomeScreen(vm,
                     onNavigateToSchedule = { vm.serviceSection = 0; nav.navigateTab("schedule") },
-                    onNavigateToHistory = { nav.navigate("history") { launchSingleTop = true } },
+                    onNavigateToHistory = { nav.navigateTab("history") },
                     onNavigateToDocuments = { vm.serviceSection = 1; nav.navigateTab("schedule") },
                     onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } })
             }
@@ -118,9 +118,9 @@ private fun OdoCareRoot(vm: MainViewModel) {
                 if (vm.serviceSection == 0) ScheduleScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } })
                 else DocumentsScreen(vm, onOpenDocTypes = { nav.navigate("doctypes") { launchSingleTop = true } })
             }
-            composable("report") { ReportScreen(vm, onOpenHistory = { nav.navigate("history") { launchSingleTop = true } }) }
+            composable("report") { ReportScreen(vm, onBack = { nav.popBackStack() }) }
             composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }, onOpenVehicleTypes = { nav.navigate("vehicletypes") { launchSingleTop = true } }, onOpenDocTypes = { nav.navigate("doctypes") { launchSingleTop = true } }) }
-            composable("history") { HistoryScreen(vm, onBack = { nav.popBackStack() }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }
+            composable("history") { HistoryScreen(vm, onOpenReport = { nav.navigate("report") { launchSingleTop = true } }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }
             composable("odometer") { OdometerScreen(vm, onBack = { nav.popBackStack() }) }
             composable("master") { MasterScreen(vm, onBack = { nav.popBackStack() }) }
             composable("doctypes") { DocTypeScreen(vm, onBack = { nav.popBackStack() }) }

@@ -117,7 +117,7 @@ fun HomeScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionButton(Icons.Default.Speed, "Update KM", Modifier.weight(1f), false) { showAddKm = true }
                 ActionButton(Icons.Default.Add, "Catat Servis", Modifier.weight(1f), true) { showPicker = true }
-                ActionButton(Icons.Default.History, "Riwayat", Modifier.weight(1f), false) { onNavigateToHistory() }
+                ActionButton(Icons.Default.History, "Histori", Modifier.weight(1f), false) { onNavigateToHistory() }
             }
             Spacer(Modifier.height(18.dp))
 

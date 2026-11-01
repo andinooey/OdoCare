@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,19 +27,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
-
-private enum class Period(val label: String) { MONTH("Bulan ini"), M3("3 bulan"), YEAR("Tahun ini"), M12("12 bulan"), ALL("Semua"), CUSTOM("Pilih tanggal") }
-
-private fun Period.start(today: LocalDate): LocalDate? = when (this) {
-    Period.MONTH -> today.withDayOfMonth(1)
-    Period.M3 -> today.minusMonths(3)
-    Period.YEAR -> today.withDayOfYear(1)
-    Period.M12 -> today.minusMonths(12)
-    Period.ALL -> null
-    Period.CUSTOM -> null   // rentang kustom disimpan terpisah di layar
-}
-
-private fun fmtLocal(d: LocalDate): String = fmtDate(d.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
 
 private data class KmStats(val avgPerMonth: Int?, val totalKm: Int, val days: Long, val perVehicle: List<Pair<String, Int>>)
 
@@ -63,15 +51,12 @@ private fun kmStats(logs: List<OdometerLog>, start: LocalDate?, end: LocalDate?)
 }
 
 @Composable
-fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
+fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val allRecords by vm.allRecords.collectAsStateWithLifecycle()
     var vehicleFilter by remember { mutableStateOf<String?>(null) }
-    var period by remember { mutableStateOf(Period.YEAR) }
-    var customStart by remember { mutableStateOf<LocalDate?>(null) }
-    var customEnd by remember { mutableStateOf<LocalDate?>(null) }
-    var showRangePicker by remember { mutableStateOf(false) }
+    val pf = remember { PeriodFilter(Period.YEAR) }
     val allOdometer by vm.allOdometer.collectAsStateWithLifecycle()
     var info by remember { mutableStateOf<String?>(null) }
 
@@ -79,10 +64,9 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
     val names = vehicles.associate { it.id to it.name }
     val byVehicle = allRecords.filter { activeFilter == null || it.vehicleId == activeFilter }
     val today = LocalDate.now()
-    val custom = period == Period.CUSTOM
-    val start = if (custom) customStart else period.start(today)
-    val endBound = if (custom) customEnd else null   // batas akhir hanya untuk rentang kustom
-    val records = byVehicle.filter { r -> val d = msToLocalDate(r.date); (start == null || !d.isBefore(start)) && (endBound == null || !d.isAfter(endBound)) }
+    val start = pf.start
+    val endBound = pf.endBound   // batas akhir hanya untuk rentang kustom
+    val records = byVehicle.filter { pf.accepts(it.date) }
 
     val total = records.sumOf { it.cost }
     val count = records.size
@@ -95,33 +79,20 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(16.dp))
-        // Ikon riwayat servis di kanan atas
-        ScreenTitle("Laporan", "Ringkasan biaya servis") {
-            IconButton(enabled = vehicles.isNotEmpty(), onClick = {
-                activeFilter?.let { vm.setActiveVehicle(it) }
-                onOpenHistory()
-            }) { Icon(Icons.Default.History, "Riwayat servis", tint = if (vehicles.isNotEmpty()) LavenderPrimary else TextGray, modifier = Modifier.size(24.dp)) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) }
+            ScreenTitle("Laporan", "Ringkasan biaya servis", Modifier.weight(1f))
         }
         Spacer(Modifier.height(10.dp))
 
         if (vehicles.isEmpty()) {
             NoVehicleState(vm, Modifier.padding(top = 24.dp), "Tambahkan kendaraan dan catat servis untuk melihat laporan biaya.")
         } else {
+            PeriodFilterRow(pf)
+            Spacer(Modifier.height(4.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = activeFilter == null, onClick = { vehicleFilter = null }, label = { Text("Semua", fontSize = 12.sp) })
                 vehicles.forEach { v -> FilterChip(selected = activeFilter == v.id, onClick = { vehicleFilter = v.id }, label = { Text(v.name, fontSize = 12.sp) }) }
-            }
-            Spacer(Modifier.height(4.dp))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Period.values().forEach { p ->
-                    if (p == Period.CUSTOM) {
-                        FilterChip(
-                            selected = custom, onClick = { showRangePicker = true },
-                            leadingIcon = { Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(16.dp)) },
-                            label = { Text(if (custom && customStart != null && customEnd != null) "${fmtLocal(customStart!!)} – ${fmtLocal(customEnd!!)}" else p.label, fontSize = 12.sp) }
-                        )
-                    } else FilterChip(selected = period == p, onClick = { period = p }, label = { Text(p.label, fontSize = 12.sp) })
-                }
             }
 
             if (records.isEmpty()) {
@@ -197,9 +168,6 @@ fun ReportScreen(vm: MainViewModel, onOpenHistory: () -> Unit) {
             }
         }
         Spacer(Modifier.height(24.dp))
-    }
-    if (showRangePicker) DateRangePickerDialogX(customStart, customEnd, { showRangePicker = false }) { s, e ->
-        customStart = s; customEnd = e; period = Period.CUSTOM; showRangePicker = false
     }
     info?.let { InfoDialog(it) { info = null } }
 }
