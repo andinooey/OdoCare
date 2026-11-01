@@ -72,6 +72,35 @@ val CloudPalette = AppPalette(
  */
 private var ActivePalette: AppPalette by mutableStateOf(MidnightPalette)
 
+val LavenderPrimary: Color get() = ActivePalette.accent
+val OnAccent: Color get() = ActivePalette.onAccent
+val BgDark: Color get() = ActivePalette.bg
+val SurfaceDark: Color get() = ActivePalette.surface
+val SurfaceVariantDark: Color get() = ActivePalette.surfaceVariant
+val TextWhite: Color get() = ActivePalette.textPrimary
+val TextGray: Color get() = ActivePalette.textSecondary
+val ButtonSlate: Color get() = ActivePalette.buttonSlate
+val PillSelected: Color get() = ActivePalette.pillSelected
+val MenuBg: Color get() = ActivePalette.menuBg
+val DangerText: Color get() = ActivePalette.danger
+val FieldBorder: Color get() = ActivePalette.fieldBorder
+val DividerColor: Color get() = ActivePalette.divider
+val TrackColor: Color get() = ActivePalette.track
+/** Garis tipis di tepi kartu, hanya di mode terang (kartu putih di atas latar abu-biru). Mode gelap: tanpa garis. */
+val CardBorder: BorderStroke? get() = if (ActivePalette.isDark) null else BorderStroke(1.dp, ActivePalette.fieldBorder.copy(alpha = 0.6f))
+
+val StatusRedBg: Color get() = ActivePalette.redBg
+val StatusRedText: Color get() = ActivePalette.redText
+val StatusGrayBg: Color get() = ActivePalette.grayBg
+val StatusGrayText: Color get() = ActivePalette.grayText
+val StatusBlueBg: Color get() = ActivePalette.blueBg
+val StatusBlueText: Color get() = ActivePalette.blueText
+val StatusGreenBg: Color get() = ActivePalette.greenBg
+val StatusGreenText: Color get() = ActivePalette.greenText
+val StatusYellowBg: Color get() = ActivePalette.yellowBg
+val StatusYellowText: Color get() = ActivePalette.yellowText
+
+
 private fun schemeFor(p: AppPalette): ColorScheme =
     if (p.isDark) darkColorScheme(
         primary = p.accent, onPrimary = p.onAccent, secondary = p.secondary,
