@@ -51,13 +51,15 @@ import com.odocare.app.ui.*
 fun HomeScreen(
     vm: MainViewModel,
     onNavigateToSchedule: () -> Unit, onNavigateToHistory: () -> Unit,
-    onNavigateToDocuments: () -> Unit, onNavigateToOdometer: () -> Unit
+    onNavigateToDocuments: () -> Unit, onNavigateToOdometer: () -> Unit,
+    onNavigateToNotifications: () -> Unit
 ) {
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
     val km by vm.currentKm.collectAsStateWithLifecycle()
     val schedules by vm.schedules.collectAsStateWithLifecycle()
     val documents by vm.documents.collectAsStateWithLifecycle()
+    val unreadNotifications by vm.unreadNotifications.collectAsStateWithLifecycle()
     var showAddKm by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
     var showAddVehicle by remember { mutableStateOf(false) }
@@ -75,7 +77,11 @@ fun HomeScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("OdoCare", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite)
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = onNavigateToDocuments) { Icon(Icons.Default.Description, "Dokumen", tint = TextWhite, modifier = Modifier.size(22.dp)) }
+                IconButton(onClick = onNavigateToNotifications) {
+                    BadgedBox(badge = { if (unreadNotifications > 0) Badge { Text(if (unreadNotifications > 99) "99+" else "$unreadNotifications", fontSize = 9.sp) } }) {
+                        Icon(if (unreadNotifications > 0) Icons.Default.NotificationsActive else Icons.Default.Notifications, "Notifikasi", tint = TextWhite, modifier = Modifier.size(22.dp))
+                    }
+                }
             }
             Spacer(Modifier.height(8.dp))
 

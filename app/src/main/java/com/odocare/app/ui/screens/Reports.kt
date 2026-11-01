@@ -88,7 +88,7 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
         if (vehicles.isEmpty()) {
             NoVehicleState(vm, Modifier.padding(top = 24.dp), "Tambahkan kendaraan dan catat servis untuk melihat laporan biaya.")
         } else {
-            PeriodFilterRow(pf)
+            PeriodFilterRow(pf, customFirst = true)
             Spacer(Modifier.height(4.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = activeFilter == null, onClick = { vehicleFilter = null }, label = { Text("Semua", fontSize = 12.sp) })

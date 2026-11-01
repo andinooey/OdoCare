@@ -51,7 +51,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
         if (vehicle == null) {
             NoVehicleState(vm, Modifier.padding(top = 32.dp))
         } else {
-            Box(Modifier.padding(horizontal = 16.dp)) { PeriodFilterRow(pf) }
+            Box(Modifier.padding(horizontal = 16.dp)) { DateFilterField(pf) }
             when {
                 records.isEmpty() -> EmptyState(Icons.Default.History, "Belum ada riwayat servis", "Tap \"Catat servis\" pada komponen di tab Servis. Riwayatnya muncul di sini.", Modifier.padding(top = 48.dp))
                 shown.isEmpty() -> EmptyState(Icons.Default.History, "Tidak ada servis pada periode ini", "Ubah filter tanggal untuk melihat riwayat lain.", Modifier.padding(top = 48.dp))
@@ -108,7 +108,28 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
     deleteTarget?.let { r -> ConfirmDialog("Hapus riwayat?", "${r.title} (${fmtDate(r.date)}) akan dihapus. Jadwal servis tidak berubah.", "Hapus", { vm.deleteRecord(r.id); deleteTarget = null }, { deleteTarget = null }) }
 }
 
-/** Detail satu riwayat servis: data lengkap, foto, jarak dari servis sebelumnya untuk komponen yang sama, serta aksi ubah/hapus. */
+/** Satu-satunya filter di Histori: rentang tanggal. Ketuk untuk memilih, tombol X mengembalikan ke semua tanggal. */
+@Composable
+private fun DateFilterField(f: PeriodFilter) {
+    var open by remember { mutableStateOf(false) }
+    val s = f.customStart; val e = f.customEnd
+    val active = f.isCustom && s != null && e != null
+    Surface(onClick = { open = true }, color = SurfaceVariantDark, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 4.dp).heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.CalendarMonth, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(if (active) (if (s == e) fmtLocal(s!!) else "${fmtLocal(s!!)} – ${fmtLocal(e!!)}") else "Semua tanggal", Modifier.weight(1f), fontSize = 13.sp, color = if (active) TextWhite else TextGray)
+            if (active) IconButton(onClick = { f.period = Period.ALL }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus filter tanggal", tint = TextGray, modifier = Modifier.size(18.dp)) }
+            else Icon(Icons.Default.ArrowDropDown, null, tint = TextGray, modifier = Modifier.padding(end = 8.dp).size(22.dp))
+        }
+    }
+    if (open) DateRangePickerDialogX(f.customStart, f.customEnd, { open = false }) { a, b -> f.customStart = a; f.customEnd = b; f.period = Period.CUSTOM; open = false }
+}
+
+/**
+ * Detail satu riwayat servis, ringkas: hanya data yang ada (biaya, catatan, foto, servis sebelumnya tampil bila terisi).
+ * Ubah dan hapus ada di tombol bawah.
+ */
 @Composable
 private fun ServiceDetailDialog(
     r: ServiceRecord, vehicleName: String?, all: List<ServiceRecord>,
@@ -118,24 +139,28 @@ private fun ServiceDetailDialog(
     val prev = all.filter { it.id != r.id && it.title == r.title && it.date < r.date }.maxByOrNull { it.date }
     AlertDialog(
         onDismissRequest = onDismiss, containerColor = SurfaceDark, shape = RoundedCornerShape(20.dp),
-        title = { Text(r.title, color = TextWhite, fontSize = 17.sp, fontWeight = FontWeight.Bold) },
+        title = {
+            Column {
+                Text(r.title, color = TextWhite, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                if (vehicleName != null) Text(vehicleName, color = TextGray, fontSize = 12.sp)
+            }
+        },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DetailRow("Kendaraan", vehicleName ?: "-")
-                DetailRow("Tanggal servis", fmtDate(r.date))
-                DetailRow("KM saat servis", "${fmtKm(r.km)} km")
-                DetailRow("Biaya", if (r.cost > 0) rupiah(r.cost) else "-")
-                DetailRow("Catatan", r.notes?.takeIf { it.isNotBlank() } ?: "-")
-                if (prev != null) {
-                    DetailRow("Servis sebelumnya", "${fmtDate(prev.date)} · ${fmtKm(prev.km)} km")
-                    if (r.km >= prev.km) {
-                        val days = ChronoUnit.DAYS.between(msToLocalDate(prev.date), msToLocalDate(r.date))
-                        DetailRow("Sejak servis sebelumnya", "${fmtKm(r.km - prev.km)} km · $days hari")
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DetailLine(Icons.Default.Event, fmtDate(r.date))
+                DetailLine(Icons.Default.Speed, "${fmtKm(r.km)} km")
+                if (r.cost > 0) DetailLine(Icons.Default.Payments, rupiah(r.cost))
+                if (prev != null && r.km >= prev.km) {
+                    val days = ChronoUnit.DAYS.between(msToLocalDate(prev.date), msToLocalDate(r.date))
+                    Text("${fmtKm(r.km - prev.km)} km · $days hari sejak servis sebelumnya", fontSize = 11.sp, color = TextGray)
+                }
+                if (!r.notes.isNullOrBlank()) {
+                    Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        Text(r.notes, fontSize = 12.sp, color = TextWhite, modifier = Modifier.padding(10.dp))
                     }
                 }
                 if (r.imagePath != null) {
-                    Text("Foto", fontSize = 11.sp, color = TextGray)
-                    StoredImage(r.imagePath, Modifier.fillMaxWidth().heightIn(max = 220.dp).clip(RoundedCornerShape(12.dp)).clickable { onImage(r.imagePath) }, maxSide = 1000)
+                    StoredImage(r.imagePath, Modifier.fillMaxWidth().heightIn(max = 200.dp).clip(RoundedCornerShape(12.dp)).clickable { onImage(r.imagePath) }, maxSide = 1000)
                 }
             }
         },
@@ -150,9 +175,10 @@ private fun ServiceDetailDialog(
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
-    Column {
-        Text(label, fontSize = 11.sp, color = TextGray)
-        Text(value, fontSize = 13.sp, color = TextWhite)
+private fun DetailLine(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(text, fontSize = 14.sp, color = TextWhite)
     }
 }

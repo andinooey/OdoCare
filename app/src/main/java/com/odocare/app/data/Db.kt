@@ -93,6 +93,27 @@ data class DocumentType(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+/** Riwayat notifikasi yang sudah muncul. isRead = false berarti belum dibuka di layar Notifikasi. */
+@Entity(tableName = "app_notifications")
+data class AppNotification(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val channel: String, val title: String, val body: String,
+    val createdAt: Long = System.currentTimeMillis(), val isRead: Boolean = false
+)
+
+@Dao
+interface AppNotificationDao {
+    @Query("SELECT * FROM app_notifications ORDER BY createdAt DESC, id DESC") fun observeAll(): Flow<List<AppNotification>>
+    @Query("SELECT COUNT(*) FROM app_notifications WHERE isRead = 0") fun observeUnread(): Flow<Int>
+    @Insert suspend fun insert(n: AppNotification)
+    @Query("UPDATE app_notifications SET isRead = 1 WHERE id = :id") suspend fun markRead(id: Long)
+    @Query("UPDATE app_notifications SET isRead = 1") suspend fun markAllRead()
+    @Query("DELETE FROM app_notifications WHERE id = :id") suspend fun deleteById(id: Long)
+    @Query("DELETE FROM app_notifications") suspend fun deleteAll()
+    /** Simpan paling banyak 200 notifikasi terbaru. */
+    @Query("DELETE FROM app_notifications WHERE id NOT IN (SELECT id FROM app_notifications ORDER BY createdAt DESC, id DESC LIMIT 200)") suspend fun trim()
+}
+
 @Dao
 interface VehicleDao {
     @Query("SELECT * FROM vehicles ORDER BY createdAt ASC") fun observeAll(): Flow<List<Vehicle>>
@@ -197,7 +218,7 @@ interface DocumentTypeDao {
     @Query("DELETE FROM document_types") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class], version = 8, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class, AppNotification::class], version = 9, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -208,10 +229,11 @@ abstract class AppDb : RoomDatabase() {
     abstract fun masterDao(): MasterDao
     abstract fun vehicleTypeDao(): VehicleTypeDao
     abstract fun documentTypeDao(): DocumentTypeDao
+    abstract fun appNotificationDao(): AppNotificationDao
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build().also { INSTANCE = it }
         }
     }
 }
@@ -273,5 +295,11 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
 val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("CREATE TABLE IF NOT EXISTS document_types (code TEXT NOT NULL, name TEXT NOT NULL, vehicleType TEXT NOT NULL, defaultValue INTEGER NOT NULL, defaultUnit TEXT NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(code))")
+    }
+}
+
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS app_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, channel TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, createdAt INTEGER NOT NULL, isRead INTEGER NOT NULL)")
     }
 }

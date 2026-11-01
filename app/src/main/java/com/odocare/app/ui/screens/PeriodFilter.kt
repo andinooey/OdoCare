@@ -55,10 +55,12 @@ class PeriodFilter(initial: Period) {
 /** Baris chip periode + dialog rentang tanggal. Dipakai bersama oleh Histori dan Laporan. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PeriodFilterRow(f: PeriodFilter) {
+fun PeriodFilterRow(f: PeriodFilter, customFirst: Boolean = false) {
     var showPicker by remember { mutableStateOf(false) }
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Period.values().forEach { p ->
+        // customFirst: "Pilih tanggal" jadi pilihan pertama
+        val order = if (customFirst) listOf(Period.CUSTOM) + Period.values().filter { it != Period.CUSTOM } else Period.values().toList()
+        order.forEach { p ->
             if (p == Period.CUSTOM) {
                 val s = f.customStart; val e = f.customEnd
                 FilterChip(

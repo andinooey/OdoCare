@@ -43,9 +43,24 @@ object Notif {
 
     fun show(ctx: Context, channel: String, title: String, body: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        logToHistory(ctx, channel, title, body)
         val pi = PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val notif = NotificationCompat.Builder(ctx, channel).setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body)).setAutoCancel(true).setContentIntent(pi).build()
         try { NotificationManagerCompat.from(ctx).notify((title + body).hashCode(), notif) } catch (_: SecurityException) {}
+    }
+
+    private val ioScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
+    /** Simpan notifikasi yang muncul ke riwayat (layar Notifikasi di Home). Gagal menyimpan tidak boleh mengganggu notifikasinya. */
+    private fun logToHistory(ctx: Context, channel: String, title: String, body: String) {
+        val app = ctx.applicationContext
+        ioScope.launch {
+            try {
+                val dao = com.odocare.app.data.AppDb.get(app).appNotificationDao()
+                dao.insert(com.odocare.app.data.AppNotification(channel = channel, title = title, body = body))
+                dao.trim()
+            } catch (_: Exception) {}
+        }
     }
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("odocare", Context.MODE_PRIVATE)

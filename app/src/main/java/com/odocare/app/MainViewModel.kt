@@ -36,6 +36,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val masters: StateFlow<List<MasterCategory>> = repo.masters.state(emptyList())
     val vehicleTypes: StateFlow<List<VehicleType>> = repo.vehicleTypes.state(com.odocare.app.domain.Catalog.defaultTypes())
     val documentTypes: StateFlow<List<DocumentType>> = repo.documentTypes.state(com.odocare.app.domain.Catalog.defaultDocTypes())
+    val notifications: StateFlow<List<AppNotification>> = repo.notifications.state(emptyList())
+    val unreadNotifications: StateFlow<Int> = repo.unreadNotifications.state(0)
     val allSchedules: StateFlow<List<MaintenanceSchedule>> = repo.allSchedules.state(emptyList())
     val allDocuments: StateFlow<List<LegalDocument>> = repo.allDocuments.state(emptyList())
     val allRecords: StateFlow<List<ServiceRecord>> = repo.allRecords.state(emptyList())
@@ -114,6 +116,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun updateDocType(t: DocumentType) = viewModelScope.launch { repo.updateDocType(t) }
     /** onResult(false) = jenis ini masih dipakai dokumen, tidak dihapus. */
     fun deleteDocType(code: String, onResult: (Boolean) -> Unit) = viewModelScope.launch { onResult(repo.deleteDocType(code)) }
+
+    // ---- Riwayat notifikasi ----
+    fun markNotificationRead(id: Long) = viewModelScope.launch { repo.markNotificationRead(id) }
+    fun markAllNotificationsRead() = viewModelScope.launch { repo.markAllNotificationsRead() }
+    fun deleteNotification(id: Long) = viewModelScope.launch { repo.deleteNotification(id) }
+    fun clearNotifications() = viewModelScope.launch { repo.clearNotifications() }
 
     // ---- Notifikasi ----
     fun testNotification() = Notif.show(getApplication(), Notif.CH_SERVICE, "Notifikasi aktif", "Pengingat servis, pajak, dokumen, dan update KM akan muncul seperti ini.")

@@ -111,7 +111,8 @@ private fun OdoCareRoot(vm: MainViewModel) {
                     onNavigateToSchedule = { vm.serviceSection = 0; nav.navigateTab("schedule") },
                     onNavigateToHistory = { nav.navigateTab("history") },
                     onNavigateToDocuments = { vm.serviceSection = 1; nav.navigateTab("schedule") },
-                    onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } })
+                    onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } },
+                    onNavigateToNotifications = { nav.navigate("notifications") { launchSingleTop = true } })
             }
             composable("schedule") {
                 // Tab Servis: dropdown di judul memilih Jadwal & Komponen (default) atau Pajak & Dokumen
@@ -121,6 +122,7 @@ private fun OdoCareRoot(vm: MainViewModel) {
             composable("report") { ReportScreen(vm, onBack = { nav.popBackStack() }) }
             composable("settings") { SettingsScreen(vm, onOpenMaster = { nav.navigate("master") { launchSingleTop = true } }, onOpenVehicleTypes = { nav.navigate("vehicletypes") { launchSingleTop = true } }, onOpenDocTypes = { nav.navigate("doctypes") { launchSingleTop = true } }) }
             composable("history") { HistoryScreen(vm, onOpenReport = { nav.navigate("report") { launchSingleTop = true } }, onOpenOdometer = { nav.navigate("odometer") { launchSingleTop = true } }) }
+            composable("notifications") { NotificationScreen(vm, onBack = { nav.popBackStack() }) }
             composable("odometer") { OdometerScreen(vm, onBack = { nav.popBackStack() }) }
             composable("master") { MasterScreen(vm, onBack = { nav.popBackStack() }) }
             composable("doctypes") { DocTypeScreen(vm, onBack = { nav.popBackStack() }) }
