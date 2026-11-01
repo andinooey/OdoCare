@@ -250,8 +250,8 @@ fun appBarColors() = TopAppBarDefaults.topAppBarColors(containerColor = Material
 @Composable
 fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable RowScope.() -> Unit = {}) {
     TopAppBar(
-        title = { Text(title, color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }, colors = appBarColors(),
-        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextPrimary, modifier = Modifier.size(22.dp)) } },
+        title = { Text(title, color = TextWhite, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }, colors = appBarColors(),
+        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) } },
         actions = actions
     )
 }
@@ -289,9 +289,9 @@ fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minut
     if (open) {
         val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = true)
         Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Surface(shape = RoundedCornerShape(22.dp), color = SurfaceBg, modifier = Modifier.width(IntrinsicSize.Min).height(IntrinsicSize.Min)) {
+            Surface(shape = RoundedCornerShape(22.dp), color = SurfaceDark, modifier = Modifier.width(IntrinsicSize.Min).height(IntrinsicSize.Min)) {
                 Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(label, fontSize = 13.sp, color = TextMuted, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
+                    Text(label, fontSize = 13.sp, color = TextGray, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp))
                     TimePicker(state = state)
                     Row(Modifier.height(40.dp).fillMaxWidth()) {
                         Spacer(Modifier.weight(1f))
@@ -307,13 +307,13 @@ fun TimeField(label: String, hour: Int, minute: Int, onPicked: (hour: Int, minut
 /** Switch notifikasi on/off + pilihan jam (jam hanya muncul saat aktif). */
 @Composable
 fun NotifyOptions(enabled: Boolean, hour: Int, minute: Int, onChange: (enabled: Boolean, hour: Int, minute: Int) -> Unit) {
-    Surface(color = CardBg.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (enabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = if (enabled) Accent else TextMuted, modifier = Modifier.size(18.dp))
+            Icon(if (enabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = if (enabled) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Notifikasi pengingat", fontSize = 13.sp, color = TextPrimary)
-                Text(if (enabled) "Aktif" else "Mati", fontSize = 12.sp, color = TextMuted)
+                Text("Notifikasi pengingat", fontSize = 13.sp, color = TextWhite)
+                Text(if (enabled) "Aktif" else "Mati", fontSize = 12.sp, color = TextGray)
             }
             Switch(checked = enabled, onCheckedChange = { onChange(it, hour, minute) }, modifier = Modifier.scale(0.8f))
         }
@@ -357,18 +357,18 @@ fun DateField(label: String, millis: Long?, onPicked: (Long) -> Unit) {
 
 @Composable
 fun ConfirmDialog(title: String, text: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceBg,
+    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
         icon = { Icon(Icons.Default.WarningAmber, null, tint = DangerText, modifier = Modifier.size(28.dp)) },
-        title = { Text(title, fontSize = 16.sp, color = TextPrimary) }, text = { Text(text, fontSize = 13.sp, color = TextMuted) },
+        title = { Text(title, fontSize = 16.sp, color = TextWhite) }, text = { Text(text, fontSize = 13.sp, color = TextGray) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = DangerText) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal", color = TextMuted) } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal", color = TextGray) } })
 }
 
 @Composable
 fun InfoDialog(message: String, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceBg,
-        icon = { Icon(Icons.Default.Info, null, tint = Accent, modifier = Modifier.size(28.dp)) },
-        text = { Text(message, fontSize = 13.sp, color = TextPrimary) }, confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } })
+    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
+        icon = { Icon(Icons.Default.Info, null, tint = LavenderPrimary, modifier = Modifier.size(28.dp)) },
+        text = { Text(message, fontSize = 13.sp, color = TextWhite) }, confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } })
 }
 
 /** Update KM; bila lebih kecil dari KM sekarang, minta konfirmasi dulu. */
@@ -391,7 +391,7 @@ fun AddKmDialog(currentKm: Int?, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
 
 @Composable
 fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 4.dp) {
-    Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(50)).background(FieldBorder)) {
+    Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(50)).background(TrackColor)) {
         Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(color))
     }
 }
@@ -426,12 +426,12 @@ fun BarChart(labels: List<String>, values: List<Long>, modifier: Modifier = Modi
     Row(modifier.fillMaxWidth().height(110.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
         values.forEachIndexed { i, v ->
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
-                if (v > 0) Text(compact(v), fontSize = 10.sp, color = TextMuted, maxLines = 1)
+                if (v > 0) Text(compact(v), fontSize = 10.sp, color = TextGray, maxLines = 1)
                 Spacer(Modifier.height(4.dp))
                 val h = if (v > 0) (66f * v.toFloat() / max.toFloat()).coerceAtLeast(3f) else 1f
-                Box(Modifier.fillMaxWidth().height(h.dp).clip(RoundedCornerShape(4.dp)).background(if (v > 0) Accent else FieldBorder))
+                Box(Modifier.fillMaxWidth().height(h.dp).clip(RoundedCornerShape(4.dp)).background(if (v > 0) LavenderPrimary else TrackColor))
                 Spacer(Modifier.height(4.dp))
-                Text(labels.getOrElse(i) { "" }, fontSize = 12.sp, color = TextMuted, maxLines = 1)
+                Text(labels.getOrElse(i) { "" }, fontSize = 12.sp, color = TextGray, maxLines = 1)
             }
         }
     }
@@ -442,25 +442,25 @@ fun PercentBar(label: String, value: Long, total: Long) {
     val pct = if (total > 0) (value * 100 / total).toInt() else 0
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, Modifier.weight(1f), color = TextPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${rupiah(value)} ($pct%)", color = TextMuted, fontSize = 12.sp)
+            Text(label, Modifier.weight(1f), color = TextWhite, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${rupiah(value)} ($pct%)", color = TextGray, fontSize = 12.sp)
         }
         Spacer(Modifier.height(4.dp))
-        ProgressBar(if (total > 0) value.toFloat() / total.toFloat() else 0f, Accent)
+        ProgressBar(if (total > 0) value.toFloat() / total.toFloat() else 0f, LavenderPrimary)
     }
 }
 
 @Composable
 fun StatCard(value: String, label: String, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    Surface(color = CardBg, shape = CardShape, modifier = modifier) {
+    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = modifier) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
-                Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Accent, modifier = Modifier.size(16.dp)) }
+                Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
                 Spacer(Modifier.width(12.dp))
             }
             Column {
-                Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(label, fontSize = 12.sp, color = TextMuted, maxLines = 1)
+                Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(label, fontSize = 12.sp, color = TextGray, maxLines = 1)
             }
         }
     }

@@ -11,7 +11,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.DisposableEffect
+import com.odocare.app.ui.isDarkFor
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -34,12 +37,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.odocare.app.ui.Accent
+import com.odocare.app.ui.LavenderPrimary
 import com.odocare.app.ui.OdoCareTheme
 import com.odocare.app.ui.PillSelected
-import com.odocare.app.ui.SurfaceBg
-import com.odocare.app.ui.TextMuted
-import com.odocare.app.ui.TextPrimary
+import com.odocare.app.ui.SurfaceDark
+import com.odocare.app.ui.TextGray
+import com.odocare.app.ui.TextWhite
 import com.odocare.app.ui.screens.*
 
 class MainActivity : ComponentActivity() {
@@ -69,6 +72,15 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         setContent {
+            val dark = isDarkFor(vm.themeMode)
+            DisposableEffect(dark) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                enableEdgeToEdge(
+                    statusBarStyle = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent),
+                    navigationBarStyle = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent)
+                )
+                onDispose {}
+            }
             OdoCareTheme(vm.themeMode) {
                 when (vm.onboardingState) {
                     0 -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
@@ -130,7 +142,7 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
         modifier = Modifier.fillMaxSize(), containerColor = MaterialTheme.colorScheme.background, contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarState) },
         bottomBar = {
-            Surface(color = SurfaceBg, modifier = Modifier.fillMaxWidth()) {
+            Surface(color = SurfaceDark, modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = 8.dp, bottom = 8.dp, start = 4.dp, end = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                     tabs.forEach { tab ->
                         val selected = currentTab == tab.route
@@ -139,10 +151,10 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
                             modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { if (tab.route == "schedule") vm.serviceSection = 0; nav.navigateTab(tab.route) }.padding(vertical = 4.dp)
                         ) {
                             Box(Modifier.clip(RoundedCornerShape(50)).background(if (selected) PillSelected else Color.Transparent).padding(horizontal = 24.dp, vertical = 4.dp)) {
-                                Icon(tab.icon, tab.label, tint = if (selected) TextPrimary else TextMuted, modifier = Modifier.size(20.dp))
+                                Icon(tab.icon, tab.label, tint = if (selected) TextWhite else TextGray, modifier = Modifier.size(20.dp))
                             }
                             Spacer(Modifier.height(4.dp))
-                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) TextPrimary else TextMuted, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) TextWhite else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                         }
                     }
                 }

@@ -43,21 +43,21 @@ fun DocTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
             EmptyState(Icons.Default.Description, "Belum ada jenis dokumen", "Tambahkan jenis seperti pajak, STNK, SIM, atau asuransi.", Modifier.padding(pad).padding(top = 24.dp), actionLabel = "Tambah Jenis", onAction = { showAdd = true })
         } else {
             LazyColumn(Modifier.padding(pad).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
-                item { Text("Daftar ini muncul di pilihan \"Jenis dokumen\" saat menambah dokumen. Jenis yang masih dipakai dokumen tidak bisa dihapus.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
+                item { Text("Daftar ini muncul di pilihan \"Jenis dokumen\" saat menambah dokumen. Jenis yang masih dipakai dokumen tidak bisa dihapus.", color = TextGray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp)) }
                 items(types, key = { it.code }) { t ->
                     val used = docs.count { it.type == t.code }
-                    Surface(color = CardBg, shape = CardShape) {
+                    Surface(color = SurfaceVariantDark, shape = CardShape) {
                         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
-                                Icon(if (t.vehicleType == "ALL") Icons.Default.Description else VehicleTypes.icon(t.vehicleType), null, tint = Accent, modifier = Modifier.size(16.dp))
+                                Icon(if (t.vehicleType == "ALL") Icons.Default.Description else VehicleTypes.icon(t.vehicleType), null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(t.name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(t.name, color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 val parts = mutableListOf(vehicleTypeLabel(t.vehicleType))
                                 if (t.defaultValue > 0) parts += "berlaku ${t.defaultValue} ${(IntervalUnit.parse(t.defaultUnit) ?: IntervalUnit.YEAR).label.lowercase()}"
                                 parts += if (used > 0) "$used dokumen" else "Belum dipakai"
-                                Text(parts.joinToString(" · "), fontSize = 12.sp, color = TextMuted)
+                                Text(parts.joinToString(" · "), fontSize = 12.sp, color = TextGray)
                             }
                             ItemMenu(onEdit = { editTarget = t }, onDelete = {
                                 if (used > 0) message = "\"${t.name}\" masih dipakai $used dokumen. Ubah atau hapus dokumennya dulu."

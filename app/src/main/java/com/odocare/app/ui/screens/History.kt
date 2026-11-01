@@ -73,8 +73,8 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         ScreenTitle("Histori", vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 12.dp)) {
-            IconButton(onClick = onOpenOdometer) { Icon(Icons.Default.Speed, "Odometer", tint = TextPrimary, modifier = Modifier.size(22.dp)) }
-            IconButton(onClick = onOpenReport) { Icon(Icons.Default.BarChart, "Laporan", tint = Accent, modifier = Modifier.size(22.dp)) }
+            IconButton(onClick = onOpenOdometer) { Icon(Icons.Default.Speed, "Odometer", tint = TextWhite, modifier = Modifier.size(22.dp)) }
+            IconButton(onClick = onOpenReport) { Icon(Icons.Default.BarChart, "Laporan", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
         }
         VehicleChips(vm, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp))
         if (vehicle == null) {
@@ -85,7 +85,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                     SegmentedButton(
                         selected = section == i, onClick = { section = i },
                         shape = SegmentedButtonDefaults.itemShape(i, 2),
-                        colors = SegmentedButtonDefaults.colors(activeContainerColor = PillSelected, activeContentColor = TextPrimary, inactiveContainerColor = Color.Transparent, inactiveContentColor = TextMuted),
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = PillSelected, activeContentColor = TextWhite, inactiveContainerColor = Color.Transparent, inactiveContentColor = TextGray),
                         icon = { SegmentedButtonDefaults.Icon(active = section == i) }
                     ) { Text(label, fontSize = 12.sp, maxLines = 1) }
                 }
@@ -95,12 +95,12 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                 Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     AppTextField(query, { query = it }, "Cari komponen atau catatan", Icons.Default.Search, modifier = Modifier.weight(1f))
                     Box {
-                        IconButton(onClick = { sortOpen = true }) { Icon(Icons.Default.SwapVert, "Urutkan", tint = if (sort == HistorySort.NEWEST) TextPrimary else Accent, modifier = Modifier.size(24.dp)) }
+                        IconButton(onClick = { sortOpen = true }) { Icon(Icons.Default.SwapVert, "Urutkan", tint = if (sort == HistorySort.NEWEST) TextWhite else LavenderPrimary, modifier = Modifier.size(24.dp)) }
                         DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }, modifier = Modifier.background(MenuBg)) {
                             HistorySort.values().forEach { o ->
                                 DropdownMenuItem(
-                                    text = { Text(o.label, fontSize = 14.sp, color = if (o == sort) Accent else TextPrimary) },
-                                    trailingIcon = if (o == sort) { { Icon(Icons.Default.Check, null, tint = Accent, modifier = Modifier.size(16.dp)) } } else null,
+                                    text = { Text(o.label, fontSize = 14.sp, color = if (o == sort) LavenderPrimary else TextWhite) },
+                                    trailingIcon = if (o == sort) { { Icon(Icons.Default.Check, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) } } else null,
                                     onClick = { sort = o; sortOpen = false }
                                 )
                             }
@@ -121,7 +121,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                     val total = shown.sumOf { it.cost }
                     Text(
                         "${shown.size} servis" + (if (total > 0) " · ${rupiah(total)}" else "") + " · ${sort.label}",
-                        fontSize = 12.sp, color = TextMuted, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                        fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
                     )
                     // Urutan Terbaru / Terlama: dikelompokkan per tanggal seperti mutasi bank. Urutan lain: daftar biasa (tanggal tampil di kartu).
                     val grouped = sort == HistorySort.NEWEST || sort == HistorySort.OLDEST
@@ -157,7 +157,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
         }, subtitle = r.title, initialParts = r.partsCost, initialLabor = r.laborCost)
     }
     viewImage?.let { path ->
-        AlertDialog(onDismissRequest = { viewImage = null }, containerColor = SurfaceBg, shape = RoundedCornerShape(20.dp), text = { StoredImage(path, Modifier.fillMaxWidth(), maxSide = 1600, contentScale = ContentScale.Fit) },
+        AlertDialog(onDismissRequest = { viewImage = null }, containerColor = SurfaceDark, shape = RoundedCornerShape(20.dp), text = { StoredImage(path, Modifier.fillMaxWidth(), maxSide = 1600, contentScale = ContentScale.Fit) },
             confirmButton = { TextButton(onClick = { viewImage = null }) { Text("Tutup") } })
     }
 }
@@ -168,13 +168,13 @@ private fun DateFilterField(f: PeriodFilter) {
     var open by remember { mutableStateOf(false) }
     val s = f.customStart; val e = f.customEnd
     val active = f.isCustom && s != null && e != null
-    Surface(onClick = { open = true }, color = CardBg, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(onClick = { open = true }, color = SurfaceVariantDark, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 4.dp).heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.CalendarMonth, null, tint = Accent, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.CalendarMonth, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
-            Text(if (active) (if (s == e) fmtLocal(s!!) else "${fmtLocal(s!!)} – ${fmtLocal(e!!)}") else "Semua tanggal", Modifier.weight(1f), fontSize = 13.sp, color = if (active) TextPrimary else TextMuted)
-            if (active) IconButton(onClick = { f.period = Period.ALL }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus filter tanggal", tint = TextMuted, modifier = Modifier.size(18.dp)) }
-            else Icon(Icons.Default.ArrowDropDown, null, tint = TextMuted, modifier = Modifier.padding(end = 8.dp).size(22.dp))
+            Text(if (active) (if (s == e) fmtLocal(s!!) else "${fmtLocal(s!!)} – ${fmtLocal(e!!)}") else "Semua tanggal", Modifier.weight(1f), fontSize = 13.sp, color = if (active) TextWhite else TextGray)
+            if (active) IconButton(onClick = { f.period = Period.ALL }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus filter tanggal", tint = TextGray, modifier = Modifier.size(18.dp)) }
+            else Icon(Icons.Default.ArrowDropDown, null, tint = TextGray, modifier = Modifier.padding(end = 8.dp).size(22.dp))
         }
     }
     if (open) DateRangePickerDialogX(f.customStart, f.customEnd, { open = false }) { a, b -> f.customStart = a; f.customEnd = b; f.period = Period.CUSTOM; open = false }
@@ -205,7 +205,7 @@ private fun ServiceDetailDialog(
         }
         FormGroupLabel("Biaya")
         if (r.cost > 0) {
-            ReadOnlyField("Total biaya", rupiah(r.cost), Icons.Default.Payments, valueColor = Accent, emphasize = true)
+            ReadOnlyField("Total biaya", rupiah(r.cost), Icons.Default.Payments, valueColor = LavenderPrimary, emphasize = true)
             if (r.hasBreakdown) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.weight(1f)) { ReadOnlyField("Suku cadang", rupiah(r.partsCost), Icons.Default.Settings) }
@@ -213,7 +213,7 @@ private fun ServiceDetailDialog(
                 }
             }
         } else {
-            ReadOnlyField("Total biaya", "Tidak dicatat", Icons.Default.Payments, valueColor = TextMuted)
+            ReadOnlyField("Total biaya", "Tidak dicatat", Icons.Default.Payments, valueColor = TextGray)
         }
         if (!r.notes.isNullOrBlank()) {
             FormGroupLabel("Catatan")
@@ -236,7 +236,7 @@ private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, onAdd: () -> Unit,
         else -> {
             Text(
                 "${shown.size} pengisian · ${fmtLiter(shown.sumOf { it.liters })} L · ${rupiah(shown.sumOf { it.totalPrice })}",
-                fontSize = 12.sp, color = TextMuted, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
             )
             LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
                 dayGroups(shown, { it.date }, { it.id }) { f -> FuelCard(f, onEdit = { onEdit(f) }, onDelete = { onDelete(f) }) }
@@ -257,7 +257,7 @@ private fun <T> LazyListScope.dayGroups(list: List<T>, dateOf: (T) -> Long, key:
 @Composable
 private fun DayHeader(ms: Long) {
     Text(
-        fmtDayHeader(ms), style = AppType.Caption.copy(fontWeight = FontWeight.SemiBold), color = TextMuted,
+        fmtDayHeader(ms), style = AppType.Caption.copy(fontWeight = FontWeight.SemiBold), color = TextGray,
         modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)
     )
 }
@@ -265,17 +265,17 @@ private fun DayHeader(ms: Long) {
 /** Kartu transaksi servis. showDate = true hanya saat daftar tidak dikelompokkan per tanggal. */
 @Composable
 private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit, onImage: (String) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Surface(onClick = onClick, color = CardBg, shape = CardShape) {
+    Surface(onClick = onClick, color = SurfaceVariantDark, shape = CardShape) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
-            CategoryIconBox(Icons.Default.Build, Modifier.padding(top = 4.dp))
+            Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(r.title, color = TextPrimary, style = AppType.CardTitle, modifier = Modifier.weight(1f))
-                    if (r.cost > 0) Text(rupiah(r.cost), style = AppType.Value, color = Accent)
+                    Text(r.title, color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
+                    if (r.cost > 0) Text(rupiah(r.cost), style = AppType.Value, color = LavenderPrimary)
                 }
-                Text((if (showDate) "${fmtDate(r.date)} · " else "") + "${fmtKm(r.km)} km", style = AppType.Caption, color = TextMuted)
-                if (!r.notes.isNullOrBlank()) Text(r.notes, style = AppType.Caption, color = TextMuted, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text((if (showDate) "${fmtDate(r.date)} · " else "") + "${fmtKm(r.km)} km", style = AppType.Caption, color = TextGray)
+                if (!r.notes.isNullOrBlank()) Text(r.notes, style = AppType.Caption, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 if (r.imagePath != null) {
                     Spacer(Modifier.height(8.dp))
                     StoredImage(r.imagePath, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).clickable { onImage(r.imagePath) })
@@ -289,17 +289,17 @@ private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit
 /** Kartu transaksi BBM: liter dan harga per liter saat transaksi, KM, status tangki. */
 @Composable
 private fun FuelCard(f: FuelLog, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Surface(color = CardBg, shape = CardShape) {
+    Surface(color = SurfaceVariantDark, shape = CardShape) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
-            CategoryIconBox(Icons.Default.LocalGasStation, Modifier.padding(top = 4.dp))
+            Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalGasStation, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Isi BBM", color = TextPrimary, style = AppType.CardTitle, modifier = Modifier.weight(1f))
-                    Text(rupiah(f.totalPrice), style = AppType.Value, color = Accent)
+                    Text("Isi BBM", color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
+                    Text(rupiah(f.totalPrice), style = AppType.Value, color = LavenderPrimary)
                 }
-                Text("${fmtLiter(f.liters)} L · ${rupiah(f.pricePerLiter)}/L", style = AppType.Caption, color = TextMuted)
-                Text("${fmtKm(f.km)} km" + if (f.fullTank) " · Tangki penuh" else " · Sebagian", style = AppType.Caption, color = TextMuted)
+                Text("${fmtLiter(f.liters)} L · ${rupiah(f.pricePerLiter)}/L", style = AppType.Caption, color = TextGray)
+                Text("${fmtKm(f.km)} km" + if (f.fullTank) " · Tangki penuh" else " · Sebagian", style = AppType.Caption, color = TextGray)
             }
             ItemMenu(onEdit = onEdit, onDelete = onDelete)
         }

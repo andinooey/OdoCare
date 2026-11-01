@@ -76,7 +76,7 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
     ) { pad ->
         Column(Modifier.padding(pad).statusBarsPadding()) {
             ServiceSectionTitle(vm, vehicle?.name, Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 12.dp)) {
-                IconButton(onClick = onOpenDocTypes) { Icon(Icons.Default.Category, "Master Jenis Dokumen", tint = Accent, modifier = Modifier.size(22.dp)) }
+                IconButton(onClick = onOpenDocTypes) { Icon(Icons.Default.Category, "Master Jenis Dokumen", tint = LavenderPrimary, modifier = Modifier.size(22.dp)) }
             }
             if (vehicle == null) {
                 NoVehicleState(vm, Modifier.padding(top = 24.dp))
@@ -84,7 +84,7 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     StatusFilterRow(
                         docFilterLabels, listOf(views.size, late.size, soon.size, safe.size),
-                        listOf(PillSelected to TextPrimary, StatusRedBg to StatusRedText, StatusYellowBg to StatusYellowText, StatusGreenBg to StatusGreenText),
+                        listOf(PillSelected to TextWhite, StatusRedBg to StatusRedText, StatusYellowBg to StatusYellowText, StatusGreenBg to StatusGreenText),
                         tab
                     ) { tab = it }
                 }
@@ -103,7 +103,7 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
                             val unit = IntervalUnit.parse(d.intervalUnit)
                             StatusStripeCard(colors.second) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(docTypeLabel(d.type), Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                    Text(docTypeLabel(d.type), Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextWhite)
                                     DocStatusChip(view.status)
                                     ItemMenu(onEdit = { editTarget = d }, onDelete = { deleteTarget = d })
                                 }
@@ -112,24 +112,24 @@ fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
                                 if (!d.number.isNullOrBlank()) meta += "No. ${d.number}"
                                 d.lastRenewedDate?.let { meta += "Diperpanjang ${fmtDate(it)}" }
                                 if (d.intervalValue != null && unit != null) meta += "Berlaku ${d.intervalValue} ${unit.label.lowercase()}"
-                                if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 12.sp, color = TextMuted)
+                                if (meta.isNotEmpty()) Text(meta.joinToString(" · "), fontSize = 12.sp, color = TextGray)
                                 if (d.attachmentPath != null) {
                                     val ctx = LocalContext.current
                                     var openFailed by remember { mutableStateOf(false) }
                                     Row(Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { openFailed = !AttachmentStore.open(ctx, d.attachmentPath) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(if (AttachmentStore.isImage(d.attachmentPath)) Icons.Default.Image else Icons.Default.AttachFile, null, tint = Accent, modifier = Modifier.size(14.dp))
+                                        Icon(if (AttachmentStore.isImage(d.attachmentPath)) Icons.Default.Image else Icons.Default.AttachFile, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 12.sp, color = if (openFailed) DangerText else Accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(if (openFailed) "File tidak bisa dibuka" else d.attachmentName ?: "Lampiran", fontSize = 12.sp, color = if (openFailed) DangerText else LavenderPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(if (d.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextMuted, modifier = Modifier.size(12.dp))
+                                    Icon(if (d.notifyEnabled) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff, null, tint = TextGray, modifier = Modifier.size(12.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text(if (d.notifyEnabled) "${Reminders.summary(d.reminders)} · ${fmtTime(d.notifyHour, d.notifyMinute)}" else "Notifikasi mati", fontSize = 12.sp, color = TextMuted, modifier = Modifier.weight(1f))
+                                    Text(if (d.notifyEnabled) "${Reminders.summary(d.reminders)} · ${fmtTime(d.notifyHour, d.notifyMinute)}" else "Notifikasi mati", fontSize = 12.sp, color = TextGray, modifier = Modifier.weight(1f))
                                     TextButton(onClick = { renewTarget = d }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(30.dp)) {
-                                        Icon(Icons.Default.Autorenew, null, tint = Accent, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Autorenew, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text("Perpanjang", color = Accent, fontSize = 12.sp)
+                                        Text("Perpanjang", color = LavenderPrimary, fontSize = 12.sp)
                                     }
                                 }
                             }
@@ -229,11 +229,11 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, vehicleTy
             PickerField("Lampiran (opsional)", null, Icons.Default.AttachFile, placeholder = "Pilih foto atau file (PDF, dll)") { picker.launch("*/*") }
         } else {
             if (AttachmentStore.isImage(path)) StoredImage(path, Modifier.fillMaxWidth().height(130.dp).clip(RoundedCornerShape(12.dp)), maxSide = 800)
-            else Surface(color = CardBg.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
+            else Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.InsertDriveFile, null, tint = Accent, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.InsertDriveFile, null, tint = LavenderPrimary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text(attachName ?: "Lampiran", fontSize = 13.sp, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(attachName ?: "Lampiran", fontSize = 13.sp, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -266,12 +266,12 @@ private fun DocumentFormDialog(title: String, initial: LegalDocument?, vehicleTy
         FormGroupLabel("Ingatkan sebelum jatuh tempo")
         if (reminders.isEmpty()) FormNote("Hanya di hari jatuh tempo.")
         reminders.forEach { r ->
-            Surface(color = CardBg.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
+            Surface(color = SurfaceVariantDark.copy(alpha = 0.45f), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, FieldBorder), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.NotificationsActive, null, tint = Accent, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.NotificationsActive, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text(r.label(), Modifier.weight(1f), fontSize = 13.sp, color = TextPrimary)
-                    IconButton(onClick = { reminders = reminders - r }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus pengingat", tint = TextMuted, modifier = Modifier.size(16.dp)) }
+                    Text(r.label(), Modifier.weight(1f), fontSize = 13.sp, color = TextWhite)
+                    IconButton(onClick = { reminders = reminders - r }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Hapus pengingat", tint = TextGray, modifier = Modifier.size(16.dp)) }
                 }
             }
         }

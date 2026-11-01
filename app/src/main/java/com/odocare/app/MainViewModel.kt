@@ -152,6 +152,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Pengingat backup di Home ----
     private val sp = app.getSharedPreferences("odocare", android.content.Context.MODE_PRIVATE)
+    /** Mode tampilan: "system" (ikut perangkat), "light", atau "dark". */
+    var themeMode by mutableStateOf(sp.getString("theme_mode", "system") ?: "system")
+        private set
+    fun setThemeMode(mode: String) { themeMode = mode; sp.edit().putString("theme_mode", mode).apply() }
     /** Banner pengingat backup disembunyikan sampai waktu ini (ms). */
     var backupSnoozeUntil by mutableStateOf(sp.getLong("backup_snooze_until", 0L))
         private set
@@ -169,11 +173,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun finishOnboarding() { sp.edit().putBoolean("onboarding_done", true).apply(); onboardingState = 2 }
-
-    // ---- Tema: AUTO (ikut sistem) / DARK / LIGHT ----
-    var themeMode by mutableStateOf(sp.getString("theme_mode", "AUTO") ?: "AUTO")
-        private set
-    fun setThemeMode(m: String) { themeMode = m; sp.edit().putString("theme_mode", m).apply() }
 
     /** Dari banner Home: buka tab Kendaraan dengan bagian Backup & Data langsung terbuka. */
     var expandBackupSection by mutableStateOf(false)

@@ -91,7 +91,7 @@ fun ServiceSectionTitle(vm: MainViewModel, subtitle: String?, modifier: Modifier
                 SegmentedButton(
                     selected = section == i, onClick = { vm.serviceSection = i },
                     shape = SegmentedButtonDefaults.itemShape(i, 2),
-                    colors = SegmentedButtonDefaults.colors(activeContainerColor = PillSelected, activeContentColor = TextPrimary, inactiveContainerColor = Color.Transparent, inactiveContentColor = TextMuted),
+                    colors = SegmentedButtonDefaults.colors(activeContainerColor = PillSelected, activeContentColor = TextWhite, inactiveContainerColor = Color.Transparent, inactiveContentColor = TextGray),
                     icon = { SegmentedButtonDefaults.Icon(active = section == i) }
                 ) { Text(label, fontSize = 12.sp, maxLines = 1) }
             }
