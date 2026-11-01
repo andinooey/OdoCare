@@ -12,6 +12,7 @@ class Repo(private val ctx: Context) {
     val prefs = ctx.getSharedPreferences("odocare", Context.MODE_PRIVATE)
     private val vDao = db.vehicleDao(); private val oDao = db.odometerDao()
     private val sDao = db.scheduleDao(); private val srDao = db.serviceRecordDao()
+    private val fDao = db.fuelDao()
     private val dDao = db.documentDao(); private val dhDao = db.docHistoryDao(); private val mDao = db.masterDao(); private val vtDao = db.vehicleTypeDao(); private val dtDao = db.documentTypeDao()
 
     val vehicles: Flow<List<Vehicle>> = vDao.observeAll()
@@ -32,12 +33,14 @@ class Repo(private val ctx: Context) {
     val allSchedules: Flow<List<MaintenanceSchedule>> = sDao.observeAllActive()
     val allRecords: Flow<List<ServiceRecord>> = srDao.observeAll()
     val allDocuments: Flow<List<LegalDocument>> = dDao.observeAll()
+    val allFuel: Flow<List<FuelLog>> = fDao.observeAll()
 
     fun odometer(vid: String): Flow<List<OdometerLog>> = oDao.observeForVehicle(vid)
     fun latestOdometer(vid: String): Flow<Int?> = oDao.observeLatest(vid)
     fun schedules(vid: String): Flow<List<MaintenanceSchedule>> = sDao.observeForVehicle(vid)
     fun documents(vid: String): Flow<List<LegalDocument>> = dDao.observeForVehicle(vid)
     fun records(vid: String): Flow<List<ServiceRecord>> = srDao.observeForVehicle(vid)
+    fun fuel(vid: String): Flow<List<FuelLog>> = fDao.observeForVehicle(vid)
 
     /** Isi master awal sekali saja (id seed tetap, jadi aman bila terpanggil dua kali). */
     suspend fun seedMasterIfNeeded() {
@@ -114,9 +117,9 @@ class Repo(private val ctx: Context) {
     suspend fun deleteSchedule(id: String) = sDao.deleteById(id)
 
     /** Simpan servis. Odometer ikut naik bila KM servis lebih besar dari KM terakhir (tidak pernah diturunkan otomatis). */
-    suspend fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, notes: String?, imagePath: String?) = db.withTransaction {
+    suspend fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, partsCost: Long, laborCost: Long, notes: String?, imagePath: String?) = db.withTransaction {
         bumpOdometer(schedule.vehicleId, km)
-        srDao.insert(ServiceRecord(vehicleId = schedule.vehicleId, scheduleId = schedule.id, title = schedule.name, km = km, date = dateMillis, cost = cost, notes = notes, imagePath = imagePath))
+        srDao.insert(ServiceRecord(vehicleId = schedule.vehicleId, scheduleId = schedule.id, title = schedule.name, km = km, date = dateMillis, cost = cost, notes = notes, imagePath = imagePath, partsCost = partsCost, laborCost = laborCost))
         sDao.update(schedule.copy(lastServiceKm = km, lastServiceDate = dateMillis))
         prefs.edit().remove("svc_sent_${schedule.id}").apply()
     }
@@ -126,6 +129,13 @@ class Repo(private val ctx: Context) {
     }
     suspend fun updateRecord(r: ServiceRecord) = db.withTransaction { srDao.update(r); bumpOdometer(r.vehicleId, r.km) }
     suspend fun deleteRecord(id: String) = srDao.deleteById(id)
+
+    // ---- BBM: KM dari catatan BBM ikut menaikkan odometer (tidak pernah menurunkan) ----
+    suspend fun addFuel(f: FuelLog) = db.withTransaction { bumpOdometer(f.vehicleId, f.km); fDao.insert(f) }
+    suspend fun updateFuel(f: FuelLog) = db.withTransaction { fDao.update(f); bumpOdometer(f.vehicleId, f.km) }
+    suspend fun deleteFuel(id: String) = fDao.deleteById(id)
+    /** Untuk Urungkan: pulihkan catatan BBM yang baru dihapus. */
+    suspend fun restoreFuel(f: FuelLog) = fDao.insert(f)
 
     suspend fun addDocument(d: LegalDocument) = dDao.insert(d)
     suspend fun updateDocument(d: LegalDocument) { dDao.update(d); prefs.edit().remove("doc_handled_${d.id}").apply() }

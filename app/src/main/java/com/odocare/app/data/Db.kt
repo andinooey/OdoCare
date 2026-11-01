@@ -41,8 +41,24 @@ data class ServiceRecord(
     val km: Int, val date: Long, val cost: Long = 0L, val notes: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     // Path foto bukti servis (disalin ke penyimpanan internal aplikasi)
-    val imagePath: String? = null
-)
+    val imagePath: String? = null,
+    // Rincian biaya: 0 dan 0 = tidak dirinci (cost = total yang diketik). Bila dirinci, cost = partsCost + laborCost.
+    val partsCost: Long = 0L, val laborCost: Long = 0L
+) {
+    val hasBreakdown: Boolean get() = partsCost > 0 || laborCost > 0
+}
+
+/** Catatan isi BBM. Harga per liter tidak disimpan, dihitung dari totalPrice / liters. */
+@Entity(tableName = "fuel_logs", foreignKeys = [ForeignKey(entity = Vehicle::class, parentColumns = ["id"], childColumns = ["vehicleId"], onDelete = ForeignKey.CASCADE)], indices = [Index("vehicleId")])
+data class FuelLog(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val vehicleId: String, val date: Long, val km: Int,
+    val liters: Double, val totalPrice: Long, val fullTank: Boolean = true,
+    val createdAt: Long = System.currentTimeMillis()
+) {
+    /** Harga per liter, dibulatkan ke rupiah. */
+    val pricePerLiter: Long get() = if (liters > 0) Math.round(totalPrice / liters) else 0L
+}
 
 @Entity(tableName = "legal_documents", foreignKeys = [ForeignKey(entity = Vehicle::class, parentColumns = ["id"], childColumns = ["vehicleId"], onDelete = ForeignKey.CASCADE)], indices = [Index("vehicleId")])
 data class LegalDocument(
@@ -168,6 +184,16 @@ interface ServiceRecordDao {
 }
 
 @Dao
+interface FuelDao {
+    @Query("SELECT * FROM fuel_logs WHERE vehicleId = :vid ORDER BY date DESC, km DESC") fun observeForVehicle(vid: String): Flow<List<FuelLog>>
+    @Query("SELECT * FROM fuel_logs") fun observeAll(): Flow<List<FuelLog>>
+    @Query("SELECT * FROM fuel_logs") suspend fun all(): List<FuelLog>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(f: FuelLog)
+    @Update suspend fun update(f: FuelLog)
+    @Query("DELETE FROM fuel_logs WHERE id = :id") suspend fun deleteById(id: String)
+}
+
+@Dao
 interface DocumentDao {
     @Query("SELECT * FROM legal_documents WHERE vehicleId = :vid ORDER BY expiryDate ASC") fun observeForVehicle(vid: String): Flow<List<LegalDocument>>
     @Query("SELECT * FROM legal_documents") suspend fun all(): List<LegalDocument>
@@ -220,7 +246,7 @@ interface DocumentTypeDao {
     @Query("DELETE FROM document_types") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class, AppNotification::class], version = 10, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class, AppNotification::class, FuelLog::class], version = 11, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -232,10 +258,11 @@ abstract class AppDb : RoomDatabase() {
     abstract fun vehicleTypeDao(): VehicleTypeDao
     abstract fun documentTypeDao(): DocumentTypeDao
     abstract fun appNotificationDao(): AppNotificationDao
+    abstract fun fuelDao(): FuelDao
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build().also { INSTANCE = it }
         }
     }
 }
@@ -310,5 +337,15 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE app_notifications ADD COLUMN target TEXT")
         db.execSQL("ALTER TABLE app_notifications ADD COLUMN vehicleId TEXT")
+    }
+}
+
+/** v11: rincian biaya servis (suku cadang + jasa) dan tabel catatan BBM. */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE service_records ADD COLUMN partsCost INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE service_records ADD COLUMN laborCost INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `fuel_logs` (`id` TEXT NOT NULL, `vehicleId` TEXT NOT NULL, `date` INTEGER NOT NULL, `km` INTEGER NOT NULL, `liters` REAL NOT NULL, `totalPrice` INTEGER NOT NULL, `fullTank` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`vehicleId`) REFERENCES `vehicles`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_fuel_logs_vehicleId` ON `fuel_logs` (`vehicleId`)")
     }
 }

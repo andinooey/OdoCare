@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.odocare.app.MainViewModel
+import com.odocare.app.data.FuelLog
 import com.odocare.app.data.MaintenanceSchedule
 import com.odocare.app.data.MasterCategory
 import com.odocare.app.data.OdometerLog
@@ -62,6 +63,7 @@ fun HomeScreen(
     val unreadNotifications by vm.unreadNotifications.collectAsStateWithLifecycle()
     val lastBackup by vm.lastBackup.collectAsStateWithLifecycle()
     var showAddKm by remember { mutableStateOf(false) }
+    var showAddFuel by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
     var showAddVehicle by remember { mutableStateOf(false) }
     var recordTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
@@ -140,8 +142,9 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(12.dp))
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ActionButton(Icons.Default.Speed, "Update KM", Modifier.weight(1f), false) { showAddKm = true }
+                ActionButton(Icons.Default.LocalGasStation, "Catat BBM", Modifier.weight(1f), false) { showAddFuel = true }
                 ActionButton(Icons.Default.Add, "Catat Servis", Modifier.weight(1f), true) { showPicker = true }
                 ActionButton(Icons.Default.History, "Histori", Modifier.weight(1f), false) { onNavigateToHistory() }
             }
@@ -193,6 +196,7 @@ fun HomeScreen(
 
     if (showAddVehicle) VehicleFormDialog("Tambah Kendaraan", null, { showAddVehicle = false }) { n, p, t, k, a, d -> vm.addVehicle(n, p, t, k, a, d); showAddVehicle = false }
     if (showAddKm) AddKmDialog(km, { showAddKm = false }) { vm.addOdometer(it); showAddKm = false }
+    if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, { showAddFuel = false }) { date, kmV, liters, total, full -> vm.addFuel(date, kmV, liters, total, full); showAddFuel = false }
     if (showPicker) {
         AlertDialog(onDismissRequest = { showPicker = false }, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
             title = { Text("Servis apa yang dicatat?", fontSize = 16.sp, color = TextWhite) },
@@ -212,8 +216,8 @@ fun HomeScreen(
             dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Batal", color = TextGray) } })
     }
     recordTarget?.let { s ->
-        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img ->
-            vm.recordService(s, kmV, date, cost, notes, img); recordTarget = null
+        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, parts, labor, notes, img ->
+            vm.recordService(s, kmV, date, cost, parts, labor, notes, img); recordTarget = null
         }
     }
 }
@@ -313,12 +317,12 @@ private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = 
     Button(
         onClick = onClick, modifier = modifier.height(52.dp), shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(containerColor = if (isPrimary) LavenderPrimary else Color.Transparent, contentColor = if (isPrimary) Color(0xFF0D1B3E) else TextWhite),
-        border = if (!isPrimary) BorderStroke(1.dp, Color(0xFF3A3B47)) else null, contentPadding = PaddingValues(4.dp)
+        border = if (!isPrimary) BorderStroke(1.dp, Color(0xFF3A3B47)) else null, contentPadding = PaddingValues(2.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.height(2.dp))
-            Text(label, fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 1)
+            Text(label, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 1)
         }
     }
 }
@@ -450,7 +454,7 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
         }
     }
     recordTarget?.let { s ->
-        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, notes, img -> vm.recordService(s, kmV, date, cost, notes, img); recordTarget = null }
+        RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, parts, labor, notes, img -> vm.recordService(s, kmV, date, cost, parts, labor, notes, img); recordTarget = null }
     }
     deleteTarget?.let { s -> ConfirmDialog("Hapus komponen?", "\"${s.name}\" akan dihapus.", "Hapus", { vm.deleteSchedule(s.id); deleteTarget = null }, { deleteTarget = null }) }
 }
@@ -590,23 +594,28 @@ private fun ScheduleFormDialog(
     }
 }
 
-/** Form tanggal, KM, biaya, catatan, foto. Dipakai untuk "Sudah service" dan edit riwayat. */
+/** Form tanggal, KM, biaya (bisa dirinci), catatan, foto. Dipakai untuk "Sudah service" dan edit riwayat. */
 @Composable
 fun ServiceFormDialog(
     title: String, initialKm: Int?, initialDate: Long, initialCost: Long, initialNotes: String?, initialImage: String? = null,
-    onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit,
+    onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, partsCost: Long, laborCost: Long, notes: String?, imagePath: String?) -> Unit,
     subtitle: String? = null,
     /** Batas bawah KM (mis. KM odometer saat ini). null = tanpa batas, dipakai saat edit riwayat lama. */
-    minKm: Int? = null
+    minKm: Int? = null,
+    initialParts: Long = 0L, initialLabor: Long = 0L
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var kmText by remember { mutableStateOf(initialKm?.toString() ?: "") }
     var date by remember { mutableStateOf(initialDate) }
     var costText by remember { mutableStateOf(if (initialCost > 0) initialCost.toString() else "") }
+    // Rincian biaya: tersembunyi sampai "Rincikan" diketuk (otomatis terbuka bila riwayat ini sudah punya rincian)
+    var breakdown by remember { mutableStateOf(initialParts > 0 || initialLabor > 0) }
+    var partsText by remember { mutableStateOf(if (initialParts > 0) initialParts.toString() else "") }
+    var laborText by remember { mutableStateOf(if (initialLabor > 0) initialLabor.toString() else "") }
     var notes by remember { mutableStateOf(initialNotes ?: "") }
     var imagePath by remember { mutableStateOf(initialImage) }
-    var newImages by remember { mutableStateOf(listOf<String>()) }   // foto baru yang dibuat selama dialog terbuka
+    var newImages by remember { mutableStateOf(listOf<String>()) }   // foto baru yang dibuat selama form terbuka
     var imageError by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -619,6 +628,10 @@ fun ServiceFormDialog(
     fun cleanup(keep: String?) { newImages.filter { it != keep }.forEach { ImageStore.delete(it) } }
     fun dismiss() { cleanup(null); onDismiss() }
 
+    val partsValue = partsText.toLongOrNull() ?: 0L
+    val laborValue = laborText.toLongOrNull() ?: 0L
+    val totalText = if (breakdown) (partsValue + laborValue).takeIf { it > 0 }?.toString() ?: "" else costText
+
     val kmValue = posInt(kmText)
     val kmTooLow = minKm != null && kmValue != null && kmValue < minKm
     FormDialog(
@@ -626,7 +639,10 @@ fun ServiceFormDialog(
         onConfirm = {
             posInt(kmText)?.takeIf { minKm == null || it >= minKm }?.let {
                 cleanup(imagePath)
-                onConfirm(it, date, costText.toLongOrNull() ?: 0L, notes.ifBlank { null }, imagePath)
+                val parts = if (breakdown) partsValue else 0L
+                val labor = if (breakdown) laborValue else 0L
+                val cost = if (breakdown) parts + labor else costText.toLongOrNull() ?: 0L
+                onConfirm(it, date, cost, parts, labor, notes.ifBlank { null }, imagePath)
             }
         }
     ) {
@@ -636,7 +652,36 @@ fun ServiceFormDialog(
             hint = minKm?.let { "Minimal ${fmtKm(it)} km (KM odometer saat ini)" },
             error = if (kmTooLow) "KM servis tidak boleh lebih kecil dari KM saat ini (${fmtKm(minKm!!)} km)" else null
         )
-        NumberField(costText, { costText = it }, "Biaya servis", currency = true, icon = Icons.Default.Payments)
+        // Total biaya. Saat dirinci, kolom ini terisi otomatis dari suku cadang + jasa dan tidak bisa diketik.
+        NumberField(
+            totalText, { costText = it }, if (breakdown) "Total biaya (otomatis)" else "Biaya servis", currency = true, icon = Icons.Default.Payments,
+            readOnly = breakdown
+        )
+        if (!breakdown) {
+            TextButton(
+                onClick = { breakdown = true }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Icon(Icons.Default.Tune, null, modifier = Modifier.size(15.dp), tint = LavenderPrimary)
+                Spacer(Modifier.width(6.dp))
+                Text("Rincikan", fontSize = 12.sp, color = LavenderPrimary)
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.weight(1f)) { NumberField(partsText, { partsText = it }, "Suku cadang", currency = true, icon = Icons.Default.Settings) }
+                Box(Modifier.weight(1f)) { NumberField(laborText, { laborText = it }, "Jasa", currency = true, icon = Icons.Default.Handyman) }
+            }
+            TextButton(
+                onClick = {
+                    // Tutup rincian: total yang sudah terhitung dipertahankan sebagai biaya servis
+                    if (partsValue + laborValue > 0) costText = (partsValue + laborValue).toString()
+                    breakdown = false; partsText = ""; laborText = ""
+                }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Icon(Icons.Default.Close, null, modifier = Modifier.size(15.dp), tint = TextGray)
+                Spacer(Modifier.width(6.dp))
+                Text("Tutup rincian", fontSize = 12.sp, color = TextGray)
+            }
+        }
         AppTextField(notes, { notes = it }, "Catatan (opsional)", Icons.Default.EditNote, singleLine = false, minLines = 2)
         if (imagePath == null) {
             PickerField("Foto nota / bukti (opsional)", null, Icons.Default.AddAPhoto, placeholder = "Tambah foto") { picker.launch("image/*") }
@@ -654,6 +699,46 @@ fun ServiceFormDialog(
 }
 
 @Composable
-fun RecordServiceDialog(schedule: MaintenanceSchedule?, initialKm: Int?, onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, notes: String?, imagePath: String?) -> Unit) {
+fun RecordServiceDialog(schedule: MaintenanceSchedule?, initialKm: Int?, onDismiss: () -> Unit, onConfirm: (km: Int, date: Long, cost: Long, partsCost: Long, laborCost: Long, notes: String?, imagePath: String?) -> Unit) {
     ServiceFormDialog("Catat Servis", initialKm, todayMillis(), 0L, null, null, onDismiss, onConfirm, subtitle = schedule?.name, minKm = initialKm)
+}
+
+/**
+ * Form catat / edit BBM: tanggal, KM, liter, total harga, centang tangki penuh. Harga per liter dihitung otomatis.
+ * KM tidak boleh lebih kecil dari KM odometer saat ini ([minKm]); saat edit catatan lama, [minKm] = null.
+ */
+@Composable
+fun FuelFormDialog(
+    title: String, initial: FuelLog?, currentKm: Int?, vehicleName: String?, onDismiss: () -> Unit,
+    onSave: (date: Long, km: Int, liters: Double, totalPrice: Long, fullTank: Boolean) -> Unit
+) {
+    val minKm = if (initial == null) currentKm else null
+    var date by remember { mutableStateOf(initial?.date ?: todayMillis()) }
+    var kmText by remember { mutableStateOf((initial?.km ?: currentKm)?.toString() ?: "") }
+    var litersText by remember { mutableStateOf(initial?.let { literInput(it.liters) } ?: "") }
+    var totalText by remember { mutableStateOf(initial?.totalPrice?.toString() ?: "") }
+    var fullTank by remember { mutableStateOf(initial?.fullTank ?: true) }
+
+    val kmValue = posInt(kmText)
+    val kmTooLow = minKm != null && kmValue != null && kmValue < minKm
+    val liters = posDouble(litersText)
+    val total = totalText.toLongOrNull()?.takeIf { it > 0 }
+    val perLiter = if (liters != null && total != null) Math.round(total / liters) else null
+
+    FormDialog(
+        title = title, subtitle = vehicleName, icon = Icons.Default.LocalGasStation, onDismiss = onDismiss,
+        confirmEnabled = kmValue != null && !kmTooLow && liters != null && total != null,
+        onConfirm = { if (kmValue != null && !kmTooLow && liters != null && total != null) onSave(date, kmValue, liters, total, fullTank) }
+    ) {
+        DateField("Tanggal isi", date) { date = it }
+        NumberField(
+            kmText, { kmText = it }, "KM saat isi", icon = Icons.Default.Speed,
+            hint = minKm?.let { "Minimal ${fmtKm(it)} km (KM odometer saat ini). Odometer ikut diperbarui." },
+            error = if (kmTooLow) "KM tidak boleh lebih kecil dari KM saat ini (${fmtKm(minKm!!)} km)" else null
+        )
+        DecimalField(litersText, { litersText = it }, "Jumlah bensin", suffix = "liter", icon = Icons.Default.LocalGasStation)
+        NumberField(totalText, { totalText = it }, "Total harga", currency = true, icon = Icons.Default.Payments)
+        if (perLiter != null) FormNote("Harga per liter: ${rupiah(perLiter)}")
+        CheckRow(Icons.Default.BatteryChargingFull, "Tangki penuh", "Centang bila diisi sampai penuh. Dipakai untuk menghitung km per liter.", fullTank) { fullTank = it }
+    }
 }

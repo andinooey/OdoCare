@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,7 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,8 +34,9 @@ val FieldBorder = Color(0xFF3A3B47)
 private val FieldShape = RoundedCornerShape(12.dp)
 
 /**
- * Kerangka dialog form seragam: header (ikon + judul), isi yang bisa di-scroll, dan tombol Batal / Simpan.
- * Menggantikan AlertDialog polos agar form terlihat rapi dan konsisten.
+ * Kerangka form seragam berupa HALAMAN PENUH: bilah atas (kembali + ikon + judul), isi yang bisa di-scroll,
+ * dan tombol Batal / Simpan yang menempel di bawah (ikut naik saat keyboard muncul).
+ * Tombol kembali sistem sama dengan Batal. Nama dan parameter dipertahankan agar semua form lama otomatis ikut jadi halaman penuh.
  */
 @Composable
 fun FormDialog(
@@ -43,31 +44,29 @@ fun FormDialog(
     confirmLabel: String = "Simpan", confirmEnabled: Boolean = true, subtitle: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val maxH = (LocalConfiguration.current.screenHeightDp * 0.86f).dp
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(
-            modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth().heightIn(max = maxH).imePadding(),
-            shape = RoundedCornerShape(22.dp), color = SurfaceDark, border = BorderStroke(1.dp, Color(0xFF2E2F3B))
-        ) {
-            Column {
-                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 14.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
+                Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) }
                     Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(PillSelected), contentAlignment = Alignment.Center) {
                         Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, "Tutup", tint = TextGray, modifier = Modifier.size(18.dp)) }
                 }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2F3B)))
                 Column(
-                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp), content = content
                 )
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2F3B)))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(42.dp), shape = FieldShape, border = BorderStroke(1.dp, FieldBorder)) { Text("Batal", color = TextGray) }
-                    Button(onClick = onConfirm, enabled = confirmEnabled, modifier = Modifier.weight(1f).height(42.dp), shape = FieldShape) { Text(confirmLabel) }
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(46.dp), shape = FieldShape, border = BorderStroke(1.dp, FieldBorder)) { Text("Batal", color = TextGray) }
+                    Button(onClick = onConfirm, enabled = confirmEnabled, modifier = Modifier.weight(1f).height(46.dp), shape = FieldShape) { Text(confirmLabel) }
                 }
             }
         }
@@ -102,13 +101,13 @@ fun AppTextField(
 
 /** Field angka bulat dengan pemisah ribuan. currency = true menambahkan awalan "Rp". */
 @Composable
-fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null, icon: ImageVector? = null, allowZero: Boolean = false, error: String? = null) {
+fun NumberField(value: String, onChange: (String) -> Unit, label: String, currency: Boolean = false, hint: String? = null, icon: ImageVector? = null, allowZero: Boolean = false, error: String? = null, readOnly: Boolean = false) {
     val prefixSlot: (@Composable () -> Unit)? = if (currency) { { Text("Rp ", fontSize = 14.sp) } } else null
     val iconSlot: (@Composable () -> Unit)? = if (icon != null) { { Icon(icon, null, modifier = Modifier.size(18.dp)) } } else null
     // Pesan error menggantikan hint dan mewarnai kotak merah
     val hintSlot: (@Composable () -> Unit)? = if (error != null) { { Text(error, fontSize = 12.sp) } } else if (hint != null) { { Text(hint, fontSize = 12.sp) } } else null
     OutlinedTextField(
-        isError = error != null,
+        isError = error != null, readOnly = readOnly,
         value = value, onValueChange = { raw ->
             val digits = raw.filter(Char::isDigit).take(12)
             // allowZero: nol tunggal ("0") dipertahankan, selain itu nol di depan dibuang
@@ -122,6 +121,39 @@ fun NumberField(value: String, onChange: (String) -> Unit, label: String, curren
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         shape = FieldShape, colors = fieldColors()
     )
+}
+
+/** Field angka desimal (mis. liter BBM). Koma dan titik sama-sama diterima; nilai disimpan dengan titik. */
+@Composable
+fun DecimalField(value: String, onChange: (String) -> Unit, label: String, suffix: String? = null, hint: String? = null, icon: ImageVector? = null, maxDecimals: Int = 2) {
+    val iconSlot: (@Composable () -> Unit)? = if (icon != null) { { Icon(icon, null, modifier = Modifier.size(18.dp)) } } else null
+    val suffixSlot: (@Composable () -> Unit)? = if (suffix != null) { { Text(suffix, fontSize = 14.sp) } } else null
+    val hintSlot: (@Composable () -> Unit)? = if (hint != null) { { Text(hint, fontSize = 12.sp) } } else null
+    OutlinedTextField(
+        value = value, onValueChange = { onChange(cleanDecimal(it, maxDecimals)) },
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label, fontSize = 12.sp) }, singleLine = true, suffix = suffixSlot,
+        leadingIcon = iconSlot, supportingText = hintSlot,
+        textStyle = TextStyle(fontSize = 14.sp, color = TextWhite),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        shape = FieldShape, colors = fieldColors()
+    )
+}
+
+/** Baris centang dengan ikon, judul, dan keterangan (seluruh baris bisa diketuk). */
+@Composable
+fun CheckRow(icon: ImageVector, title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Surface(onClick = { onChange(!checked) }, color = SurfaceVariantDark.copy(alpha = 0.45f), shape = FieldShape, border = BorderStroke(1.dp, if (checked) LavenderPrimary else FieldBorder), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = if (checked) LavenderPrimary else TextGray, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 13.sp, color = TextWhite)
+                if (subtitle != null) Text(subtitle, fontSize = 12.sp, color = TextGray, lineHeight = 14.sp)
+            }
+            Checkbox(checked = checked, onCheckedChange = onChange)
+        }
+    }
 }
 
 /** Kotak pilihan (tanggal / jam / dropdown): label kecil di atas, nilai di bawah, ikon di kiri. */

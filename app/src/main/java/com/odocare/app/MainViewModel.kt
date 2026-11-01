@@ -31,6 +31,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val schedules: StateFlow<List<MaintenanceSchedule>> = repo.activeVehicle.flatMapLatest { v -> if (v == null) flowOf(emptyList()) else repo.schedules(v.id) }.state(emptyList())
     val documents: StateFlow<List<LegalDocument>> = repo.activeVehicle.flatMapLatest { v -> if (v == null) flowOf(emptyList()) else repo.documents(v.id) }.state(emptyList())
     val records: StateFlow<List<ServiceRecord>> = repo.activeVehicle.flatMapLatest { v -> if (v == null) flowOf(emptyList()) else repo.records(v.id) }.state(emptyList())
+    val fuelLogs: StateFlow<List<FuelLog>> = repo.activeVehicle.flatMapLatest { v -> if (v == null) flowOf(emptyList()) else repo.fuel(v.id) }.state(emptyList())
 
     // Semua kendaraan (Dashboard & Laporan)
     val masters: StateFlow<List<MasterCategory>> = repo.masters.state(emptyList())
@@ -42,6 +43,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val allDocuments: StateFlow<List<LegalDocument>> = repo.allDocuments.state(emptyList())
     val allRecords: StateFlow<List<ServiceRecord>> = repo.allRecords.state(emptyList())
     val allOdometer: StateFlow<List<OdometerLog>> = repo.allOdometer.state(emptyList())
+    val allFuel: StateFlow<List<FuelLog>> = repo.allFuel.state(emptyList())
 
     // ---- Kendaraan ----
     fun addVehicle(name: String, plate: String, type: String, initialKm: Int, autoSchedules: Boolean, autoDocs: Boolean) = viewModelScope.launch {
@@ -62,7 +64,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun updateSchedule(s: MaintenanceSchedule) = viewModelScope.launch { repo.updateSchedule(s) }
     fun deleteSchedule(id: String) = viewModelScope.launch { repo.deleteSchedule(id) }
-    fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, notes: String?, imagePath: String?) = viewModelScope.launch { if (km > 0) repo.recordService(schedule, km, dateMillis, cost, notes, imagePath) }
+    fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, partsCost: Long, laborCost: Long, notes: String?, imagePath: String?) = viewModelScope.launch { if (km > 0) repo.recordService(schedule, km, dateMillis, cost, partsCost, laborCost, notes, imagePath) }
 
     // ---- Riwayat servis ----
     fun updateRecord(r: ServiceRecord) = viewModelScope.launch {
@@ -75,6 +77,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val rec = records.value.firstOrNull { it.id == id } ?: return@launch
         repo.deleteRecord(id)
         offerUndo("Riwayat \"${rec.title}\" dihapus", onUndo = { viewModelScope.launch { repo.restoreRecord(rec) } }, onExpire = { ImageStore.delete(rec.imagePath) })
+    }
+
+    // ---- BBM ----
+    fun addFuel(date: Long, km: Int, liters: Double, totalPrice: Long, fullTank: Boolean) = viewModelScope.launch {
+        activeVehicle.value?.let { if (km > 0 && liters > 0 && totalPrice > 0) repo.addFuel(FuelLog(vehicleId = it.id, date = date, km = km, liters = liters, totalPrice = totalPrice, fullTank = fullTank)) }
+    }
+    fun updateFuel(f: FuelLog) = viewModelScope.launch { repo.updateFuel(f) }
+    fun deleteFuel(id: String) = viewModelScope.launch {
+        val f = fuelLogs.value.firstOrNull { it.id == id } ?: return@launch
+        repo.deleteFuel(id)
+        offerUndo("Catatan BBM dihapus", onUndo = { viewModelScope.launch { repo.restoreFuel(f) } })
     }
 
     // ---- Dokumen ----
@@ -167,7 +180,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val lastBackup = MutableStateFlow(prefs.getLong("last_backup", 0L))
     val changesSinceBackup = MutableStateFlow(prefs.getInt("changes_since_backup", 0))
 
-    private val observer = object : InvalidationTracker.Observer(arrayOf("vehicles", "odometer_logs", "maintenance_schedules", "service_records", "legal_documents", "document_history", "master_categories", "document_types")) {
+    private val observer = object : InvalidationTracker.Observer(arrayOf("vehicles", "odometer_logs", "maintenance_schedules", "service_records", "legal_documents", "document_history", "master_categories", "document_types", "fuel_logs")) {
         override fun onInvalidated(tables: Set<String>) {
             val n = prefs.getInt("changes_since_backup", 0) + 1
             prefs.edit().putInt("changes_since_backup", n).apply()

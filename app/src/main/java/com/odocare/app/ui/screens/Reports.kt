@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.OdometerLog
+import com.odocare.app.domain.FuelEngine
 import com.odocare.app.ui.*
 import com.odocare.app.util.Exports
 import java.time.LocalDate
@@ -55,6 +56,7 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val allRecords by vm.allRecords.collectAsStateWithLifecycle()
+    val allFuel by vm.allFuel.collectAsStateWithLifecycle()
     var vehicleFilter by remember { mutableStateOf<String?>(null) }
     val pf = remember { PeriodFilter(Period.YEAR) }
     val allOdometer by vm.allOdometer.collectAsStateWithLifecycle()
@@ -67,6 +69,10 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     val start = pf.start
     val endBound = pf.endBound   // batas akhir hanya untuk rentang kustom
     val records = byVehicle.filter { pf.accepts(it.date) }
+    // BBM: total dihitung dari catatan di rentang; ruas km/liter dihitung dari SEMUA catatan kendaraan lalu disaring menurut tanggal akhir ruas
+    val fuelByVehicle = allFuel.filter { activeFilter == null || it.vehicleId == activeFilter }
+    val fuelInRange = fuelByVehicle.filter { pf.accepts(it.date) }
+    val fuelStats = FuelEngine.stats(fuelInRange, FuelEngine.segments(fuelByVehicle).filter { pf.accepts(it.endDate) })
 
     val total = records.sumOf { it.cost }
     val count = records.size
@@ -81,7 +87,7 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) }
-            ScreenTitle("Laporan", "Ringkasan biaya servis", Modifier.weight(1f))
+            ScreenTitle("Laporan", "Ringkasan biaya servis & BBM", Modifier.weight(1f))
         }
         Spacer(Modifier.height(10.dp))
 
@@ -95,10 +101,11 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                 vehicles.forEach { v -> FilterChip(selected = activeFilter == v.id, onClick = { vehicleFilter = v.id }, label = { Text(v.name, fontSize = 12.sp) }) }
             }
 
-            if (records.isEmpty()) {
-                EmptyState(Icons.Default.BarChart, "Belum ada data servis", "Tidak ada servis pada periode ini. Catat servis dari tab Servis atau pilih periode lain.", Modifier.padding(top = 24.dp))
+            if (records.isEmpty() && fuelInRange.isEmpty()) {
+                EmptyState(Icons.Default.BarChart, "Belum ada data", "Tidak ada servis atau BBM pada periode ini. Catat servis dari tab Servis, BBM dari tombol Catat BBM di Home, atau pilih periode lain.", Modifier.padding(top = 24.dp))
             } else {
                 Spacer(Modifier.height(12.dp))
+                if (records.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatCard(rupiah(total), "Total biaya", Modifier.weight(1f), Icons.Default.Payments)
                     StatCard("$count", "Jumlah servis", Modifier.weight(1f), Icons.Default.Build)
@@ -122,6 +129,51 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                     if (km.perVehicle.size > 1) Text(km.perVehicle.joinToString(" · ") { (vid, v) -> "${names[vid] ?: "-"} ${fmtKm(v)}" } + " km/bulan", color = TextGray, fontSize = 12.sp)
                 }
 
+                // Suku cadang vs Jasa: hanya dari servis yang dirinci
+                val dirinci = records.filter { it.hasBreakdown }
+                if (dirinci.isNotEmpty()) {
+                    val parts = dirinci.sumOf { it.partsCost }
+                    val labor = dirinci.sumOf { it.laborCost }
+                    val tanpaRincian = records.filter { !it.hasBreakdown && it.cost > 0 }
+                    Spacer(Modifier.height(16.dp))
+                    SectionHeader("Suku cadang vs Jasa")
+                    Spacer(Modifier.height(4.dp))
+                    Surface(color = SurfaceVariantDark, shape = CardShape, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            PercentBar("Suku cadang", parts, parts + labor)
+                            PercentBar("Jasa", labor, parts + labor)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Dari ${dirinci.size} servis yang dirinci." + if (tanpaRincian.isNotEmpty()) " ${tanpaRincian.size} servis (${rupiah(tanpaRincian.sumOf { it.cost })}) tanpa rincian tidak dihitung." else "",
+                                color = TextGray, fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+                }   // akhir blok servis (kartu statistik)
+
+                if (fuelInRange.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp))
+                    SectionHeader("BBM")
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatCard(rupiah(fuelStats.totalCost), "Total biaya BBM", Modifier.weight(1f), Icons.Default.LocalGasStation)
+                        StatCard(fuelStats.kmPerLiter?.let { "${fmtKmPerL(it)} km/L" } ?: "-", "Rata-rata km / liter", Modifier.weight(1f), Icons.Default.Speed)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatCard(fuelStats.costPerKm?.let { "${rupiah(Math.round(it))} / km" } ?: "-", "Biaya per km", Modifier.weight(1f), Icons.Default.Payments)
+                        StatCard("${fuelStats.count}x · ${fmtLiter(fuelStats.totalLiters)} L", "Pengisian · total bensin", Modifier.weight(1f), Icons.Default.Event)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        if (fuelStats.kmPerLiter == null) "Km per liter dan biaya per km butuh minimal 2 pengisian \"tangki penuh\" berurutan pada periode ini."
+                        else "Dihitung dari ${fmtKm(fuelStats.measuredKm)} km di antara pengisian tangki penuh.",
+                        color = TextGray, fontSize = 12.sp
+                    )
+                }
+
+                if (records.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
                 SectionHeader("Biaya per Kategori")
                 Spacer(Modifier.height(4.dp))
@@ -165,6 +217,7 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                         }
                     }
                 }
+                }   // akhir blok servis (kategori, grafik, transaksi)
             }
         }
         Spacer(Modifier.height(24.dp))

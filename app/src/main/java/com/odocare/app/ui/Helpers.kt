@@ -77,6 +77,26 @@ const val THOUSAND_SEP = ','
 fun fmtNum(n: Long): String = DecimalFormat("#,##0", DecimalFormatSymbols(Locale.US).apply { groupingSeparator = THOUSAND_SEP }).format(n)
 fun fmtKm(n: Int): String = fmtNum(n.toLong())
 fun rupiah(n: Long): String = "Rp " + fmtNum(n)
+/** Liter dengan pemisah ribuan dan maksimal 2 desimal (titik sebagai desimal): 5.25, 1,250.5 */
+fun fmtLiter(d: Double): String = DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.US).apply { groupingSeparator = THOUSAND_SEP }).format(d)
+/** Liter untuk isi kolom input (tanpa pemisah ribuan). */
+fun literInput(d: Double): String = DecimalFormat("0.##", DecimalFormatSymbols(Locale.US)).format(d)
+/** km per liter, satu desimal. */
+fun fmtKmPerL(d: Double): String = DecimalFormat("0.0", DecimalFormatSymbols(Locale.US)).format(d)
+/**
+ * Bersihkan ketikan angka desimal: koma dan titik sama-sama diterima sebagai pemisah desimal (disimpan sebagai titik),
+ * maksimal [maxDecimals] desimal, nol di depan dibuang ("007" -> "7", ".5" -> "0.5").
+ */
+fun cleanDecimal(raw: String, maxDecimals: Int = 2, maxIntDigits: Int = 5): String {
+    val intPart = StringBuilder(); val frac = StringBuilder(); var dot = false
+    for (c in raw) when {
+        c.isDigit() -> if (dot) { if (frac.length < maxDecimals) frac.append(c) } else if (intPart.length < maxIntDigits) intPart.append(c)
+        (c == '.' || c == ',') && !dot -> dot = true
+    }
+    val ip = intPart.toString().trimStart('0').ifEmpty { if (dot || intPart.isNotEmpty()) "0" else "" }
+    return if (dot) "$ip.$frac" else ip
+}
+fun posDouble(s: String): Double? = s.toDoubleOrNull()?.takeIf { it > 0 }
 fun fmtTime(hour: Int, minute: Int): String = String.format(Locale.US, "%02d:%02d", hour, minute)
 fun intervalLabel(km: Int?, months: Int?): String {
     val parts = mutableListOf<String>()

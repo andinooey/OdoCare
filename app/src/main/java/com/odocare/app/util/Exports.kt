@@ -35,10 +35,10 @@ object Exports {
     /** CSV dengan BOM UTF-8 agar terbuka benar di Excel. */
     fun csvBytes(records: List<ServiceRecord>, vehicles: List<Vehicle>): ByteArray {
         val byId = vehicles.associateBy { it.id }
-        val sb = StringBuilder("Tanggal,Kendaraan,Plat,Kategori,KM,Biaya,Catatan\r\n")
+        val sb = StringBuilder("Tanggal,Kendaraan,Plat,Kategori,KM,Biaya,Suku cadang,Jasa,Catatan\r\n")
         records.sortedByDescending { it.date }.forEach { r ->
             val v = byId[r.vehicleId]
-            sb.append(listOf(msToDate(r.date).toString(), v?.name ?: "", v?.plate ?: "", r.title, r.km.toString(), r.cost.toString(), r.notes ?: "").joinToString(",") { csvField(it) }).append("\r\n")
+            sb.append(listOf(msToDate(r.date).toString(), v?.name ?: "", v?.plate ?: "", r.title, r.km.toString(), r.cost.toString(), r.partsCost.toString(), r.laborCost.toString(), r.notes ?: "").joinToString(",") { csvField(it) }).append("\r\n")
         }
         return byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + sb.toString().toByteArray(Charsets.UTF_8)
     }

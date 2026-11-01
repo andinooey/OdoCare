@@ -16,7 +16,7 @@ private fun nz(v: Any?): Any = v ?: JSONObject.NULL
 object Backup {
     suspend fun export(db: AppDb): String {
         val root = JSONObject()
-        root.put("app", "odocare").put("version", 5).put("exportedAt", System.currentTimeMillis())
+        root.put("app", "odocare").put("version", 6).put("exportedAt", System.currentTimeMillis())
         root.put("vehicles", JSONArray().also { a -> db.vehicleDao().all().forEach { v ->
             a.put(JSONObject().put("id", v.id).put("name", v.name).put("type", v.type).put("isActive", v.isActive).put("createdAt", v.createdAt).put("plate", v.plate).put("initialKm", v.initialKm))
         } })
@@ -29,7 +29,10 @@ object Backup {
                 .put("notifyEnabled", s.notifyEnabled).put("notifyHour", s.notifyHour).put("notifyMinute", s.notifyMinute).put("warnKm", s.warnKm).put("warnDays", s.warnDays))
         } })
         root.put("records", JSONArray().also { a -> db.serviceRecordDao().all().forEach { r ->
-            a.put(JSONObject().put("id", r.id).put("vehicleId", r.vehicleId).put("scheduleId", nz(r.scheduleId)).put("title", r.title).put("km", r.km).put("date", r.date).put("cost", r.cost).put("notes", nz(r.notes)).put("createdAt", r.createdAt).put("imagePath", nz(r.imagePath)))
+            a.put(JSONObject().put("id", r.id).put("vehicleId", r.vehicleId).put("scheduleId", nz(r.scheduleId)).put("title", r.title).put("km", r.km).put("date", r.date).put("cost", r.cost).put("notes", nz(r.notes)).put("createdAt", r.createdAt).put("imagePath", nz(r.imagePath)).put("partsCost", r.partsCost).put("laborCost", r.laborCost))
+        } })
+        root.put("fuel", JSONArray().also { a -> db.fuelDao().all().forEach { f ->
+            a.put(JSONObject().put("id", f.id).put("vehicleId", f.vehicleId).put("date", f.date).put("km", f.km).put("liters", f.liters).put("totalPrice", f.totalPrice).put("fullTank", f.fullTank).put("createdAt", f.createdAt))
         } })
         root.put("documents", JSONArray().also { a -> db.documentDao().all().forEach { d ->
             a.put(JSONObject().put("id", d.id).put("vehicleId", d.vehicleId).put("type", d.type).put("number", nz(d.number)).put("expiryDate", d.expiryDate).put("notes", nz(d.notes)).put("createdAt", d.createdAt)
@@ -60,7 +63,9 @@ object Backup {
         val vehicles = root.getJSONArray("vehicles").mapObjects { Vehicle(it.getString("id"), it.getString("name"), it.getString("type"), it.optBoolean("isActive", false), it.optLong("createdAt", System.currentTimeMillis()), it.optString("plate", ""), it.optInt("initialKm", 0)) }
         val odometer = root.getJSONArray("odometer").mapObjects { OdometerLog(it.getString("id"), it.getString("vehicleId"), it.getInt("km"), it.getLong("recordedAt")) }
         val schedules = root.getJSONArray("schedules").mapObjects { MaintenanceSchedule(it.getString("id"), it.getString("vehicleId"), it.getString("name"), it.intOrNull("intervalKm"), it.intOrNull("intervalMonths"), it.intOrNull("lastServiceKm"), it.longOrNull("lastServiceDate"), it.optBoolean("archived", false), it.optLong("createdAt", System.currentTimeMillis()), it.optBoolean("notifyEnabled", true), it.optInt("notifyHour", 9), it.optInt("notifyMinute", 0), it.optInt("warnKm", 0), it.optInt("warnDays", 0)) }
-        val records = root.getJSONArray("records").mapObjects { ServiceRecord(it.getString("id"), it.getString("vehicleId"), it.strOrNull("scheduleId"), it.getString("title"), it.getInt("km"), it.getLong("date"), it.optLong("cost", 0L), it.strOrNull("notes"), it.optLong("createdAt", System.currentTimeMillis()), it.strOrNull("imagePath")) }
+        val records = root.getJSONArray("records").mapObjects { ServiceRecord(it.getString("id"), it.getString("vehicleId"), it.strOrNull("scheduleId"), it.getString("title"), it.getInt("km"), it.getLong("date"), it.optLong("cost", 0L), it.strOrNull("notes"), it.optLong("createdAt", System.currentTimeMillis()), it.strOrNull("imagePath"), it.optLong("partsCost", 0L), it.optLong("laborCost", 0L)) }
+        // Backup lama (versi <= 5) belum punya catatan BBM
+        val fuel = root.optJSONArray("fuel")?.mapObjects { FuelLog(it.getString("id"), it.getString("vehicleId"), it.getLong("date"), it.getInt("km"), it.getDouble("liters"), it.getLong("totalPrice"), it.optBoolean("fullTank", true), it.optLong("createdAt", System.currentTimeMillis())) } ?: emptyList()
         val documents = root.getJSONArray("documents").mapObjects { LegalDocument(id = it.getString("id"), vehicleId = it.getString("vehicleId"), type = it.getString("type"), number = it.strOrNull("number"), expiryDate = it.getLong("expiryDate"), notes = it.strOrNull("notes"), createdAt = it.optLong("createdAt", System.currentTimeMillis()), lastRenewedDate = it.longOrNull("lastRenewedDate"), intervalValue = it.intOrNull("intervalValue"), intervalUnit = it.strOrNull("intervalUnit"), reminders = it.optString("reminders", "30:DAY,15:DAY"), notifyEnabled = it.optBoolean("notifyEnabled", true), notifyHour = it.optInt("notifyHour", 9), notifyMinute = it.optInt("notifyMinute", 0), attachmentPath = it.strOrNull("attachmentPath"), attachmentName = it.strOrNull("attachmentName")) }
         val history = root.getJSONArray("documentHistory").mapObjects { DocumentHistory(it.getString("id"), it.getString("documentId"), it.getLong("oldExpiry"), it.getLong("newExpiry"), it.optLong("renewedAt", System.currentTimeMillis())) }
         val masters = root.getJSONArray("masters").mapObjects { MasterCategory(it.getString("id"), it.getString("name"), it.optString("vehicleType", "ALL"), it.optInt("defaultKm", 0), it.optInt("defaultMonths", 0), it.optBoolean("notifyEnabled", true), it.optInt("notifyHour", 9), it.optInt("notifyMinute", 0), it.optInt("warnKm", 0), it.optInt("warnDays", 0)) }
@@ -84,6 +89,7 @@ object Backup {
             odometer.forEach { db.odometerDao().insert(it) }
             schedules.forEach { db.scheduleDao().insert(it) }
             records.forEach { db.serviceRecordDao().insert(it) }
+            fuel.forEach { db.fuelDao().insert(it) }
             documents.forEach { db.documentDao().insert(it) }
             history.forEach { db.docHistoryDao().insert(it) }
             masters.forEach { db.masterDao().insert(it) }
