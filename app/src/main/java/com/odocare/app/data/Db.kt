@@ -56,10 +56,12 @@ data class FuelLog(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val vehicleId: String, val date: Long, val km: Int,
     val liters: Double, val totalPrice: Long, val fullTank: Boolean = true,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    // Harga per liter SAAT transaksi dibuat (snapshot). Tidak ikut berubah bila harga BBM kendaraan diubah kemudian.
+    val literPrice: Long = 0L
 ) {
-    /** Harga per liter, dibulatkan ke rupiah. */
-    val pricePerLiter: Long get() = if (liters > 0) Math.round(totalPrice / liters) else 0L
+    /** Harga per liter transaksi ini: snapshot bila ada, selain itu dihitung dari total / liter. */
+    val pricePerLiter: Long get() = if (literPrice > 0) literPrice else if (liters > 0) Math.round(totalPrice / liters) else 0L
 }
 
 @Entity(tableName = "legal_documents", foreignKeys = [ForeignKey(entity = Vehicle::class, parentColumns = ["id"], childColumns = ["vehicleId"], onDelete = ForeignKey.CASCADE)], indices = [Index("vehicleId")])
@@ -248,7 +250,7 @@ interface DocumentTypeDao {
     @Query("DELETE FROM document_types") suspend fun deleteAll()
 }
 
-@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class, AppNotification::class, FuelLog::class], version = 12, exportSchema = false)
+@Database(entities = [Vehicle::class, OdometerLog::class, MaintenanceSchedule::class, ServiceRecord::class, LegalDocument::class, DocumentHistory::class, MasterCategory::class, VehicleType::class, DocumentType::class, AppNotification::class, FuelLog::class], version = 13, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun vehicleDao(): VehicleDao
     abstract fun odometerDao(): OdometerDao
@@ -264,7 +266,7 @@ abstract class AppDb : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDb? = null
         fun get(ctx: Context): AppDb = INSTANCE ?: synchronized(this) {
-            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12).build().also { INSTANCE = it }
+            INSTANCE ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "odocare.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13).build().also { INSTANCE = it }
         }
     }
 }
@@ -356,5 +358,13 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
 val MIGRATION_11_12 = object : Migration(11, 12) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE vehicles ADD COLUMN fuelPricePerLiter INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** v13: snapshot harga per liter di tiap catatan BBM. Catatan lama diisi dari total / liter agar tidak berubah. */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE fuel_logs ADD COLUMN literPrice INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("UPDATE fuel_logs SET literPrice = CAST(ROUND(totalPrice / liters) AS INTEGER) WHERE liters > 0")
     }
 }

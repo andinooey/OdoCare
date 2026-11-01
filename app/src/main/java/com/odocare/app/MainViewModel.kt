@@ -80,8 +80,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- BBM ----
-    fun addFuel(date: Long, km: Int, liters: Double, totalPrice: Long, fullTank: Boolean) = viewModelScope.launch {
-        activeVehicle.value?.let { if (km > 0 && liters > 0 && totalPrice > 0) repo.addFuel(FuelLog(vehicleId = it.id, date = date, km = km, liters = liters, totalPrice = totalPrice, fullTank = fullTank)) }
+    fun addFuel(date: Long, km: Int, liters: Double, totalPrice: Long, fullTank: Boolean, literPrice: Long) = viewModelScope.launch {
+        activeVehicle.value?.let { if (km > 0 && liters > 0 && totalPrice > 0) repo.addFuel(FuelLog(vehicleId = it.id, date = date, km = km, liters = liters, totalPrice = totalPrice, fullTank = fullTank, literPrice = literPrice)) }
     }
     fun updateFuel(f: FuelLog) = viewModelScope.launch { repo.updateFuel(f) }
     fun deleteFuel(id: String) = viewModelScope.launch {

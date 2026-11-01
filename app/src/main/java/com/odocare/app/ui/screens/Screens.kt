@@ -196,7 +196,7 @@ fun HomeScreen(
 
     if (showAddVehicle) VehicleFormDialog("Tambah Kendaraan", null, { showAddVehicle = false }) { n, p, t, k, a, d, f -> vm.addVehicle(n, p, t, k, a, d, f); showAddVehicle = false }
     if (showAddKm) AddKmDialog(km, { showAddKm = false }) { vm.addOdometer(it); showAddKm = false }
-    if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { showAddFuel = false }) { date, kmV, liters, total, full -> vm.addFuel(date, kmV, liters, total, full); showAddFuel = false }
+    if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { showAddFuel = false }) { date, kmV, liters, total, full, lp -> vm.addFuel(date, kmV, liters, total, full, lp); showAddFuel = false }
     if (showPicker) {
         AlertDialog(onDismissRequest = { showPicker = false }, shape = RoundedCornerShape(20.dp), containerColor = SurfaceDark,
             title = { Text("Servis apa yang dicatat?", fontSize = 16.sp, color = TextWhite) },
@@ -719,7 +719,7 @@ fun RecordServiceDialog(schedule: MaintenanceSchedule?, initialKm: Int?, onDismi
 @Composable
 fun FuelFormDialog(
     title: String, initial: FuelLog?, currentKm: Int?, vehicleName: String?, pricePerLiter: Long, onDismiss: () -> Unit,
-    onSave: (date: Long, km: Int, liters: Double, totalPrice: Long, fullTank: Boolean) -> Unit
+    onSave: (date: Long, km: Int, liters: Double, totalPrice: Long, fullTank: Boolean, literPrice: Long) -> Unit
 ) {
     val minKm = if (initial == null) currentKm else null
     var date by remember { mutableStateOf(initial?.date ?: todayMillis()) }
@@ -731,21 +731,25 @@ fun FuelFormDialog(
     val kmValue = posInt(kmText)
     val kmTooLow = minKm != null && kmValue != null && kmValue < minKm
     val total = totalText.toLongOrNull()?.takeIf { it > 0 }
-    val auto = pricePerLiter > 0
+    // Harga yang dipakai: saat tambah = harga BBM kendaraan SEKARANG; saat edit = harga yang tersimpan di transaksi itu
+    // (bukan harga kendaraan terbaru), sehingga mengedit transaksi lama tidak ikut terpengaruh perubahan harga.
+    val rate = if (initial != null) initial.pricePerLiter else pricePerLiter
+    val auto = rate > 0
     // Mode otomatis: liter = total / harga per liter (2 desimal). Saat edit dan total tidak diubah, liter lama dipertahankan.
     val liters: Double? = if (auto) {
         when {
             total == null -> null
             initial != null && total == initial.totalPrice -> initial.liters
-            else -> Math.round(total.toDouble() / pricePerLiter * 100.0) / 100.0
+            else -> Math.round(total.toDouble() / rate * 100.0) / 100.0
         }.takeIf { it != null && it > 0 }
     } else posDouble(litersText)
     val perLiter = if (liters != null && total != null) Math.round(total / liters) else null
+    val priceToSave = if (auto) rate else (perLiter ?: 0L)
 
     FormDialog(
         title = title, subtitle = vehicleName, icon = Icons.Default.LocalGasStation, onDismiss = onDismiss,
         confirmEnabled = kmValue != null && !kmTooLow && liters != null && total != null,
-        onConfirm = { if (kmValue != null && !kmTooLow && liters != null && total != null) onSave(date, kmValue, liters, total, fullTank) }
+        onConfirm = { if (kmValue != null && !kmTooLow && liters != null && total != null) onSave(date, kmValue, liters, total, fullTank, priceToSave) }
     ) {
         DateField("Tanggal isi", date) { date = it }
         NumberField(
@@ -757,8 +761,8 @@ fun FuelFormDialog(
         NumberField(totalText, { totalText = it }, "Total harga", currency = true, icon = Icons.Default.Payments)
         if (auto) {
             FormNote(
-                if (liters != null) "Jumlah bensin: ${fmtLiter(liters)} liter (harga ${rupiah(pricePerLiter)} per liter)"
-                else "Jumlah bensin dihitung otomatis dari harga ${rupiah(pricePerLiter)} per liter."
+                if (liters != null) "Jumlah bensin: ${fmtLiter(liters)} liter (harga ${rupiah(rate)} per liter)"
+                else "Jumlah bensin dihitung otomatis dari harga ${rupiah(rate)} per liter."
             )
         } else {
             if (perLiter != null) FormNote("Harga per liter: ${rupiah(perLiter)}")

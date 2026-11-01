@@ -63,6 +63,10 @@ private val idLocale = Locale("id", "ID")
 private val dateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 private val dateTimeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
 
+private val dayHeaderFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, d MMM yyyy", idLocale)
+/** Header kelompok tanggal ala mutasi bank, mis. "Sabtu, 1 Nov 2026". */
+fun fmtDayHeader(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate().format(dayHeaderFmt)
+
 fun fmtDate(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate().format(dateFmt)
 fun fmtDateTime(ms: Long): String = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(dateTimeFmt)
 fun msToLocalDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()

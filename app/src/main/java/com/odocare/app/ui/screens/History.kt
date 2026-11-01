@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -122,28 +123,14 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                         "${shown.size} servis" + (if (total > 0) " · ${rupiah(total)}" else "") + " · ${sort.label}",
                         fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
                     )
-                    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
-                        items(shown, key = { it.id }) { r ->
-                            Surface(onClick = { detailTarget = r }, color = SurfaceVariantDark, shape = CardShape) {
-                                Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
-                                    Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
-                                    Spacer(Modifier.width(12.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(r.title, color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
-                                            if (r.cost > 0) Text(rupiah(r.cost), style = AppType.Value, color = LavenderPrimary)
-                                        }
-                                        Text("${fmtDate(r.date)} · ${fmtKm(r.km)} km", fontSize = 12.sp, color = TextGray)
-                                        if (!r.notes.isNullOrBlank()) Text(r.notes, fontSize = 12.sp, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                        if (r.imagePath != null) {
-                                            Spacer(Modifier.height(8.dp))
-                                            StoredImage(r.imagePath, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).clickable { viewImage = r.imagePath })
-                                        }
-                                    }
-                                    ItemMenu(onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
-                                }
-                            }
-                        }
+                    // Urutan Terbaru / Terlama: dikelompokkan per tanggal seperti mutasi bank. Urutan lain: daftar biasa (tanggal tampil di kartu).
+                    val grouped = sort == HistorySort.NEWEST || sort == HistorySort.OLDEST
+                    val card: @Composable (ServiceRecord) -> Unit = { r ->
+                        ServiceCard(r, showDate = !grouped, onClick = { detailTarget = r }, onImage = { viewImage = it }, onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
+                    }
+                    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)) {
+                        if (grouped) dayGroups(shown, { it.date }, { it.id }, card)
+                        else items(shown, key = { it.id }) { card(it) }
                     }
                 }
             }
@@ -152,10 +139,10 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
     if (vehicle != null && section == 1) Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) { AddFab { showAddFuel = true } }
     }
 
-    if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { showAddFuel = false }) { date, kmV, liters, total, full -> vm.addFuel(date, kmV, liters, total, full); showAddFuel = false }
+    if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { showAddFuel = false }) { date, kmV, liters, total, full, lp -> vm.addFuel(date, kmV, liters, total, full, lp); showAddFuel = false }
     editFuel?.let { f ->
-        FuelFormDialog("Edit BBM", f, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { editFuel = null }) { date, kmV, liters, total, full ->
-            vm.updateFuel(f.copy(date = date, km = kmV, liters = liters, totalPrice = total, fullTank = full)); editFuel = null
+        FuelFormDialog("Edit BBM", f, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { editFuel = null }) { date, kmV, liters, total, full, lp ->
+            vm.updateFuel(f.copy(date = date, km = kmV, liters = liters, totalPrice = total, fullTank = full, literPrice = lp)); editFuel = null
         }
     }
     detailTarget?.let { r ->
@@ -251,25 +238,70 @@ private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, onAdd: () -> Unit,
                 "${shown.size} pengisian · ${fmtLiter(shown.sumOf { it.liters })} L · ${rupiah(shown.sumOf { it.totalPrice })}",
                 fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)
             )
-            LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)) {
-                items(shown, key = { it.id }) { f ->
-                    Surface(color = SurfaceVariantDark, shape = CardShape) {
-                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
-                            Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(9.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalGasStation, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${fmtLiter(f.liters)} L", color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
-                                    Text(rupiah(f.totalPrice), style = AppType.Value, color = LavenderPrimary)
-                                }
-                                Text("${fmtDate(f.date)} · ${fmtKm(f.km)} km", fontSize = 12.sp, color = TextGray)
-                                Text("${rupiah(f.pricePerLiter)} / L" + if (f.fullTank) " · Tangki penuh" else " · Sebagian", fontSize = 12.sp, color = TextGray)
-                            }
-                            ItemMenu(onEdit = { onEdit(f) }, onDelete = { onDelete(f) })
-                        }
-                    }
+            LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)) {
+                dayGroups(shown, { it.date }, { it.id }) { f -> FuelCard(f, onEdit = { onEdit(f) }, onDelete = { onDelete(f) }) }
+            }
+        }
+    }
+}
+
+/** Susun daftar per tanggal: header tanggal, lalu kartu transaksi hari itu. [list] harus sudah terurut. */
+private fun <T> LazyListScope.dayGroups(list: List<T>, dateOf: (T) -> Long, key: (T) -> String, card: @Composable (T) -> Unit) {
+    list.groupBy { msToLocalDate(dateOf(it)) }.forEach { (day, rows) ->
+        item(key = "day_$day") { DayHeader(dateOf(rows.first())) }
+        items(rows, key = key) { card(it) }
+    }
+}
+
+/** Header tanggal (tanpa total harian). */
+@Composable
+private fun DayHeader(ms: Long) {
+    Text(
+        fmtDayHeader(ms), style = AppType.Caption.copy(fontWeight = FontWeight.SemiBold), color = TextGray,
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)
+    )
+}
+
+/** Kartu transaksi servis. showDate = true hanya saat daftar tidak dikelompokkan per tanggal. */
+@Composable
+private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit, onImage: (String) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+    Surface(onClick = onClick, color = SurfaceVariantDark, shape = CardShape) {
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
+            Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(r.title, color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
+                    if (r.cost > 0) Text(rupiah(r.cost), style = AppType.Value, color = LavenderPrimary)
+                }
+                Text((if (showDate) "${fmtDate(r.date)} · " else "") + "${fmtKm(r.km)} km", style = AppType.Caption, color = TextGray)
+                if (!r.notes.isNullOrBlank()) Text(r.notes, style = AppType.Caption, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                if (r.imagePath != null) {
+                    Spacer(Modifier.height(8.dp))
+                    StoredImage(r.imagePath, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).clickable { onImage(r.imagePath) })
                 }
             }
+            ItemMenu(onEdit = onEdit, onDelete = onDelete)
+        }
+    }
+}
+
+/** Kartu transaksi BBM: liter dan harga per liter saat transaksi, KM, status tangki. */
+@Composable
+private fun FuelCard(f: FuelLog, onEdit: () -> Unit, onDelete: () -> Unit) {
+    Surface(color = SurfaceVariantDark, shape = CardShape) {
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
+            Box(Modifier.padding(top = 4.dp).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalGasStation, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Isi BBM", color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
+                    Text(rupiah(f.totalPrice), style = AppType.Value, color = LavenderPrimary)
+                }
+                Text("${fmtLiter(f.liters)} L · ${rupiah(f.pricePerLiter)}/L", style = AppType.Caption, color = TextGray)
+                Text("${fmtKm(f.km)} km" + if (f.fullTank) " · Tangki penuh" else " · Sebagian", style = AppType.Caption, color = TextGray)
+            }
+            ItemMenu(onEdit = onEdit, onDelete = onDelete)
         }
     }
 }
