@@ -150,7 +150,7 @@ fun HomeScreen(
                     Text("Odometer", style = AppType.Caption, color = TextGray)
                     Spacer(Modifier.height(Spacing.XS))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        AnimatedOdometerDigits(km)
+                        OdometerDigits(km, large = true)
                         Spacer(Modifier.width(Spacing.S))
                         Text("km", color = TextGray, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.weight(1f))
@@ -263,15 +263,6 @@ fun HomeScreen(
             vm.recordService(s, kmV, date, cost, parts, labor, notes, img); recordTarget = null
         }
     }
-}
-
-/** Odometer yang menghitung naik. State animasinya dibaca di sini saja, jadi hanya digit ini yang digambar ulang tiap frame (bukan seluruh Home). */
-@Composable
-private fun AnimatedOdometerDigits(km: Int?) {
-    var target by remember { mutableStateOf(0) }
-    LaunchedEffect(km) { target = km ?: 0 }
-    val shown by animateIntAsState(target, tween(700, easing = FastOutSlowInEasing), label = "odometer")
-    OdometerDigits(shown, large = true)
 }
 
 /** Tombol aksi tunggal di Home: membuka sheet pilihan Catat Servis / Catat BBM / Update KM. */
