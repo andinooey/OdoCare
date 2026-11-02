@@ -83,7 +83,7 @@ fun HomeScreen(
     var showPicker by remember { mutableStateOf(false) }
     var showAddVehicle by remember { mutableStateOf(false) }
     var recordTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
-    val scheduleViews = schedules.map { Engines.scheduleView(it, km) }
+    val scheduleViews = remember(schedules, km) { schedules.map { Engines.scheduleView(it, km) } }
     val v = vehicle
 
     if (v == null) {
@@ -132,10 +132,6 @@ fun HomeScreen(
                 Spacer(Modifier.height(Spacing.M))
             }
 
-            // Angka odometer menghitung naik saat Home dibuka dan saat KM berubah
-            var kmTarget by remember { mutableStateOf(0) }
-            LaunchedEffect(km) { kmTarget = km ?: 0 }
-            val kmShown by animateIntAsState(kmTarget, tween(900, easing = FastOutSlowInEasing), label = "odometer")
             val heroSource = remember { MutableInteractionSource() }
             Surface(onClick = { showAddKm = true }, interactionSource = heroSource, color = SurfaceVariantDark, shape = HeroShape, border = CardBorder, modifier = Modifier.fillMaxWidth().pressScale(heroSource, 0.98f)) {
                 Column(Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(PillSelected, SurfaceVariantDark))).padding(Spacing.L)) {
@@ -154,7 +150,7 @@ fun HomeScreen(
                     Text("Odometer", style = AppType.Caption, color = TextGray)
                     Spacer(Modifier.height(Spacing.XS))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        OdometerDigits(kmShown, large = true)
+                        AnimatedOdometerDigits(km)
                         Spacer(Modifier.width(Spacing.S))
                         Text("km", color = TextGray, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.weight(1f))
@@ -166,11 +162,13 @@ fun HomeScreen(
 
             // Bento: tile besar "Servis berikutnya" (perkiraan hari) di kiri, dua tile angka di kanan
             val forecast = remember(schedules, km, odoLogs) { Forecast.next(schedules, km, odoLogs) }
-            val today = java.time.LocalDate.now()
-            fun inThisMonth(ms: Long) = msToLocalDate(ms).let { it.year == today.year && it.month == today.month }
-            val monthCost = records.filter { inThisMonth(it.date) }.sumOf { it.cost } + fuelLogs.filter { inThisMonth(it.date) }.sumOf { it.totalPrice }
-            val recentSegments = FuelEngine.segments(fuelLogs).sortedByDescending { it.endDate }.take(3)
-            val efficiency = recentSegments.sumOf { it.liters }.takeIf { it > 0 }?.let { recentSegments.sumOf { s -> s.distanceKm } / it }
+            val monthCost = remember(records, fuelLogs) {
+                val today = java.time.LocalDate.now()
+                fun inThisMonth(ms: Long) = msToLocalDate(ms).let { it.year == today.year && it.month == today.month }
+                records.filter { inThisMonth(it.date) }.sumOf { it.cost } + fuelLogs.filter { inThisMonth(it.date) }.sumOf { it.totalPrice }
+            }
+            val recentSegments = remember(fuelLogs) { FuelEngine.segments(fuelLogs).sortedByDescending { it.endDate }.take(3) }
+            val efficiency = remember(recentSegments) { recentSegments.sumOf { it.liters }.takeIf { it > 0 }?.let { recentSegments.sumOf { s -> s.distanceKm } / it } }
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                 NextServiceTile(
                     forecast, scheduleViews.maxByOrNull { it.progress }, Modifier.weight(1.25f).fillMaxHeight(),
@@ -265,6 +263,15 @@ fun HomeScreen(
             vm.recordService(s, kmV, date, cost, parts, labor, notes, img); recordTarget = null
         }
     }
+}
+
+/** Odometer yang menghitung naik. State animasinya dibaca di sini saja, jadi hanya digit ini yang digambar ulang tiap frame (bukan seluruh Home). */
+@Composable
+private fun AnimatedOdometerDigits(km: Int?) {
+    var target by remember { mutableStateOf(0) }
+    LaunchedEffect(km) { target = km ?: 0 }
+    val shown by animateIntAsState(target, tween(700, easing = FastOutSlowInEasing), label = "odometer")
+    OdometerDigits(shown, large = true)
 }
 
 /** Tombol aksi tunggal di Home: membuka sheet pilihan Catat Servis / Catat BBM / Update KM. */

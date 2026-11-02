@@ -7,6 +7,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -402,9 +406,10 @@ fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, he
     // Terisi dari 0 dengan pegas saat pertama tampil dan saat nilainya berubah
     var target by remember { mutableStateOf(0f) }
     LaunchedEffect(fraction) { target = fraction }
-    val shown by animateFloatAsState(target, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow), label = "progress")
+    val shown by animateFloatAsState(target, tween(450, easing = FastOutSlowInEasing), label = "progress")
     Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(50)).background(TrackColor)) {
-        Box(Modifier.fillMaxWidth(shown.coerceIn(0f, 1f)).fillMaxHeight().background(color))
+        // Lebar isi diubah lewat graphicsLayer: nilai animasi dibaca di fase gambar, tanpa menyusun ulang layout tiap frame
+        Box(Modifier.fillMaxSize().graphicsLayer { scaleX = shown.coerceIn(0f, 1f); transformOrigin = TransformOrigin(0f, 0.5f) }.background(color))
     }
 }
 

@@ -177,10 +177,10 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
     ) { padding ->
         NavHost(
             navController = nav, startDestination = "home", modifier = Modifier.padding(padding),
-            enterTransition = { fadeIn(tween(220, delayMillis = 30)) + slideInVertically(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)) { it / 24 } },
-            exitTransition = { fadeOut(tween(120)) },
-            popEnterTransition = { fadeIn(tween(220, delayMillis = 30)) },
-            popExitTransition = { fadeOut(tween(120)) + slideOutVertically(tween(160)) { it / 24 } }
+            enterTransition = { fadeIn(tween(150)) },
+            exitTransition = { fadeOut(tween(90)) },
+            popEnterTransition = { fadeIn(tween(150)) },
+            popExitTransition = { fadeOut(tween(90)) }
         ) {
             composable("home") {
                 HomeScreen(vm,
