@@ -25,6 +25,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun <T> Flow<T>.state(initial: T) = stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initial)
 
     val vehicles: StateFlow<List<Vehicle>> = repo.vehicles.state(emptyList())
+    /** false selama daftar kendaraan belum selesai dimuat dari database (mencegah layar kosong "Selamat datang" berkedip). */
+    val vehiclesLoaded: StateFlow<Boolean> = repo.vehicles.map { true }.state(false)
     val activeVehicle: StateFlow<Vehicle?> = repo.activeVehicle.state(null)
     val currentKm: StateFlow<Int?> = repo.activeVehicle.flatMapLatest { v -> if (v == null) flowOf(null) else repo.latestOdometer(v.id) }.state(null)
     val odometerLogs: StateFlow<List<OdometerLog>> = repo.activeVehicle.flatMapLatest { v -> if (v == null) flowOf(emptyList()) else repo.odometer(v.id) }.state(emptyList())
@@ -50,6 +52,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (name.isNotBlank()) repo.addVehicleWithDefaults(Vehicle(name = name.trim(), plate = plate.trim().uppercase(), type = type, initialKm = initialKm, fuelPricePerLiter = fuelPrice), autoSchedules, autoDocs)
     }
     fun updateVehicle(v: Vehicle) = viewModelScope.launch { repo.updateVehicle(v) }
+    /** Simpan ubahan kendaraan. Bila KM diubah, dicatat sebagai KM terbaru di odometer supaya Home, jadwal servis, dan pengingat ikut berubah. */
+    fun updateVehicleWithKm(v: Vehicle, km: Int) = viewModelScope.launch {
+        repo.updateVehicle(v)
+        if (km > 0 && km != repo.latestKm(v.id)) repo.addOdometer(OdometerLog(vehicleId = v.id, km = km))
+    }
     fun setActiveVehicle(id: String) = viewModelScope.launch { repo.setActive(id) }
     fun deleteVehicle(id: String) = viewModelScope.launch { repo.deleteVehicle(id) }
 
@@ -163,17 +170,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val t = System.currentTimeMillis() + days * 86_400_000L
         backupSnoozeUntil = t; sp.edit().putLong("backup_snooze_until", t).apply()
     }
-    // ---- Onboarding: sekali untuk pengguna baru. 0 = mengecek, 1 = tampilkan, 2 = selesai/tidak perlu ----
-    var onboardingState by mutableStateOf(if (sp.getBoolean("onboarding_done", false)) 2 else 0)
-        private set
-    init {
-        if (onboardingState == 0) viewModelScope.launch {
-            // Pengguna lama yang sudah punya kendaraan tidak perlu pengantar
-            if (repo.vehicles.first().isNotEmpty()) finishOnboarding() else onboardingState = 1
-        }
-    }
-    fun finishOnboarding() { sp.edit().putBoolean("onboarding_done", true).apply(); onboardingState = 2 }
-
     /** Dari banner Home: buka tab Kendaraan dengan bagian Backup & Data langsung terbuka. */
     var expandBackupSection by mutableStateOf(false)
 

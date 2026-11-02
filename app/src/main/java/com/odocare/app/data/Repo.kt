@@ -100,6 +100,7 @@ class Repo(private val ctx: Context) {
     }
 
     suspend fun updateVehicle(v: Vehicle) = vDao.update(v)
+    suspend fun latestKm(vid: String): Int? = oDao.latestKm(vid)
     suspend fun setActive(id: String) = db.withTransaction { vDao.clearActive(); vDao.setActive(id) }
     suspend fun deleteVehicle(id: String) = db.withTransaction {
         srDao.imagePathsForVehicle(id).forEach { ImageStore.delete(it) }

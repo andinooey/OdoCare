@@ -59,8 +59,8 @@ class PeriodFilter(initial: Period) {
 fun PeriodFilterRow(f: PeriodFilter, customFirst: Boolean = false) {
     var showPicker by remember { mutableStateOf(false) }
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
-        // customFirst: "Pilih tanggal" jadi pilihan pertama
-        val order = if (customFirst) listOf(Period.CUSTOM) + Period.values().filter { it != Period.CUSTOM } else Period.values().toList()
+        // customFirst: "Pilih tanggal" pertama, lalu "Semua", baru periode lain
+        val order = if (customFirst) listOf(Period.CUSTOM, Period.ALL) + Period.values().filter { it != Period.CUSTOM && it != Period.ALL } else Period.values().toList()
         order.forEach { p ->
             if (p == Period.CUSTOM) {
                 val s = f.customStart; val e = f.customEnd

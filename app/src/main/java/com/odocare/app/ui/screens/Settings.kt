@@ -228,7 +228,7 @@ fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTyp
     }
 
     if (showAdd) VehicleFormDialog("Tambah Kendaraan", null, { showAdd = false }) { n, p, t, k, a, d, f -> vm.addVehicle(n, p, t, k, a, d, f); showAdd = false }
-    editTarget?.let { v -> VehicleFormDialog("Ubah Kendaraan", v, { editTarget = null }) { n, p, _, k, _, _, f -> vm.updateVehicle(v.copy(name = n.trim(), plate = p.trim().uppercase(), initialKm = k, fuelPricePerLiter = f)); editTarget = null } }
+    editTarget?.let { v -> VehicleFormDialog("Ubah Kendaraan", v, { editTarget = null }) { n, p, _, k, _, _, f -> vm.updateVehicleWithKm(v.copy(name = n.trim(), plate = p.trim().uppercase(), initialKm = k, fuelPricePerLiter = f), k); editTarget = null } }
     deleteTarget?.let { v -> ConfirmDialog("Hapus kendaraan?", "\"${v.name}\" beserta seluruh odometer, jadwal servis, riwayat, dan dokumennya akan dihapus permanen.", "Hapus", { vm.deleteVehicle(v.id); deleteTarget = null }, { deleteTarget = null }) }
 
     if (showPaste) {
@@ -271,13 +271,14 @@ private fun AboutCard() {
     val ctx = LocalContext.current
     val version = remember { try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "" } catch (e: Exception) { "" } }
     CollapsibleSectionCard("Tentang OdoCare", Icons.Default.Info, summary = "Kolaborasi Andino & Muh. Nur Ali") {
-        Text("OdoCare membantu merawat kendaraanmu: catat KM odometer, pantau jadwal servis tiap komponen, dan dapat pengingat sebelum pajak atau dokumen jatuh tempo.", color = TextWhite, fontSize = 12.sp, lineHeight = 17.sp)
+        Text("Catat KM, servis, BBM, dan pajak semua kendaraanmu di satu tempat. Data tersimpan di HP.", color = TextWhite, fontSize = 12.sp, lineHeight = 17.sp)
         Spacer(Modifier.height(Spacing.M))
         listOf(
-            Icons.Default.Speed to "Catat KM dan lihat riwayatnya",
-            Icons.Default.Build to "Status servis: Aman, Segera, Lewat",
-            Icons.Default.Description to "Pajak, STNK, SIM, dan asuransi diingatkan",
-            Icons.Default.Backup to "Data tersimpan di HP, bisa di-backup"
+            Icons.Default.Speed to "KM odometer dan jadwal servis (Aman, Segera, Lewat)",
+            Icons.Default.LocalGasStation to "Catat BBM: km per liter dan biaya per km",
+            Icons.Default.Description to "Pengingat pajak, STNK, SIM, dan asuransi",
+            Icons.Default.BarChart to "Laporan biaya servis dan BBM dengan grafik",
+            Icons.Default.Backup to "Backup dan restore data"
         ).forEach { (icon, text) ->
             Row(Modifier.padding(vertical = Spacing.XS), verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp))

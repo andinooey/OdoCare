@@ -68,6 +68,7 @@ fun HomeScreen(
     onNavigateToReport: () -> Unit
 ) {
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
+    val loaded by vm.vehiclesLoaded.collectAsStateWithLifecycle()
     val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
     val km by vm.currentKm.collectAsStateWithLifecycle()
     val schedules by vm.schedules.collectAsStateWithLifecycle()
@@ -86,7 +87,10 @@ fun HomeScreen(
     val scheduleViews = remember(schedules, km) { schedules.map { Engines.scheduleView(it, km) } }
     val v = vehicle
 
-    if (v == null) {
+    if (!loaded) {
+        // Data kendaraan belum selesai dimuat: tampilkan latar kosong, bukan layar "Selamat datang"
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+    } else if (v == null) {
         WelcomeEmpty(onAdd = { showAddVehicle = true })
     } else {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {

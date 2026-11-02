@@ -93,11 +93,7 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
             OdoCareTheme(vm.themeMode) {
-                when (vm.onboardingState) {
-                    0 -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-                    1 -> OnboardingScreen(onDone = { vm.finishOnboarding() })
-                    else -> OdoCareRoot(vm, launchTarget) { launchTarget = null }
-                }
+                OdoCareRoot(vm, launchTarget) { launchTarget = null }
             }
         }
     }

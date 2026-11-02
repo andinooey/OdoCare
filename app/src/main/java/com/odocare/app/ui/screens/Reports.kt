@@ -80,8 +80,15 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     val last = records.maxOfOrNull { it.date }
     val perCategory = records.groupBy { it.title }.mapValues { (_, l) -> l.sumOf { it.cost } }.toList().sortedByDescending { it.second }
     val perVehicle = records.groupBy { it.vehicleId }.mapValues { (_, l) -> l.sumOf { it.cost } }.toList().sortedByDescending { it.second }
-    // Grafik mengikuti rentang yang dipilih ("Semua" mulai dari servis tertua)
-    val series = if (records.isEmpty()) null else costSeries(records, start ?: records.minOf { msToLocalDate(it.date) }, endBound ?: today)
+    // Grafik mengikuti rentang yang dipilih ("Semua" mulai dari catatan tertua). Ketiga grafik memakai rentang yang sama agar sumbunya sejajar.
+    val fuelTotal = fuelInRange.sumOf { it.totalPrice }
+    val chartStart = start ?: (records.map { it.date } + fuelInRange.map { it.date }).minOrNull()?.let { msToLocalDate(it) } ?: today
+    val chartEnd = endBound ?: today
+    val servicePoints = records.map { it.date to it.cost }
+    val fuelPoints = fuelInRange.map { it.date to it.totalPrice }
+    val serviceSeries = if (records.isEmpty()) null else costSeries(servicePoints, chartStart, chartEnd)
+    val fuelSeries = if (fuelInRange.isEmpty()) null else costSeries(fuelPoints, chartStart, chartEnd)
+    val combinedSeries = if (records.isEmpty() || fuelInRange.isEmpty()) null else costSeries(servicePoints + fuelPoints, chartStart, chartEnd)
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.L)) {
         Spacer(Modifier.height(Spacing.L))
@@ -104,57 +111,105 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
             if (records.isEmpty() && fuelInRange.isEmpty()) {
                 EmptyState(Icons.Default.BarChart, "Belum ada data", "Tidak ada servis atau BBM pada periode ini. Catat servis dari tab Servis, BBM dari tombol Catat BBM di Home, atau pilih periode lain.", Modifier.padding(top = Spacing.XL))
             } else {
-                Spacer(Modifier.height(Spacing.M))
+                // ===== Kelompok SERVIS =====
                 if (records.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
-                    StatCard(rupiah(total), "Total biaya", Modifier.weight(1f), Icons.Default.Payments)
-                    StatCard("$count", "Jumlah servis", Modifier.weight(1f), Icons.Default.Build)
-                }
-                Spacer(Modifier.height(Spacing.S))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
-                    StatCard(km.avgPerMonth?.let { "${fmtKm(it)} km" } ?: "-", "Rata-rata KM / bulan", Modifier.weight(1f), Icons.Default.Speed)
-                    StatCard(last?.let { fmtDate(it) } ?: "-", "Servis terakhir", Modifier.weight(1f), Icons.Default.Event)
-                }
-                // Keterangan rata-rata KM: dasar hitungan, atau alasan kenapa belum bisa dihitung
-                Spacer(Modifier.height(Spacing.XS))
-                if (km.avgPerMonth == null) {
-                    Text("Rata-rata KM butuh minimal 2 catatan KM pada periode ini.", color = TextGray, fontSize = 12.sp)
-                } else {
-                    val basis = when {
-                        km.days < 7 -> "perkiraan, data baru ${km.days} hari"
-                        km.perVehicle.size == 1 -> "dalam ${km.days} hari"
-                        else -> "dari semua kendaraan"
-                    }
-                    Text("Dari ${fmtKm(km.totalKm)} km tercatat, $basis.", color = TextGray, fontSize = 12.sp)
-                    if (km.perVehicle.size > 1) Text(km.perVehicle.joinToString(" · ") { (vid, v) -> "${names[vid] ?: "-"} ${fmtKm(v)}" } + " km/bulan", color = TextGray, fontSize = 12.sp)
-                }
-
-                // Suku cadang vs Jasa: hanya dari servis yang dirinci
-                val dirinci = records.filter { it.hasBreakdown }
-                if (dirinci.isNotEmpty()) {
-                    val parts = dirinci.sumOf { it.partsCost }
-                    val labor = dirinci.sumOf { it.laborCost }
-                    val tanpaRincian = records.filter { !it.hasBreakdown && it.cost > 0 }
                     Spacer(Modifier.height(Spacing.L))
-                    SectionHeader("Suku cadang vs Jasa")
+                    GroupHeader("Servis", Icons.Default.Build)
+                    Spacer(Modifier.height(Spacing.S))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
+                        StatCard(rupiah(total), "Total biaya servis", Modifier.weight(1f), Icons.Default.Payments)
+                        StatCard("$count", "Jumlah servis", Modifier.weight(1f), Icons.Default.Build)
+                    }
+                    Spacer(Modifier.height(Spacing.S))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
+                        StatCard(km.avgPerMonth?.let { "${fmtKm(it)} km" } ?: "-", "Rata-rata KM / bulan", Modifier.weight(1f), Icons.Default.Speed)
+                        StatCard(last?.let { fmtDate(it) } ?: "-", "Servis terakhir", Modifier.weight(1f), Icons.Default.Event)
+                    }
+                    // Keterangan rata-rata KM: dasar hitungan, atau alasan kenapa belum bisa dihitung
                     Spacer(Modifier.height(Spacing.XS))
-                    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(Spacing.M)) {
-                            PercentBar("Suku cadang", parts, parts + labor)
-                            PercentBar("Jasa", labor, parts + labor)
-                            Spacer(Modifier.height(Spacing.XS))
-                            Text(
-                                "Dari ${dirinci.size} servis yang dirinci." + if (tanpaRincian.isNotEmpty()) " ${tanpaRincian.size} servis (${rupiah(tanpaRincian.sumOf { it.cost })}) tanpa rincian tidak dihitung." else "",
-                                color = TextGray, fontSize = 12.sp
-                            )
+                    if (km.avgPerMonth == null) {
+                        Text("Rata-rata KM butuh minimal 2 catatan KM pada periode ini.", color = TextGray, fontSize = 12.sp)
+                    } else {
+                        val basis = when {
+                            km.days < 7 -> "perkiraan, data baru ${km.days} hari"
+                            km.perVehicle.size == 1 -> "dalam ${km.days} hari"
+                            else -> "dari semua kendaraan"
+                        }
+                        Text("Dari ${fmtKm(km.totalKm)} km tercatat, $basis.", color = TextGray, fontSize = 12.sp)
+                        if (km.perVehicle.size > 1) Text(km.perVehicle.joinToString(" · ") { (vid, v) -> "${names[vid] ?: "-"} ${fmtKm(v)}" } + " km/bulan", color = TextGray, fontSize = 12.sp)
+                    }
+
+                    // Suku cadang vs Jasa: hanya dari servis yang dirinci
+                    val dirinci = records.filter { it.hasBreakdown }
+                    if (dirinci.isNotEmpty()) {
+                        val parts = dirinci.sumOf { it.partsCost }
+                        val labor = dirinci.sumOf { it.laborCost }
+                        val tanpaRincian = records.filter { !it.hasBreakdown && it.cost > 0 }
+                        Spacer(Modifier.height(Spacing.L))
+                        SectionHeader("Suku cadang vs Jasa")
+                        Spacer(Modifier.height(Spacing.XS))
+                        Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(Spacing.M)) {
+                                PercentBar("Suku cadang", parts, parts + labor)
+                                PercentBar("Jasa", labor, parts + labor)
+                                Spacer(Modifier.height(Spacing.XS))
+                                Text(
+                                    "Dari ${dirinci.size} servis yang dirinci." + if (tanpaRincian.isNotEmpty()) " ${tanpaRincian.size} servis (${rupiah(tanpaRincian.sumOf { it.cost })}) tanpa rincian tidak dihitung." else "",
+                                    color = TextGray, fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(Spacing.L))
+                    SectionHeader("Biaya per Kategori")
+                    Spacer(Modifier.height(Spacing.XS))
+                    perCategory.forEach { (name, v) -> PercentBar(name, v, total) }
+
+                    if (perVehicle.size > 1) {
+                        Spacer(Modifier.height(Spacing.M))
+                        SectionHeader("Biaya per Kendaraan")
+                        Spacer(Modifier.height(Spacing.XS))
+                        perVehicle.forEach { (vid, v) -> PercentBar(names[vid] ?: "-", v, total) }
+                    }
+
+                    if (serviceSeries != null) {
+                        Spacer(Modifier.height(Spacing.M))
+                        SectionHeader("Biaya Servis " + serviceSeries.title.removePrefix("Biaya "))
+                        Spacer(Modifier.height(Spacing.S))
+                        ChartCard { LineChart(serviceSeries.labels, serviceSeries.values, LavenderPrimary) }
+                    }
+
+                    Spacer(Modifier.height(Spacing.M))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Transaksi servis terbaru", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            try { Exports.shareFile(ctx, "odocare-laporan.csv", "text/csv", Exports.csvBytes(records, vehicles)) } catch (e: Exception) { info = "Gagal mengekspor: ${e.message}" }
+                        }, contentPadding = PaddingValues(horizontal = Spacing.S), modifier = Modifier.height(30.dp)) {
+                            Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(16.dp), tint = LavenderPrimary)
+                            Spacer(Modifier.width(Spacing.XS))
+                            Text("CSV", fontSize = 12.sp, color = LavenderPrimary)
+                        }
+                    }
+                    Spacer(Modifier.height(Spacing.XS))
+                    records.sortedByDescending { it.date }.take(50).forEach { r ->
+                        Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.XS)) {
+                            Row(Modifier.padding(horizontal = Spacing.M, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(r.title, color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${fmtDate(r.date)} · ${names[r.vehicleId] ?: "-"} · ${fmtKm(r.km)} km", color = TextGray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                Spacer(Modifier.width(Spacing.S))
+                                Text(if (r.cost > 0) rupiah(r.cost) else "-", color = LavenderPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }
-                }   // akhir blok servis (kartu statistik)
 
+                // ===== Kelompok BBM =====
                 if (fuelInRange.isNotEmpty()) {
-                    Spacer(Modifier.height(Spacing.L))
-                    SectionHeader("BBM")
+                    Spacer(Modifier.height(Spacing.XL))
+                    GroupHeader("BBM", Icons.Default.LocalGasStation)
                     Spacer(Modifier.height(Spacing.S))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                         StatCard(rupiah(fuelStats.totalCost), "Total biaya BBM", Modifier.weight(1f), Icons.Default.LocalGasStation)
@@ -171,53 +226,29 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                         else "Dihitung dari ${fmtKm(fuelStats.measuredKm)} km di antara pengisian tangki penuh.",
                         color = TextGray, fontSize = 12.sp
                     )
+                    if (fuelSeries != null) {
+                        Spacer(Modifier.height(Spacing.M))
+                        SectionHeader("Biaya BBM " + fuelSeries.title.removePrefix("Biaya "))
+                        Spacer(Modifier.height(Spacing.S))
+                        ChartCard { LineChart(fuelSeries.labels, fuelSeries.values, StatusBlueText) }
+                    }
                 }
 
-                if (records.isNotEmpty()) {
-                Spacer(Modifier.height(Spacing.L))
-                SectionHeader("Biaya per Kategori")
-                Spacer(Modifier.height(Spacing.XS))
-                perCategory.forEach { (name, v) -> PercentBar(name, v, total) }
-
-                if (perVehicle.size > 1) {
-                    Spacer(Modifier.height(Spacing.M))
-                    SectionHeader("Biaya per Kendaraan")
-                    Spacer(Modifier.height(Spacing.XS))
-                    perVehicle.forEach { (vid, v) -> PercentBar(names[vid] ?: "-", v, total) }
-                }
-
-                Spacer(Modifier.height(Spacing.M))
-                if (series != null) {
-                    SectionHeader(series.title)
+                // ===== Kelompok GABUNGAN (hanya bila servis dan BBM sama-sama ada) =====
+                if (combinedSeries != null) {
+                    Spacer(Modifier.height(Spacing.XL))
+                    GroupHeader("Servis + BBM", Icons.Default.Payments)
                     Spacer(Modifier.height(Spacing.S))
-                    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) { Box(Modifier.padding(Spacing.M)) { BarChart(series.labels, series.values) } }
-                }
-
-                Spacer(Modifier.height(Spacing.M))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Transaksi terbaru", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, modifier = Modifier.weight(1f))
-                    TextButton(onClick = {
-                        try { Exports.shareFile(ctx, "odocare-laporan.csv", "text/csv", Exports.csvBytes(records, vehicles)) } catch (e: Exception) { info = "Gagal mengekspor: ${e.message}" }
-                    }, contentPadding = PaddingValues(horizontal = Spacing.S), modifier = Modifier.height(30.dp)) {
-                        Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(16.dp), tint = LavenderPrimary)
-                        Spacer(Modifier.width(Spacing.XS))
-                        Text("CSV", fontSize = 12.sp, color = LavenderPrimary)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
+                        StatCard(rupiah(total + fuelTotal), "Total biaya gabungan", Modifier.weight(1f), Icons.Default.Payments)
                     }
+                    Spacer(Modifier.height(Spacing.XS))
+                    Text("Servis ${rupiah(total)} + BBM ${rupiah(fuelTotal)}", color = TextGray, fontSize = 12.sp)
+                    Spacer(Modifier.height(Spacing.M))
+                    SectionHeader("Biaya Gabungan " + combinedSeries.title.removePrefix("Biaya "))
+                    Spacer(Modifier.height(Spacing.S))
+                    ChartCard { LineChart(combinedSeries.labels, combinedSeries.values, StatusGreenText) }
                 }
-                Spacer(Modifier.height(Spacing.XS))
-                records.sortedByDescending { it.date }.take(50).forEach { r ->
-                    Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.XS)) {
-                        Row(Modifier.padding(horizontal = Spacing.M, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(r.title, color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text("${fmtDate(r.date)} · ${names[r.vehicleId] ?: "-"} · ${fmtKm(r.km)} km", color = TextGray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            Spacer(Modifier.width(Spacing.S))
-                            Text(if (r.cost > 0) rupiah(r.cost) else "-", color = LavenderPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
-                }
-                }   // akhir blok servis (kategori, grafik, transaksi)
             }
         }
         Spacer(Modifier.height(Spacing.XL))
@@ -225,3 +256,21 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     info?.let { InfoDialog(it) { info = null } }
 }
 
+/** Judul kelompok laporan (Servis / BBM / gabungan): ikon, judul tebal, dan garis pemisah di bawahnya. */
+@Composable
+private fun GroupHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(Spacing.S))
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+        }
+        Spacer(Modifier.height(Spacing.S))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(TrackColor))
+    }
+}
+
+@Composable
+private fun ChartCard(content: @Composable () -> Unit) {
+    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) { Box(Modifier.padding(Spacing.M)) { content() } }
+}

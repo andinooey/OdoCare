@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -193,10 +195,11 @@ data class CostSeries(val title: String, val labels: List<String>, val values: L
 /**
  * Grafik biaya yang mengikuti rentang laporan. Kelompok menyesuaikan panjang rentang agar batang tetap terbaca:
  * sampai 45 hari per minggu, sampai 12 bulan per bulan, sampai 36 bulan per kuartal, selebihnya per tahun.
- * [records] sudah difilter ke rentang [start]..[end].
+ * [points] sudah difilter ke rentang [start]..[end]; dipakai untuk servis, BBM, maupun gabungan keduanya.
  */
-fun costSeries(records: List<ServiceRecord>, start: LocalDate, end: LocalDate): CostSeries {
-    fun sum(from: LocalDate, to: LocalDate) = records.filter { val d = msToLocalDate(it.date); !d.isBefore(from) && !d.isAfter(to) }.sumOf { it.cost }
+fun costSeries(points: List<Pair<Long, Long>>, start: LocalDate, end: LocalDate): CostSeries {
+    // points = pasangan (tanggal ms, biaya)
+    fun sum(from: LocalDate, to: LocalDate) = points.filter { val d = msToLocalDate(it.first); !d.isBefore(from) && !d.isAfter(to) }.sumOf { it.second }
     val labels = mutableListOf<String>(); val values = mutableListOf<Long>()
     val days = ChronoUnit.DAYS.between(start, end) + 1
     val sm = YearMonth.from(start); val em = YearMonth.from(end)
@@ -435,6 +438,40 @@ fun OdometerDigits(km: Int?, large: Boolean = false) {
 }
 
 private fun compact(v: Long): String = when { v >= 1_000_000 -> String.format(Locale.US, "%.1fjt", v / 1_000_000.0).replace('.', DECIMAL_SEP); v >= 1_000 -> "${v / 1_000}rb"; else -> v.toString() }
+
+/** Grafik garis: titik di tengah tiap kelompok, label sumbu di bawah, nilai di atas titik (atau hanya titik tertinggi bila kelompok banyak). */
+@Composable
+fun LineChart(labels: List<String>, values: List<Long>, color: Color, modifier: Modifier = Modifier) {
+    val max = (values.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val track = TrackColor; val textColor = TextGray
+    val peak = values.indexOf(values.maxOrNull() ?: 0L)
+    Column(modifier.fillMaxWidth()) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(120.dp)) {
+            val n = values.size
+            if (n == 0) return@Canvas
+            val padTop = 18.dp.toPx(); val padBottom = 4.dp.toPx()
+            val h = size.height - padTop - padBottom
+            val cell = size.width / n
+            fun x(i: Int) = cell * (i + 0.5f)
+            fun y(v: Long) = padTop + h * (1f - v.toFloat() / max.toFloat())
+            // garis dasar
+            drawLine(track, androidx.compose.ui.geometry.Offset(0f, padTop + h), androidx.compose.ui.geometry.Offset(size.width, padTop + h), strokeWidth = 1.dp.toPx())
+            val path = androidx.compose.ui.graphics.Path()
+            values.forEachIndexed { i, v -> if (i == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v)) }
+            drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            val paint = android.graphics.Paint().apply { isAntiAlias = true; this.color = textColor.toArgb(); textSize = 10.sp.toPx(); textAlign = android.graphics.Paint.Align.CENTER }
+            values.forEachIndexed { i, v ->
+                drawCircle(if (v > 0) color else track, radius = 3.5.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x(i), y(v)))
+                if (v > 0 && (n <= 7 || i == peak)) drawContext.canvas.nativeCanvas.drawText(compact(v), x(i), y(v) - 8.dp.toPx(), paint)
+            }
+        }
+        Spacer(Modifier.height(Spacing.XS))
+        Row(Modifier.fillMaxWidth()) {
+            val step = if (labels.size > 8) 2 else 1   // label selang-seling bila terlalu rapat
+            labels.forEachIndexed { i, l -> Text(if (i % step == 0) l else "", Modifier.weight(1f), fontSize = 12.sp, color = TextGray, maxLines = 1, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+        }
+    }
+}
 
 /** Grafik batang dari div/Box biasa */
 @Composable
