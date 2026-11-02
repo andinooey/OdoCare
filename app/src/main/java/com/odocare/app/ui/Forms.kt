@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -43,6 +45,7 @@ fun FormDialog(
     confirmLabel: String = "Simpan", confirmEnabled: Boolean = true, subtitle: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
@@ -65,7 +68,7 @@ fun FormDialog(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(DividerColor))
                 Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.L, vertical = Spacing.M), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
                     OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f).height(46.dp), shape = FieldShape, border = BorderStroke(1.dp, FieldBorder)) { Text("Batal", color = TextGray) }
-                    Button(onClick = onConfirm, enabled = confirmEnabled, modifier = Modifier.weight(1f).height(46.dp), shape = FieldShape) { Text(confirmLabel) }
+                    Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onConfirm() }, enabled = confirmEnabled, modifier = Modifier.weight(1f).height(46.dp), shape = FieldShape) { Text(confirmLabel) }
                 }
             }
         }

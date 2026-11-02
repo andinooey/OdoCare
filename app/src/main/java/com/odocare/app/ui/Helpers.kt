@@ -7,6 +7,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -391,8 +399,12 @@ fun AddKmDialog(currentKm: Int?, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
 
 @Composable
 fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 4.dp) {
+    // Terisi dari 0 dengan pegas saat pertama tampil dan saat nilainya berubah
+    var target by remember { mutableStateOf(0f) }
+    LaunchedEffect(fraction) { target = fraction }
+    val shown by animateFloatAsState(target, spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow), label = "progress")
     Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(50)).background(TrackColor)) {
-        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f).let { if (it > 0f) it.coerceAtLeast(0.04f) else 0f }).fillMaxHeight().background(color))
+        Box(Modifier.fillMaxWidth(shown.coerceIn(0f, 1f)).fillMaxHeight().background(color))
     }
 }
 
@@ -409,13 +421,9 @@ fun PlateView(plate: String) {
 fun OdometerDigits(km: Int?, large: Boolean = false) {
     val digits = (km ?: 0).coerceAtLeast(0).toString().padStart(6, '0')
     Row(horizontalArrangement = Arrangement.spacedBy(if (large) 6.dp else 4.dp)) {
-        digits.forEachIndexed { i, c ->
-            val boxBg = if (large) HeroDigitBg else Color(0xFF0B0B0B)
-            val boxBorder = if (large) Color.White.copy(alpha = 0.15f) else Color(0xFF3A3A3A)
-            // Di kartu hero, digit terakhir diberi warna terang seperti angka yang sedang berjalan.
-            val digitColor = if (large && i == digits.lastIndex) HeroDigitHighlight else Color.White
-            Box(Modifier.size(if (large) 30.dp else 22.dp, if (large) 44.dp else 30.dp).background(boxBg, RoundedCornerShape(4.dp)).border(1.dp, boxBorder, RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
-                Text(c.toString(), color = digitColor, fontFamily = FontFamily.Monospace, fontSize = if (large) 24.sp else 16.sp, fontWeight = FontWeight.Bold)
+        digits.forEach { c ->
+            Box(Modifier.size(if (large) 30.dp else 22.dp, if (large) 44.dp else 30.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                Text(c.toString(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = if (large) 24.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,8 +38,7 @@ class AppPalette(
     val danger: Color, val error: Color,
     val redBg: Color, val redText: Color, val grayBg: Color, val grayText: Color,
     val blueBg: Color, val blueText: Color, val greenBg: Color, val greenText: Color,
-    val yellowBg: Color, val yellowText: Color,
-    val heroStart: Color, val heroEnd: Color
+    val yellowBg: Color, val yellowText: Color
 )
 
 val MidnightPalette = AppPalette(
@@ -51,8 +51,7 @@ val MidnightPalette = AppPalette(
     danger = Color(0xFFFF8F8F), error = Color(0xFFEF4444),
     redBg = Color(0xFF3B1A22), redText = Color(0xFFFF9A9A), grayBg = Color(0xFF222A3D), grayText = Color(0xFFC4CCDD),
     blueBg = Color(0xFF12343F), blueText = Color(0xFF7FD8F0), greenBg = Color(0xFF143A2C), greenText = Color(0xFF6EDDA5),
-    yellowBg = Color(0xFF3E3412), yellowText = Color(0xFFFFD56B),
-    heroStart = Color(0xFF3B63F0), heroEnd = Color(0xFF1E2F7A)
+    yellowBg = Color(0xFF3E3412), yellowText = Color(0xFFFFD56B)
 )
 
 val CloudPalette = AppPalette(
@@ -65,8 +64,7 @@ val CloudPalette = AppPalette(
     danger = Color(0xFFC62828), error = Color(0xFFDC2626),
     redBg = Color(0xFFFDE3E3), redText = Color(0xFFB42318), grayBg = Color(0xFFE6EAF2), grayText = Color(0xFF475069),
     blueBg = Color(0xFFD7F1F8), blueText = Color(0xFF0B6B85), greenBg = Color(0xFFDAF5E6), greenText = Color(0xFF117A47),
-    yellowBg = Color(0xFFFFF1CC), yellowText = Color(0xFF8A5A00),
-    heroStart = Color(0xFF1E3A8A), heroEnd = Color(0xFF1D4ED8)
+    yellowBg = Color(0xFFFFF1CC), yellowText = Color(0xFF8A5A00)
 )
 
 /**
@@ -91,15 +89,6 @@ val DividerColor: Color get() = ActivePalette.divider
 val TrackColor: Color get() = ActivePalette.track
 /** Garis tipis di tepi kartu, hanya di mode terang (kartu putih di atas latar abu-biru). Mode gelap: tanpa garis. */
 val CardBorder: BorderStroke? get() = if (ActivePalette.isDark) null else BorderStroke(1.dp, ActivePalette.fieldBorder.copy(alpha = 0.6f))
-
-/** Kartu hero (odometer): gradasi biru di dua mode, isi selalu putih. */
-val HeroStart: Color get() = ActivePalette.heroStart
-val HeroEnd: Color get() = ActivePalette.heroEnd
-val IsDarkTheme: Boolean get() = ActivePalette.isDark
-val HeroText = Color.White
-val HeroTextMuted = Color.White.copy(alpha = 0.85f)
-val HeroDigitBg = Color(0xFF0A1030)
-val HeroDigitHighlight = Color(0xFF9DB8FF)
 
 val StatusRedBg: Color get() = ActivePalette.redBg
 val StatusRedText: Color get() = ActivePalette.redText
@@ -144,7 +133,7 @@ fun OdoCareTheme(mode: String, content: @Composable () -> Unit) {
     val palette = if (shownDark) MidnightPalette else CloudPalette
     ActivePalette = palette
     val backdrop by animateColorAsState(palette.bg, tween(300), label = "themeBackdrop")
-    MaterialTheme(colorScheme = schemeFor(palette), typography = CompactTypography) {
+    MaterialTheme(colorScheme = schemeFor(palette), typography = CompactTypography, shapes = AppShapes) {
         Box(Modifier.fillMaxSize().background(backdrop)) {
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = fade.value }) { content() }
         }
@@ -196,3 +185,9 @@ object Spacing {
     val XL = 24.dp
     val FabClearance = 88.dp
 }
+
+/** Bentuk bergaya Expressive: sudut lebih besar dan bervariasi (dialog dan sheet otomatis ikut lebih bulat). */
+val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp), extraLarge = RoundedCornerShape(28.dp)
+)

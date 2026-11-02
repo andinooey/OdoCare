@@ -4,6 +4,12 @@ package com.odocare.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,6 +49,22 @@ fun docColor(status: DocStatus): Pair<Color, Color> = when (status) {
 }
 
 val CardShape = RoundedCornerShape(14.dp)
+/** Kartu utama (odometer) paling bulat, petak bento sedang, kartu biasa paling kecil: variasi radius ala Expressive. */
+val HeroShape = RoundedCornerShape(28.dp)
+val TileShape = RoundedCornerShape(22.dp)
+
+/**
+ * Efek tekan berpegas: elemen mengecil sedikit saat ditekan lalu memantul kembali.
+ * Pakai bersama Surface(onClick = ..., interactionSource = source).
+ */
+fun Modifier.pressScale(source: MutableInteractionSource, pressed: Float = 0.97f): Modifier = composed {
+    val isPressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (isPressed) pressed else 1f,
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "press"
+    )
+    graphicsLayer { scaleX = scale; scaleY = scale }
+}
 
 @Composable
 fun StatusBadge(text: String, colors: Pair<Color, Color>) {
@@ -182,7 +204,7 @@ fun SectionHeader(title: String, action: String? = null, onAction: (() -> Unit)?
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = AppType.Section, color = TextWhite, modifier = Modifier.weight(1f))
         if (action != null && onAction != null) {
-            TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
+            TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = Spacing.S, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
                 Text(action, color = LavenderPrimary, fontSize = 12.sp)
             }
         }

@@ -38,6 +38,17 @@ import com.odocare.app.data.MaintenanceSchedule
 import com.odocare.app.data.MasterCategory
 import com.odocare.app.data.OdometerLog
 import com.odocare.app.domain.Engines
+import com.odocare.app.domain.Forecast
+import com.odocare.app.domain.ForecastResult
+import com.odocare.app.domain.FuelEngine
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlin.math.roundToInt
 import com.odocare.app.data.ImageStore
 import com.odocare.app.domain.ScheduleView
 import com.odocare.app.domain.ServiceStatus
@@ -53,7 +64,8 @@ fun HomeScreen(
     vm: MainViewModel,
     onNavigateToSchedule: () -> Unit, onNavigateToHistory: () -> Unit,
     onNavigateToDocuments: () -> Unit, onNavigateToOdometer: () -> Unit,
-    onNavigateToNotifications: () -> Unit, onNavigateToSettings: () -> Unit
+    onNavigateToNotifications: () -> Unit, onNavigateToSettings: () -> Unit,
+    onNavigateToReport: () -> Unit
 ) {
     val vehicles by vm.vehicles.collectAsStateWithLifecycle()
     val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
@@ -62,6 +74,10 @@ fun HomeScreen(
     val documents by vm.documents.collectAsStateWithLifecycle()
     val unreadNotifications by vm.unreadNotifications.collectAsStateWithLifecycle()
     val lastBackup by vm.lastBackup.collectAsStateWithLifecycle()
+    val records by vm.records.collectAsStateWithLifecycle()
+    val fuelLogs by vm.fuelLogs.collectAsStateWithLifecycle()
+    val odoLogs by vm.odometerLogs.collectAsStateWithLifecycle()
+    var showSheet by remember { mutableStateOf(false) }
     var showAddKm by remember { mutableStateOf(false) }
     var showAddFuel by remember { mutableStateOf(false) }
     var showPicker by remember { mutableStateOf(false) }
@@ -73,7 +89,8 @@ fun HomeScreen(
     if (v == null) {
         WelcomeEmpty(onAdd = { showAddVehicle = true })
     } else {
-        Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.L)) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.L)) {
             Spacer(Modifier.height(Spacing.L))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Speed, null, tint = LavenderPrimary, modifier = Modifier.size(24.dp))
@@ -115,40 +132,58 @@ fun HomeScreen(
                 Spacer(Modifier.height(Spacing.M))
             }
 
-            Surface(onClick = { showAddKm = true }, color = HeroEnd, shape = RoundedCornerShape(18.dp), shadowElevation = if (IsDarkTheme) 0.dp else 8.dp, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(HeroStart, HeroEnd))).padding(Spacing.L)) {
+            // Angka odometer menghitung naik saat Home dibuka dan saat KM berubah
+            var kmTarget by remember { mutableStateOf(0) }
+            LaunchedEffect(km) { kmTarget = km ?: 0 }
+            val kmShown by animateIntAsState(kmTarget, tween(900, easing = FastOutSlowInEasing), label = "odometer")
+            val heroSource = remember { MutableInteractionSource() }
+            Surface(onClick = { showAddKm = true }, interactionSource = heroSource, color = SurfaceVariantDark, shape = HeroShape, border = CardBorder, modifier = Modifier.fillMaxWidth().pressScale(heroSource, 0.98f)) {
+                Column(Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(PillSelected, SurfaceVariantDark))).padding(Spacing.L)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(HeroText.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                            Icon(VehicleTypes.icon(v.type), null, tint = HeroText, modifier = Modifier.size(22.dp))
+                        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(StatusBlueBg), contentAlignment = Alignment.Center) {
+                            Icon(VehicleTypes.icon(v.type), null, tint = LavenderPrimary, modifier = Modifier.size(22.dp))
                         }
                         Spacer(Modifier.width(Spacing.M))
                         Column(Modifier.weight(1f)) {
-                            Text(v.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = HeroText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(vehicleTypeLabel(v.type), fontSize = 12.sp, color = HeroTextMuted)
+                            Text(v.name, style = AppType.CardTitle, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(vehicleTypeLabel(v.type), style = AppType.Caption, color = TextGray)
                         }
                         if (v.plate.isNotBlank()) PlateView(v.plate)
                     }
-                    Spacer(Modifier.height(Spacing.M))
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Odometer", color = HeroTextMuted, fontSize = 12.sp)
-                        Spacer(Modifier.weight(1f))
-                        Text("Ketuk untuk update", color = HeroTextMuted, fontSize = 12.sp)
-                    }
+                    Spacer(Modifier.height(Spacing.L))
+                    Text("Odometer", style = AppType.Caption, color = TextGray)
                     Spacer(Modifier.height(Spacing.XS))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        OdometerDigits(km, large = true)
+                        OdometerDigits(kmShown, large = true)
                         Spacer(Modifier.width(Spacing.S))
-                        Text("km", color = HeroText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("km", color = TextGray, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.Edit, "Update KM", tint = LavenderPrimary, modifier = Modifier.size(18.dp))
                     }
                 }
             }
-            Spacer(Modifier.height(Spacing.M))
+            Spacer(Modifier.height(Spacing.S))
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
-                ActionButton(Icons.Default.Speed, "Update KM", Modifier.weight(1f), false) { showAddKm = true }
-                ActionButton(Icons.Default.LocalGasStation, "Catat BBM", Modifier.weight(1f), false) { showAddFuel = true }
-                ActionButton(Icons.Default.Add, "Catat Servis", Modifier.weight(1f), true) { showPicker = true }
-                ActionButton(Icons.Default.History, "Histori", Modifier.weight(1f), false) { onNavigateToHistory() }
+            // Bento: tile besar "Servis berikutnya" (perkiraan hari) di kiri, dua tile angka di kanan
+            val forecast = remember(schedules, km, odoLogs) { Forecast.next(schedules, km, odoLogs) }
+            val today = java.time.LocalDate.now()
+            fun inThisMonth(ms: Long) = msToLocalDate(ms).let { it.year == today.year && it.month == today.month }
+            val monthCost = records.filter { inThisMonth(it.date) }.sumOf { it.cost } + fuelLogs.filter { inThisMonth(it.date) }.sumOf { it.totalPrice }
+            val recentSegments = FuelEngine.segments(fuelLogs).sortedByDescending { it.endDate }.take(3)
+            val efficiency = recentSegments.sumOf { it.liters }.takeIf { it > 0 }?.let { recentSegments.sumOf { s -> s.distanceKm } / it }
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
+                NextServiceTile(
+                    forecast, scheduleViews.maxByOrNull { it.progress }, Modifier.weight(1.25f).fillMaxHeight(),
+                    onUpdateKm = { showAddKm = true }, onOpenSchedule = onNavigateToSchedule
+                )
+                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(Spacing.S)) {
+                    StatTile("Biaya bulan ini", rupiah(monthCost), "Servis + BBM", Icons.Default.Payments, Modifier.weight(1f), onNavigateToReport)
+                    StatTile(
+                        "Efisiensi BBM", efficiency?.let { "${fmtKmPerL(it)} km/L" } ?: "-",
+                        if (efficiency != null) "${recentSegments.size} pengisian terakhir" else "Butuh 2× tangki penuh",
+                        Icons.Default.LocalGasStation, Modifier.weight(1f), onNavigateToHistory
+                    )
+                }
             }
             Spacer(Modifier.height(Spacing.L))
 
@@ -192,10 +227,18 @@ fun HomeScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(Spacing.L))
+            Spacer(Modifier.height(Spacing.FabClearance))
+        }
+        QuickAddFab(Modifier.align(Alignment.BottomEnd).padding(Spacing.L)) { showSheet = true }
         }
     }
 
+    if (showSheet) {
+        QuickActionSheet(
+            km = km, onDismiss = { showSheet = false },
+            onService = { showPicker = true }, onFuel = { showAddFuel = true }, onKm = { showAddKm = true }
+        )
+    }
     if (showAddVehicle) VehicleFormDialog("Tambah Kendaraan", null, { showAddVehicle = false }) { n, p, t, k, a, d, f -> vm.addVehicle(n, p, t, k, a, d, f); showAddVehicle = false }
     if (showAddKm) AddKmDialog(km, { showAddKm = false }) { vm.addOdometer(it); showAddKm = false }
     if (showAddFuel) FuelFormDialog("Catat BBM", null, km, vehicle?.name, vehicle?.fuelPricePerLiter ?: 0L, { showAddFuel = false }) { date, kmV, liters, total, full, lp -> vm.addFuel(date, kmV, liters, total, full, lp); showAddFuel = false }
@@ -220,6 +263,148 @@ fun HomeScreen(
     recordTarget?.let { s ->
         RecordServiceDialog(schedule = s, initialKm = km, onDismiss = { recordTarget = null }) { kmV, date, cost, parts, labor, notes, img ->
             vm.recordService(s, kmV, date, cost, parts, labor, notes, img); recordTarget = null
+        }
+    }
+}
+
+/** Tombol aksi tunggal di Home: membuka sheet pilihan Catat Servis / Catat BBM / Update KM. */
+@Composable
+private fun QuickAddFab(modifier: Modifier, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
+    Surface(
+        onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() }, interactionSource = source,
+        shape = RoundedCornerShape(20.dp), color = LavenderPrimary, contentColor = OnAccent, shadowElevation = 6.dp,
+        modifier = modifier.pressScale(source, 0.92f)
+    ) {
+        Row(Modifier.padding(horizontal = Spacing.L, vertical = Spacing.M), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(Spacing.S))
+            Text("Catat", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/** Sheet bawah: tiga aksi pencatatan dalam satu tempat. Latar solid (tanpa efek kaca) agar teks tetap kontras. */
+@Composable
+private fun QuickActionSheet(km: Int?, onDismiss: () -> Unit, onService: () -> Unit, onFuel: () -> Unit, onKm: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    // Tutup sheet dengan animasi dulu, baru buka form pilihan
+    fun pick(action: () -> Unit) {
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss(); action() }
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss, sheetState = sheetState, containerColor = SurfaceDark,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(Modifier.padding(horizontal = Spacing.L).padding(bottom = Spacing.XL), verticalArrangement = Arrangement.spacedBy(Spacing.S)) {
+            Text("Catat apa sekarang?", style = AppType.Section, color = TextWhite, modifier = Modifier.padding(bottom = Spacing.XS))
+            QuickActionRow(Icons.Default.Build, "Catat Servis", "Pilih komponen yang baru diservis", true) { pick(onService) }
+            QuickActionRow(Icons.Default.LocalGasStation, "Catat BBM", "Odometer ikut diperbarui", false) { pick(onFuel) }
+            QuickActionRow(Icons.Default.Speed, "Update KM", km?.let { "KM sekarang ${fmtKm(it)}" } ?: "Catat KM odometer", false) { pick(onKm) }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionRow(icon: ImageVector, title: String, subtitle: String, primary: Boolean, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    Surface(
+        onClick = onClick, interactionSource = source, shape = RoundedCornerShape(20.dp),
+        color = if (primary) PillSelected else SurfaceVariantDark, border = CardBorder, modifier = Modifier.fillMaxWidth().pressScale(source)
+    ) {
+        Row(Modifier.padding(Spacing.M), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(if (primary) LavenderPrimary else PillSelected), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = if (primary) OnAccent else LavenderPrimary, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(Spacing.M))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = AppType.CardTitle, color = TextWhite)
+                Text(subtitle, style = AppType.Caption, color = TextGray)
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = TextGray, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/**
+ * Tile bento besar: perkiraan hari menuju servis berikutnya. Perkiraan hanya petunjuk (ditandai "Perkiraan", bisa dibuka dasarnya);
+ * status Aman / Segera / Lewat tetap dari batas pasti. Bila data kurang, tampil sisa km/hari biasa tanpa menebak.
+ */
+@Composable
+private fun NextServiceTile(result: ForecastResult, fallback: ScheduleView?, modifier: Modifier, onUpdateKm: () -> Unit, onOpenSchedule: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    var open by remember { mutableStateOf(false) }
+    Surface(
+        onClick = { if (result is ForecastResult.Ready) open = !open else onOpenSchedule() }, interactionSource = source,
+        shape = TileShape, color = PillSelected, modifier = modifier.pressScale(source)
+    ) {
+        Column(Modifier.padding(Spacing.L).animateContentSize()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(Spacing.XS))
+                Text("Servis berikutnya", style = AppType.Caption, color = TextGray)
+            }
+            Spacer(Modifier.height(Spacing.M))
+            when (result) {
+                is ForecastResult.Ready -> {
+                    val f = result.forecast
+                    Text(f.name, style = AppType.CardTitle, color = TextWhite, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(Spacing.XS))
+                    Text(Forecast.describe(f.daysLow, f.daysHigh), fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold, color = LavenderPrimary)
+                    Spacer(Modifier.height(Spacing.XS))
+                    Text(if (open) "Ketuk untuk tutup" else "Perkiraan · ketuk untuk detail", style = AppType.Caption, color = TextGray)
+                    if (open) {
+                        Spacer(Modifier.height(Spacing.S))
+                        Text(
+                            "Berdasarkan median ${f.rate.typical.roundToInt()} km/hari dari ${f.rate.points} hari pencatatan KM (${f.rate.windowDays} hari terakhir)." +
+                                (f.targetKm?.let { " Target servis ${fmtKm(it)} km." } ?: " Acuannya batas bulan, bukan perkiraan."),
+                            style = AppType.Caption, color = TextGray
+                        )
+                        TextButton(onClick = onOpenSchedule, contentPadding = PaddingValues(horizontal = 0.dp)) { Text("Buka jadwal", fontSize = 12.sp, color = LavenderPrimary) }
+                    }
+                }
+                ForecastResult.Stale -> {
+                    Text("Perbarui KM", style = AppType.CardTitle, color = TextWhite)
+                    Spacer(Modifier.height(Spacing.XS))
+                    Text("KM terakhir sudah lebih dari ${Forecast.STALE_DAYS} hari. Perbarui supaya perkiraan akurat.", style = AppType.Caption, color = TextGray)
+                    TextButton(onClick = onUpdateKm, contentPadding = PaddingValues(horizontal = 0.dp)) { Text("Update KM", fontSize = 12.sp, color = LavenderPrimary) }
+                }
+                ForecastResult.NotEnoughData -> {
+                    if (fallback != null) {
+                        Text(fallback.schedule.name, style = AppType.CardTitle, color = TextWhite, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(Spacing.XS))
+                        conditionLines(fallback).forEach { Text(it, style = AppType.Value, color = LavenderPrimary) }
+                        Spacer(Modifier.height(Spacing.XS))
+                        Text("Catat KM rutin untuk perkiraan hari.", style = AppType.Caption, color = TextGray)
+                    } else {
+                        Text("Belum ada jadwal", style = AppType.CardTitle, color = TextWhite)
+                        Spacer(Modifier.height(Spacing.XS))
+                        Text("Tambahkan komponen di tab Servis.", style = AppType.Caption, color = TextGray)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Tile bento kecil: satu angka kunci dengan label dan keterangan. */
+@Composable
+private fun StatTile(label: String, value: String, sub: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    Surface(onClick = onClick, interactionSource = source, shape = TileShape, color = SurfaceVariantDark, border = CardBorder, modifier = modifier.pressScale(source)) {
+        Column(Modifier.fillMaxWidth().padding(Spacing.M), verticalArrangement = Arrangement.Center) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(Spacing.XS))
+                Text(label, style = AppType.Caption, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(Spacing.XS))
+            Text(value, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(sub, style = AppType.Caption, color = TextGray, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -249,16 +434,15 @@ private fun HomeComponentCard(view: ScheduleView) {
             }
             Spacer(Modifier.height(Spacing.S))
             ProgressBar(view.progress, statusColor)
-            Spacer(Modifier.height(Spacing.S))
-            // Baris utama: kondisi (sisa/lewat). Baris kecil: terakhir dan berikutnya.
-            Text(conditionLines(view).joinToString(" · "), style = AppType.Value, color = conditionColor)
-            val lastText = if (lk != null) "Terakhir ${fmtKm(lk)} km" + (ld?.let { " (${fmtDate(it)})" } ?: "") else ld?.let { "Terakhir ${fmtDate(it)}" } ?: "Terakhir -"
-            val nextText = when {
-                nextKm != null -> "Berikutnya ${fmtKm(nextKm)} km" + (nextDate?.let { " (${fmtDate(it)})" } ?: "")
-                nextDate != null -> "Berikutnya ${fmtDate(nextDate)}"
-                else -> "Berikutnya -"
+            Spacer(Modifier.height(Spacing.M))
+            Row(Modifier.fillMaxWidth()) {
+                InfoCol("Terakhir", lk?.let { "${fmtKm(it)} km" } ?: "-", ld?.let { fmtDate(it) }, Modifier.weight(1f))
+                InfoCol("Berikutnya", nextKm?.let { "${fmtKm(it)} km" } ?: nextDate?.let { fmtDate(it) } ?: "-", if (nextKm != null && nextDate != null) fmtDate(nextDate) else null, Modifier.weight(1f))
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                    Text("Kondisi", style = AppType.Caption, color = TextGray)
+                    conditionLines(view).forEach { Text(it, style = AppType.Value, color = conditionColor, textAlign = TextAlign.End) }
+                }
             }
-            Text("$lastText · $nextText", style = AppType.Caption, color = TextGray)
         }
     }
 }
@@ -323,33 +507,14 @@ private fun WelcomePoint(icon: ImageVector, title: String, desc: String) {
 }
 
 @Composable
-private fun ActionButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, isPrimary: Boolean, onClick: () -> Unit) {
-    Button(
-        onClick = onClick, modifier = modifier.height(52.dp), shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = if (isPrimary) LavenderPrimary else Color.Transparent, contentColor = if (isPrimary) OnAccent else TextWhite),
-        border = if (!isPrimary) BorderStroke(1.dp, FieldBorder) else null, contentPadding = PaddingValues(0.dp)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.height(Spacing.XS))
-            Text(label, fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 1)
-        }
-    }
-}
-
-@Composable
 private fun SummaryCard(value: String, label: String, icon: ImageVector, bgColor: Color, textColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    // Angka 0 = tidak ada yang perlu perhatian: kartu dibuat netral supaya warna menyala hanya muncul saat ada isinya.
-    val zero = value == "0"
-    val cardBg = if (zero) SurfaceVariantDark else bgColor
-    val fg = if (zero) TextGray else textColor
-    Surface(onClick = onClick, color = cardBg, shape = CardShape, border = if (zero) CardBorder else null, modifier = modifier) {
+    Surface(onClick = onClick, color = bgColor, shape = CardShape, modifier = modifier) {
         Row(Modifier.padding(horizontal = Spacing.M, vertical = Spacing.M), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = if (zero) fg.copy(alpha = 0.6f) else fg, modifier = Modifier.size(16.dp))
+            Icon(icon, null, tint = textColor, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(Spacing.S))
             Column {
-                Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = fg, lineHeight = 20.sp)
-                Text(label, fontSize = 12.sp, color = fg)
+                Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor, lineHeight = 20.sp)
+                Text(label, fontSize = 12.sp, color = textColor)
             }
         }
     }

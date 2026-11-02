@@ -8,6 +8,16 @@ import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -147,22 +157,31 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(top = Spacing.S, bottom = Spacing.S, start = Spacing.XS, end = Spacing.XS), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                     tabs.forEach { tab ->
                         val selected = currentTab == tab.route
+                        // Pil dan ikon tab berpegas: warna berpindah halus, ikon memantul sedikit saat terpilih
+                        val pillBg by animateColorAsState(if (selected) PillSelected else Color.Transparent, spring(stiffness = Spring.StiffnessMedium), label = "pill")
+                        val iconScale by animateFloatAsState(if (selected) 1.12f else 1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "iconScale")
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable { if (tab.route == "schedule") vm.serviceSection = 0; nav.navigateTab(tab.route) }.padding(vertical = Spacing.XS)
                         ) {
-                            Box(Modifier.clip(RoundedCornerShape(50)).background(if (selected) PillSelected else Color.Transparent).padding(horizontal = Spacing.XL, vertical = Spacing.XS)) {
-                                Icon(tab.icon, tab.label, tint = if (selected) LavenderPrimary else TextGray, modifier = Modifier.size(20.dp))
+                            Box(Modifier.clip(RoundedCornerShape(50)).background(pillBg).padding(horizontal = Spacing.XL, vertical = Spacing.XS)) {
+                                Icon(tab.icon, tab.label, tint = if (selected) TextWhite else TextGray, modifier = Modifier.size(20.dp).graphicsLayer { scaleX = iconScale; scaleY = iconScale })
                             }
                             Spacer(Modifier.height(Spacing.XS))
-                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) LavenderPrimary else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            Text(tab.label, fontSize = 12.sp, maxLines = 1, color = if (selected) TextWhite else TextGray, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                         }
                     }
                 }
             }
         }
     ) { padding ->
-        NavHost(navController = nav, startDestination = "home", modifier = Modifier.padding(padding)) {
+        NavHost(
+            navController = nav, startDestination = "home", modifier = Modifier.padding(padding),
+            enterTransition = { fadeIn(tween(220, delayMillis = 30)) + slideInVertically(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)) { it / 24 } },
+            exitTransition = { fadeOut(tween(120)) },
+            popEnterTransition = { fadeIn(tween(220, delayMillis = 30)) },
+            popExitTransition = { fadeOut(tween(120)) + slideOutVertically(tween(160)) { it / 24 } }
+        ) {
             composable("home") {
                 HomeScreen(vm,
                     onNavigateToSchedule = { vm.serviceSection = 0; nav.navigateTab("schedule") },
@@ -170,7 +189,8 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
                     onNavigateToDocuments = { vm.serviceSection = 1; nav.navigateTab("schedule") },
                     onNavigateToOdometer = { nav.navigate("odometer") { launchSingleTop = true } },
                     onNavigateToNotifications = { nav.navigate("notifications") { launchSingleTop = true } },
-                    onNavigateToSettings = { nav.navigateTab("settings") })
+                    onNavigateToSettings = { nav.navigateTab("settings") },
+                    onNavigateToReport = { nav.navigate("report") { launchSingleTop = true } })
             }
             composable("schedule") {
                 // Tab Servis: dropdown di judul memilih Jadwal & Komponen (default) atau Pajak & Dokumen
