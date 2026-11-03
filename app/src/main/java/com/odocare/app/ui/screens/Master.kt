@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.MasterCategory
+import com.odocare.app.domain.Engines
 import com.odocare.app.ui.*
 
 /** Master kategori: dipakai untuk kendaraan baru dan dropdown tambah komponen. Tidak mengubah kendaraan yang sudah ada. */
@@ -98,7 +99,7 @@ private fun MasterFormDialog(title: String, initial: MasterCategory?, onDismiss:
         FormNote("Isi salah satu atau keduanya.")
         if (hasInterval) {
             FormGroupLabel("Peringatan \"Segera\"")
-            posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", icon = Icons.Default.Warning, hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
+            posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", icon = Icons.Default.Warning, hint = "Kosong = otomatis ${fmtKm(minOf((it * 0.2).toInt(), Engines.AUTO_WARN_KM_MAX))} km (20%, maks. ${fmtKm(Engines.AUTO_WARN_KM_MAX)} km)") }
             if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", icon = Icons.Default.Warning, hint = "Kosong = otomatis 30 hari")
             NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
         }

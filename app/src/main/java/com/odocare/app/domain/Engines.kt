@@ -22,8 +22,10 @@ object Engines {
      * Lewat   : sisa km < 0 ATAU jatuh tempo bulan sudah lewat.
      * Diambil yang paling mendesak antara km dan waktu.
      */
-    /** Batas "Segera" untuk sisa km: diisi user, atau otomatis 20% dari interval km. */
-    fun warnKm(s: MaintenanceSchedule): Int = if (s.warnKm > 0) s.warnKm else ((s.intervalKm ?: 0) * 0.2).toInt()
+    /** Batas atas "Segera" otomatis untuk sisa km (isian manual user tidak dibatasi). */
+    const val AUTO_WARN_KM_MAX = 1000
+    /** Batas "Segera" untuk sisa km: diisi user, atau otomatis yang lebih kecil antara 20% interval km dan [AUTO_WARN_KM_MAX]. */
+    fun warnKm(s: MaintenanceSchedule): Int = if (s.warnKm > 0) s.warnKm else minOf(((s.intervalKm ?: 0) * 0.2).toInt(), AUTO_WARN_KM_MAX)
     /** Batas "Segera" untuk sisa hari: diisi user, atau otomatis 30 hari. */
     fun warnDays(s: MaintenanceSchedule): Int = if (s.warnDays > 0) s.warnDays else 30
 
@@ -55,8 +57,16 @@ object Engines {
     }
 
     fun documentView(d: LegalDocument, today: LocalDate = LocalDate.now()): DocumentView {
-        val days = ChronoUnit.DAYS.between(today, millisToLocalDate(d.expiryDate))
-        val status = when { days < 0 -> DocStatus.LATE; days == 0L -> DocStatus.DUE_TODAY; days <= 30 -> DocStatus.SOON; else -> DocStatus.SAFE }
+        val expiry = millisToLocalDate(d.expiryDate)
+        val days = ChronoUnit.DAYS.between(today, expiry)
+        // "Segera" mulai di tanggal pengingat paling awal (pengingat terjauh) dokumen ini. Tanpa pengingat, tidak pernah Segera.
+        val firstReminderDay: Long? = Reminders.parse(d.reminders).minOfOrNull { it.dateFor(expiry).toEpochDay() }
+        val status = when {
+            days < 0 -> DocStatus.LATE
+            days == 0L -> DocStatus.DUE_TODAY
+            firstReminderDay != null && today.toEpochDay() >= firstReminderDay -> DocStatus.SOON
+            else -> DocStatus.SAFE
+        }
         return DocumentView(d, status, days)
     }
 }

@@ -767,7 +767,7 @@ private fun ScheduleFormDialog(
             DateField("Tanggal servis terakhir", lastDate) { lastDate = it }
             if (posInt(kmT) != null || posInt(moT) != null) {
                 FormGroupLabel("Peringatan \"Segera\"")
-                posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", icon = Icons.Default.Warning, hint = "Kosong = otomatis ${fmtKm((it * 0.2).toInt())} km (20%)") }
+                posInt(kmT)?.let { NumberField(warnKmT, { warnKmT = it }, "Segera saat sisa (km)", icon = Icons.Default.Warning, hint = "Kosong = otomatis ${fmtKm(minOf((it * 0.2).toInt(), Engines.AUTO_WARN_KM_MAX))} km (20%, maks. ${fmtKm(Engines.AUTO_WARN_KM_MAX)} km)") }
                 if (posInt(moT) != null) NumberField(warnDaysT, { warnDaysT = it }, "Segera saat sisa (hari)", icon = Icons.Default.Warning, hint = "Kosong = otomatis 30 hari")
             }
             if (canSave) NotifyOptions(notifyOn, notifyHour, notifyMinute) { e, h, m -> notifyOn = e; notifyHour = h; notifyMinute = m }
