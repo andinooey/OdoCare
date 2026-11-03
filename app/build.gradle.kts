@@ -17,12 +17,27 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    // Keystore ikut di repo (app/odocare-release.jks) supaya tanda tangan APK selalu sama dan update bisa menimpa versi lama.
+    // Untuk memakai keystore lain tanpa mengubah file ini, isi variabel lingkungan ODOCARE_KEYSTORE_PASSWORD dan ODOCARE_KEY_PASSWORD.
+    signingConfigs {
+        create("release") {
+            storeFile = file("odocare-release.jks")
+            storePassword = System.getenv("ODOCARE_KEYSTORE_PASSWORD") ?: "odocare-rel-2026"
+            keyAlias = "odocare"
+            keyPassword = System.getenv("ODOCARE_KEY_PASSWORD") ?: "odocare-rel-2026"
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    // Lint "vital" ikut jalan di assembleRelease dan bisa menggagalkan build karena peringatan non-krusial
+    lint { checkReleaseBuilds = false }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
