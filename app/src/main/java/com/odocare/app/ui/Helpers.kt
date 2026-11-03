@@ -75,6 +75,9 @@ import java.util.Locale
 
 val NoInsets = WindowInsets(0, 0, 0, 0)
 private val idLocale = Locale("id", "ID")
+
+/** Nama bulan singkat berbahasa Indonesia (Jan, Feb, ..., Des). */
+fun monthShort(month: java.time.Month): String = month.getDisplayName(TextStyle.SHORT, idLocale)
 private val dateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 private val dateTimeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
 
@@ -235,15 +238,16 @@ fun costSeries(points: List<Pair<Long, Long>>, start: LocalDate, end: LocalDate)
 
 /** Dialog pilih rentang tanggal (mulai - akhir). Tanggal setelah hari ini tidak bisa dipilih; satu tanggal saja berarti rentang sehari. */
 @Composable
-fun DateRangePickerDialogX(initialStart: LocalDate?, initialEnd: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalDate, LocalDate) -> Unit) {
+fun DateRangePickerDialogX(initialStart: LocalDate?, initialEnd: LocalDate?, onDismiss: () -> Unit, minDate: LocalDate? = null, onPicked: (LocalDate, LocalDate) -> Unit) {
     fun toUtc(d: LocalDate) = d.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     fun fromUtc(ms: Long) = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
     val todayUtc = toUtc(LocalDate.now())
+    val minUtc = minDate?.let { toUtc(it) }   // batas tanggal paling lama yang boleh dipilih (opsional)
     val state = rememberDateRangePickerState(
         initialSelectedStartDateMillis = initialStart?.let { toUtc(it) },
         initialSelectedEndDateMillis = initialEnd?.let { toUtc(it) },
         selectableDates = object : androidx.compose.material3.SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= todayUtc
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= todayUtc && (minUtc == null || utcTimeMillis >= minUtc)
         }
     )
     DatePickerDialog(
@@ -469,6 +473,39 @@ fun LineChart(labels: List<String>, values: List<Long>, color: Color, modifier: 
         Spacer(Modifier.height(Spacing.XS))
         Row(Modifier.fillMaxWidth()) {
             val step = if (labels.size > 8) 2 else 1   // label selang-seling bila terlalu rapat
+            labels.forEachIndexed { i, l -> Text(if (i % step == 0) l else "", Modifier.weight(1f), fontSize = 12.sp, color = TextGray, maxLines = 1, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+        }
+    }
+}
+
+/** Grafik garis dua seri (mis. tahun ini vs tahun lalu) pada sumbu yang sama. Seri boleh lebih pendek dari jumlah label (tidak digambar sampai ujung). */
+@Composable
+fun CompareLineChart(labels: List<String>, current: List<Long>, previous: List<Long>, currentColor: Color, previousColor: Color, modifier: Modifier = Modifier) {
+    val max = maxOf(current.maxOrNull() ?: 0L, previous.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    val track = TrackColor
+    Column(modifier.fillMaxWidth()) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(120.dp)) {
+            val n = labels.size
+            if (n == 0) return@Canvas
+            val padTop = 8.dp.toPx(); val padBottom = 4.dp.toPx()
+            val h = size.height - padTop - padBottom
+            val cell = size.width / n
+            fun x(i: Int) = cell * (i + 0.5f)
+            fun y(v: Long) = padTop + h * (1f - v.toFloat() / max.toFloat())
+            drawLine(track, androidx.compose.ui.geometry.Offset(0f, padTop + h), androidx.compose.ui.geometry.Offset(size.width, padTop + h), strokeWidth = 1.dp.toPx())
+            fun line(values: List<Long>, color: Color) {
+                if (values.isEmpty()) return
+                val path = androidx.compose.ui.graphics.Path()
+                values.forEachIndexed { i, v -> if (i == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v)) }
+                drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                values.forEachIndexed { i, v -> drawCircle(color, radius = 3.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x(i), y(v))) }
+            }
+            line(previous, previousColor)   // tahun lalu di belakang
+            line(current, currentColor)
+        }
+        Spacer(Modifier.height(Spacing.XS))
+        Row(Modifier.fillMaxWidth()) {
+            val step = if (labels.size > 8) 2 else 1
             labels.forEachIndexed { i, l -> Text(if (i % step == 0) l else "", Modifier.weight(1f), fontSize = 12.sp, color = TextGray, maxLines = 1, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
         }
     }

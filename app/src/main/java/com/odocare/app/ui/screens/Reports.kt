@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,27 +30,11 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
-private data class KmStats(val avgPerMonth: Int?, val totalKm: Int, val days: Long, val perVehicle: List<Pair<String, Int>>)
+/** Perbandingan biaya servis per bulan: tahun ini (sampai bulan berjalan) dengan seluruh bulan tahun lalu. BBM tidak ikut. */
+private data class YearCompare(val current: List<Long>, val previous: List<Long>, val previousToDate: Long, val hasData: Boolean)
 
-/**
- * Rata-rata KM per bulan dari log odometer dalam rentang. Dihitung per kendaraan (jarak KM awal ke KM akhir / jumlah hari x 30),
- * lalu dijumlahkan agar KM kendaraan berbeda tidak tercampur. Kendaraan dengan kurang dari 2 catatan di rentang itu dilewati.
- */
-private fun kmStats(logs: List<OdometerLog>, start: LocalDate?, end: LocalDate?): KmStats {
-    var total = 0; var sumMonthly = 0.0; var maxDays = 0L
-    val per = mutableListOf<Pair<String, Int>>()
-    for ((vid, all) in logs.groupBy { it.vehicleId }) {
-        val inRange = all.filter { val d = msToLocalDate(it.recordedAt); (start == null || !d.isBefore(start)) && (end == null || !d.isAfter(end)) }.sortedBy { it.recordedAt }
-        if (inRange.size < 2) continue
-        val first = inRange.first(); val last = inRange.last()
-        val dist = (last.km - first.km).coerceAtLeast(0)
-        val days = ChronoUnit.DAYS.between(msToLocalDate(first.recordedAt), msToLocalDate(last.recordedAt)).coerceAtLeast(1)
-        val monthly = dist * 30.0 / days
-        total += dist; maxDays = maxOf(maxDays, days); sumMonthly += monthly
-        per += vid to monthly.roundToInt()
-    }
-    return KmStats(if (per.isEmpty()) null else sumMonthly.roundToInt(), total, maxDays, per)
-}
+private val WhitespaceRun = Regex("\\s+")
+private fun tidyTitle(t: String) = t.trim().replace(WhitespaceRun, " ")
 
 @Composable
 fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
@@ -59,7 +44,6 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     val allFuel by vm.allFuel.collectAsStateWithLifecycle()
     var vehicleFilter by remember { mutableStateOf<String?>(null) }
     val pf = remember { PeriodFilter(Period.YEAR) }
-    val allOdometer by vm.allOdometer.collectAsStateWithLifecycle()
     var info by remember { mutableStateOf<String?>(null) }
 
     val activeFilter = vehicleFilter?.takeIf { id -> vehicles.any { it.id == id } }
@@ -76,10 +60,56 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
 
     val total = records.sumOf { it.cost }
     val count = records.size
-    val km = kmStats(allOdometer.filter { activeFilter == null || it.vehicleId == activeFilter }, start, endBound)
     val last = records.maxOfOrNull { it.date }
-    val perCategory = records.groupBy { it.title }.mapValues { (_, l) -> l.sumOf { it.cost } }.toList().sortedByDescending { it.second }
+    // Kategori digabung tanpa beda huruf besar-kecil dan spasi; yang ditampilkan ejaan yang paling sering dipakai
+    val perCategory = records.groupBy { tidyTitle(it.title).lowercase() }.map { (_, l) ->
+        val label = l.groupingBy { tidyTitle(it.title) }.eachCount().maxByOrNull { it.value }?.key ?: l.first().title
+        label to l.sumOf { it.cost }
+    }.sortedByDescending { it.second }
     val perVehicle = records.groupBy { it.vehicleId }.mapValues { (_, l) -> l.sumOf { it.cost } }.toList().sortedByDescending { it.second }
+    val costedCount = records.count { it.cost > 0 }
+    val avgCost = if (costedCount > 0) total / costedCount else null
+    val priciest = records.maxByOrNull { it.cost }?.takeIf { it.cost > 0 }
+    // Periode pembanding yang sepadan: bulan ini vs tanggal yang sama bulan lalu, tahun ini vs tanggal yang sama tahun lalu,
+    // 3 bulan / 12 bulan / rentang kustom vs rentang sama panjang tepat sebelumnya. "Semua" tidak punya pembanding.
+    val prevRange: Pair<LocalDate, LocalDate>? = run {
+        val st = start
+        when (pf.period) {
+            Period.MONTH -> st?.let { it.minusMonths(1) to today.minusMonths(1) }
+            Period.YEAR -> st?.let { it.minusYears(1) to today.minusYears(1) }
+            Period.M3 -> st?.let { it.minusMonths(3) to it.minusDays(1) }
+            Period.M12 -> st?.let { it.minusMonths(12) to it.minusDays(1) }
+            Period.CUSTOM -> {
+                val cs = pf.customStart; val ce = pf.customEnd
+                if (cs != null && ce != null) { val len = ChronoUnit.DAYS.between(cs, ce) + 1; cs.minusDays(len) to cs.minusDays(1) } else null
+            }
+            Period.ALL -> null
+        }
+    }
+    val prevLabel = when (pf.period) {
+        Period.MONTH -> "periode sama bulan lalu"; Period.YEAR -> "periode sama tahun lalu"
+        Period.M3 -> "3 bulan sebelumnya"; Period.M12 -> "12 bulan sebelumnya"; else -> "periode sebelumnya"
+    }
+    val prevTotal = prevRange?.let { r -> byVehicle.filter { val d = msToLocalDate(it.date); !d.isBefore(r.first) && !d.isAfter(r.second) }.sumOf { it.cost } } ?: 0L
+    val delta = if (prevRange != null && prevTotal > 0) ((total - prevTotal) * 100.0 / prevTotal).roundToInt() else null
+
+    // Biaya servis tahun ini vs tahun lalu: tidak mengikuti filter periode, hanya filter kendaraan
+    val thisYear = today.year; val lastYear = thisYear - 1
+    val yearCompare = remember(allRecords, activeFilter, today) {
+        val cur = LongArray(12); val prev = LongArray(12); var prevToDate = 0L
+        fun add(ms: Long, cost: Long, vid: String) {
+            if (activeFilter != null && vid != activeFilter) return
+            val d = msToLocalDate(ms)
+            if (d.year == thisYear) cur[d.monthValue - 1] += cost
+            else if (d.year == lastYear) {
+                prev[d.monthValue - 1] += cost
+                if (d.monthValue < today.monthValue || (d.monthValue == today.monthValue && d.dayOfMonth <= today.dayOfMonth)) prevToDate += cost
+            }
+        }
+        allRecords.forEach { add(it.date, it.cost, it.vehicleId) }
+        YearCompare(cur.take(today.monthValue), prev.toList(), prevToDate, cur.any { it > 0 } || prev.any { it > 0 })
+    }
+    val yearMonthLabels = remember { (1..12).map { monthShort(java.time.Month.of(it)) } }
     // Grafik mengikuti rentang yang dipilih ("Semua" mulai dari catatan tertua). Ketiga grafik memakai rentang yang sama agar sumbunya sejajar.
     val fuelTotal = fuelInRange.sumOf { it.totalPrice }
     val chartStart = start ?: (records.map { it.date } + fuelInRange.map { it.date }).minOrNull()?.let { msToLocalDate(it) } ?: today
@@ -95,6 +125,9 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = TextWhite, modifier = Modifier.size(22.dp)) }
             ScreenTitle("Laporan", "Ringkasan biaya servis & BBM", Modifier.weight(1f))
+            IconButton(enabled = records.isNotEmpty(), onClick = {
+                try { Exports.shareFile(ctx, "odocare-laporan.csv", "text/csv", Exports.csvBytes(records, vehicles)) } catch (e: Exception) { info = "Gagal mengekspor: ${e.message}" }
+            }) { Icon(Icons.Default.FileDownload, "Ekspor CSV", tint = if (records.isNotEmpty()) LavenderPrimary else TextGray, modifier = Modifier.size(22.dp)) }
         }
         Spacer(Modifier.height(Spacing.M))
 
@@ -122,21 +155,25 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                     }
                     Spacer(Modifier.height(Spacing.S))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
-                        StatCard(km.avgPerMonth?.let { "${fmtKm(it)} km" } ?: "-", "Rata-rata KM / bulan", Modifier.weight(1f), Icons.Default.Speed)
+                        StatCard(avgCost?.let { rupiah(it) } ?: "-", "Rata-rata per servis", Modifier.weight(1f), Icons.Default.BarChart)
                         StatCard(last?.let { fmtDate(it) } ?: "-", "Servis terakhir", Modifier.weight(1f), Icons.Default.Event)
                     }
-                    // Keterangan rata-rata KM: dasar hitungan, atau alasan kenapa belum bisa dihitung
-                    Spacer(Modifier.height(Spacing.XS))
-                    if (km.avgPerMonth == null) {
-                        Text("Rata-rata KM butuh minimal 2 catatan KM pada periode ini.", color = TextGray, fontSize = 12.sp)
-                    } else {
-                        val basis = when {
-                            km.days < 7 -> "perkiraan, data baru ${km.days} hari"
-                            km.perVehicle.size == 1 -> "dalam ${km.days} hari"
-                            else -> "dari semua kendaraan"
-                        }
-                        Text("Dari ${fmtKm(km.totalKm)} km tercatat, $basis.", color = TextGray, fontSize = 12.sp)
-                        if (km.perVehicle.size > 1) Text(km.perVehicle.joinToString(" · ") { (vid, v) -> "${names[vid] ?: "-"} ${fmtKm(v)}" } + " km/bulan", color = TextGray, fontSize = 12.sp)
+                    // Perbandingan dengan periode sebelumnya dan servis termahal
+                    if (delta != null) {
+                        Spacer(Modifier.height(Spacing.XS))
+                        Text(
+                            when {
+                                delta > 0 -> "Naik $delta% dibanding $prevLabel (${rupiah(prevTotal)})"
+                                delta < 0 -> "Turun ${-delta}% dibanding $prevLabel (${rupiah(prevTotal)})"
+                                else -> "Sama dengan $prevLabel (${rupiah(prevTotal)})"
+                            },
+                            color = when { delta > 0 -> StatusRedText; delta < 0 -> StatusGreenText; else -> TextGray },
+                            fontSize = 12.sp
+                        )
+                    }
+                    if (priciest != null) {
+                        Spacer(Modifier.height(Spacing.XS))
+                        Text("Servis termahal: ${priciest.title} · ${rupiah(priciest.cost)} · ${fmtDate(priciest.date)}", color = TextGray, fontSize = 12.sp)
                     }
 
                     // Suku cadang vs Jasa: hanya dari servis yang dirinci
@@ -180,30 +217,6 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                         ChartCard { LineChart(serviceSeries.labels, serviceSeries.values, LavenderPrimary) }
                     }
 
-                    Spacer(Modifier.height(Spacing.M))
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Transaksi servis terbaru", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextWhite, modifier = Modifier.weight(1f))
-                        TextButton(onClick = {
-                            try { Exports.shareFile(ctx, "odocare-laporan.csv", "text/csv", Exports.csvBytes(records, vehicles)) } catch (e: Exception) { info = "Gagal mengekspor: ${e.message}" }
-                        }, contentPadding = PaddingValues(horizontal = Spacing.S), modifier = Modifier.height(30.dp)) {
-                            Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(16.dp), tint = LavenderPrimary)
-                            Spacer(Modifier.width(Spacing.XS))
-                            Text("CSV", fontSize = 12.sp, color = LavenderPrimary)
-                        }
-                    }
-                    Spacer(Modifier.height(Spacing.XS))
-                    records.sortedByDescending { it.date }.take(50).forEach { r ->
-                        Surface(color = SurfaceVariantDark, shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.XS)) {
-                            Row(Modifier.padding(horizontal = Spacing.M, vertical = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(r.title, color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("${fmtDate(r.date)} · ${names[r.vehicleId] ?: "-"} · ${fmtKm(r.km)} km", color = TextGray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                Spacer(Modifier.width(Spacing.S))
-                                Text(if (r.cost > 0) rupiah(r.cost) else "-", color = LavenderPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            }
-                        }
-                    }
                 }
 
                 // ===== Kelompok BBM =====
@@ -250,6 +263,37 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                     ChartCard { LineChart(combinedSeries.labels, combinedSeries.values, StatusGreenText) }
                 }
             }
+
+            // ===== Kelompok TAHUN INI vs TAHUN LALU (tidak mengikuti filter periode) =====
+            if (yearCompare.hasData) {
+                Spacer(Modifier.height(Spacing.XL))
+                GroupHeader("Biaya servis: tahun ini vs tahun lalu", Icons.Default.Build)
+                Spacer(Modifier.height(Spacing.S))
+                ChartCard {
+                    Column {
+                        CompareLineChart(yearMonthLabels, yearCompare.current, yearCompare.previous, StatusGreenText, TextGray)
+                        Spacer(Modifier.height(Spacing.S))
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.M), verticalAlignment = Alignment.CenterVertically) {
+                            LegendDot(StatusGreenText, "$thisYear")
+                            LegendDot(TextGray, "$lastYear")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(Spacing.XS))
+                val curSum = yearCompare.current.sum()
+                val prevSum = yearCompare.previousToDate
+                val untilMonth = monthShort(today.month)
+                if (prevSum > 0) {
+                    val yd = ((curSum - prevSum) * 100.0 / prevSum).roundToInt()
+                    Text("Jan–$untilMonth: ${rupiah(curSum)} vs ${rupiah(prevSum)} di periode sama tahun lalu", color = TextGray, fontSize = 12.sp)
+                    Text(
+                        when { yd > 0 -> "Naik $yd%"; yd < 0 -> "Turun ${-yd}%"; else -> "Sama" },
+                        color = when { yd > 0 -> StatusRedText; yd < 0 -> StatusGreenText; else -> TextGray }, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                    )
+                } else {
+                    Text("Jan–$untilMonth: ${rupiah(curSum)}. Belum ada data tahun lalu pada periode yang sama.", color = TextGray, fontSize = 12.sp)
+                }
+            }
         }
         Spacer(Modifier.height(Spacing.XL))
     }
@@ -273,4 +317,13 @@ private fun GroupHeader(title: String, icon: androidx.compose.ui.graphics.vector
 @Composable
 private fun ChartCard(content: @Composable () -> Unit) {
     Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) { Box(Modifier.padding(Spacing.M)) { content() } }
+}
+
+@Composable
+private fun LegendDot(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).background(color, CircleShape))
+        Spacer(Modifier.width(Spacing.XS))
+        Text(label, fontSize = 12.sp, color = TextGray)
+    }
 }

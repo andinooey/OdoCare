@@ -28,6 +28,7 @@ import com.odocare.app.MainViewModel
 import com.odocare.app.data.FuelLog
 import com.odocare.app.data.ServiceRecord
 import com.odocare.app.ui.*
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 private enum class HistorySort(val label: String) {
@@ -55,11 +56,17 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf(HistorySort.NEWEST) }
     var sortOpen by remember { mutableStateOf(false) }
+    // Jendela riwayat: tampil 30 hari terakhir dulu; tombol "Muat 30 hari sebelumnya" memperlebarnya 30 hari lagi (data tidak hilang)
+    var loadedWindows by remember { mutableStateOf(1) }
+    val windowDays = 30 * loadedWindows
+    val windowStart = remember(windowDays) { LocalDate.now().minusDays(windowDays - 1L) }
+    fun inWindow(ms: Long) = !msToLocalDate(ms).isBefore(windowStart)
+    val hasOlderService = records.any { !inWindow(it.date) }
 
     // Filter tanggal + pencarian (nama komponen atau catatan), lalu urutkan
     val q = query.trim()
     val shown = records
-        .filter { pf.accepts(it.date) && (q.isEmpty() || it.title.contains(q, ignoreCase = true) || it.notes?.contains(q, ignoreCase = true) == true) }
+        .filter { inWindow(it.date) && pf.accepts(it.date) && (q.isEmpty() || it.title.contains(q, ignoreCase = true) || it.notes?.contains(q, ignoreCase = true) == true) }
         .let { list ->
             when (sort) {
                 HistorySort.NEWEST -> list.sortedByDescending { it.date }
@@ -90,7 +97,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                     ) { Text(label, fontSize = 12.sp, maxLines = 1) }
                 }
             }
-            Box(Modifier.padding(horizontal = Spacing.L)) { DateFilterField(pf) }
+            Box(Modifier.padding(horizontal = Spacing.L)) { DateFilterField(pf, windowStart, "$windowDays hari terakhir") }
             if (section == 0 && records.isNotEmpty()) {
                 Row(Modifier.padding(start = Spacing.L, end = Spacing.S, top = Spacing.S), verticalAlignment = Alignment.CenterVertically) {
                     AppTextField(query, { query = it }, "Cari komponen atau catatan", Icons.Default.Search, modifier = Modifier.weight(1f))
@@ -109,14 +116,17 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                 }
             }
             when {
-                section == 1 -> FuelHistory(fuelLogs, pf, onAdd = { showAddFuel = true }, onEdit = { editFuel = it }, onDelete = { vm.deleteFuel(it.id) })
+                section == 1 -> FuelHistory(fuelLogs, pf, windowStart, onLoadOlder = { loadedWindows += 1 }, onAdd = { showAddFuel = true }, onEdit = { editFuel = it }, onDelete = { vm.deleteFuel(it.id) })
                 records.isEmpty() -> EmptyState(Icons.Default.History, "Belum ada riwayat servis", "Tap \"Catat servis\" pada komponen di tab Servis. Riwayatnya muncul di sini.", Modifier.padding(top = Spacing.XL))
-                shown.isEmpty() -> EmptyState(
-                    Icons.Default.History,
-                    if (q.isEmpty()) "Tidak ada servis pada periode ini" else "Tidak ada hasil untuk \"$q\"",
-                    if (q.isEmpty()) "Ubah filter tanggal untuk melihat riwayat lain." else "Coba kata lain, atau ubah filter tanggal.",
-                    Modifier.padding(top = Spacing.XL)
-                )
+                shown.isEmpty() -> Column {
+                    EmptyState(
+                        Icons.Default.History,
+                        if (q.isEmpty()) "Tidak ada servis pada periode ini" else "Tidak ada hasil untuk \"$q\"",
+                        if (q.isEmpty()) "Ubah filter tanggal untuk melihat riwayat lain." else "Coba kata lain, atau ubah filter tanggal.",
+                        Modifier.padding(top = Spacing.XL)
+                    )
+                    if (hasOlderService) Box(Modifier.padding(horizontal = Spacing.L)) { LoadOlderButton { loadedWindows += 1 } }
+                }
                 else -> {
                     val total = shown.sumOf { it.cost }
                     Text(
@@ -126,11 +136,12 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                     // Urutan Terbaru / Terlama: dikelompokkan per tanggal seperti mutasi bank. Urutan lain: daftar biasa (tanggal tampil di kartu).
                     val grouped = sort == HistorySort.NEWEST || sort == HistorySort.OLDEST
                     val card: @Composable (ServiceRecord) -> Unit = { r ->
-                        ServiceCard(r, showDate = !grouped, onClick = { detailTarget = r }, onImage = { viewImage = it }, onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
+                        ServiceCard(r, showDate = !grouped, onClick = { detailTarget = r }, onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
                     }
                     LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = Spacing.XL)) {
                         if (grouped) dayGroups(shown, { it.date }, { it.id }, card)
                         else items(shown, key = { it.id }) { card(it) }
+                        if (hasOlderService) item(key = "load_older") { LoadOlderButton { loadedWindows += 1 } }
                     }
                 }
             }
@@ -162,9 +173,9 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
     }
 }
 
-/** Satu-satunya filter di Histori: rentang tanggal. Ketuk untuk memilih, tombol X mengembalikan ke semua tanggal. */
+/** Satu-satunya filter di Histori: rentang tanggal di dalam jendela yang sedang dimuat. Tombol X mengembalikan ke seluruh jendela. */
 @Composable
-private fun DateFilterField(f: PeriodFilter) {
+private fun DateFilterField(f: PeriodFilter, minDate: LocalDate, emptyLabel: String) {
     var open by remember { mutableStateOf(false) }
     val s = f.customStart; val e = f.customEnd
     val active = f.isCustom && s != null && e != null
@@ -172,12 +183,12 @@ private fun DateFilterField(f: PeriodFilter) {
         Row(Modifier.padding(start = Spacing.M, top = Spacing.XS, bottom = Spacing.XS, end = Spacing.XS).heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.CalendarMonth, null, tint = LavenderPrimary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(Spacing.M))
-            Text(if (active) (if (s == e) fmtLocal(s!!) else "${fmtLocal(s!!)} – ${fmtLocal(e!!)}") else "Semua tanggal", Modifier.weight(1f), fontSize = 14.sp, color = if (active) TextWhite else TextGray)
+            Text(if (active) (if (s == e) fmtLocal(s!!) else "${fmtLocal(s!!)} – ${fmtLocal(e!!)}") else emptyLabel, Modifier.weight(1f), fontSize = 14.sp, color = if (active) TextWhite else TextGray)
             if (active) IconButton(onClick = { f.period = Period.ALL }, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Close, "Hapus filter tanggal", tint = TextGray, modifier = Modifier.size(18.dp)) }
             else Icon(Icons.Default.ArrowDropDown, null, tint = TextGray, modifier = Modifier.padding(end = Spacing.S).size(22.dp))
         }
     }
-    if (open) DateRangePickerDialogX(f.customStart, f.customEnd, { open = false }) { a, b -> f.customStart = a; f.customEnd = b; f.period = Period.CUSTOM; open = false }
+    if (open) DateRangePickerDialogX(f.customStart, f.customEnd, { open = false }, minDate = minDate) { a, b -> f.customStart = a; f.customEnd = b; f.period = Period.CUSTOM; open = false }
 }
 
 /**
@@ -228,11 +239,16 @@ private fun ServiceDetailDialog(
 
 /** Daftar BBM kendaraan aktif, memakai filter tanggal yang sama dengan daftar servis. */
 @Composable
-private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, onAdd: () -> Unit, onEdit: (FuelLog) -> Unit, onDelete: (FuelLog) -> Unit) {
-    val shown = all.filter { pf.accepts(it.date) }.sortedWith(compareByDescending<FuelLog> { it.date }.thenByDescending { it.km })
+private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, windowStart: LocalDate, onLoadOlder: () -> Unit, onAdd: () -> Unit, onEdit: (FuelLog) -> Unit, onDelete: (FuelLog) -> Unit) {
+    fun inWindow(ms: Long) = !msToLocalDate(ms).isBefore(windowStart)
+    val hasOlder = all.any { !inWindow(it.date) }
+    val shown = all.filter { inWindow(it.date) && pf.accepts(it.date) }.sortedWith(compareByDescending<FuelLog> { it.date }.thenByDescending { it.km })
     when {
         all.isEmpty() -> EmptyState(Icons.Default.LocalGasStation, "Belum ada catatan BBM", "Catat tiap isi bensin untuk melihat km per liter dan biaya per km.", Modifier.padding(top = Spacing.XL), actionLabel = "Catat BBM", onAction = onAdd)
-        shown.isEmpty() -> EmptyState(Icons.Default.LocalGasStation, "Tidak ada catatan BBM pada periode ini", "Ubah filter tanggal untuk melihat catatan lain.", Modifier.padding(top = Spacing.XL))
+        shown.isEmpty() -> Column {
+            EmptyState(Icons.Default.LocalGasStation, "Tidak ada catatan BBM pada periode ini", "Ubah filter tanggal untuk melihat catatan lain.", Modifier.padding(top = Spacing.XL))
+            if (hasOlder) Box(Modifier.padding(horizontal = Spacing.L)) { LoadOlderButton(onLoadOlder) }
+        }
         else -> {
             Text(
                 "${shown.size} pengisian · ${fmtLiter(shown.sumOf { it.liters })} L · ${rupiah(shown.sumOf { it.totalPrice })}",
@@ -240,6 +256,7 @@ private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, onAdd: () -> Unit,
             )
             LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = 88.dp)) {
                 dayGroups(shown, { it.date }, { it.id }) { f -> FuelCard(f, onEdit = { onEdit(f) }, onDelete = { onDelete(f) }) }
+                if (hasOlder) item(key = "load_older") { LoadOlderButton(onLoadOlder) }
             }
         }
     }
@@ -262,23 +279,44 @@ private fun DayHeader(ms: Long) {
     )
 }
 
-/** Kartu transaksi servis. showDate = true hanya saat daftar tidak dikelompokkan per tanggal. */
+/** Tombol memperlebar jendela riwayat 30 hari ke belakang. */
 @Composable
-private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit, onImage: (String) -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun LoadOlderButton(onClick: () -> Unit) {
+    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(top = Spacing.M), shape = RoundedCornerShape(12.dp)) {
+        Icon(Icons.Default.History, null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(Spacing.S))
+        Text("Muat 30 hari sebelumnya", fontSize = 14.sp)
+    }
+}
+
+/**
+ * Kartu transaksi servis: judul + biaya, lalu tanggal dan KM, rincian biaya (bila ada), catatan satu baris, dan penanda foto.
+ * Fotonya sendiri hanya tampil di detail servis. showDate = true hanya saat daftar tidak dikelompokkan per tanggal.
+ */
+@Composable
+private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     Surface(onClick = onClick, color = SurfaceVariantDark, shape = CardShape, border = CardBorder) {
         Row(Modifier.fillMaxWidth().padding(start = Spacing.M, top = Spacing.S, bottom = Spacing.S, end = Spacing.XS), verticalAlignment = Alignment.Top) {
             Box(Modifier.padding(top = Spacing.XS).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
             Spacer(Modifier.width(Spacing.M))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(r.title, color = TextWhite, style = AppType.CardTitle, modifier = Modifier.weight(1f))
-                    if (r.cost > 0) Text(rupiah(r.cost), style = AppType.Value, color = LavenderPrimary)
+                    Text(r.title, color = TextWhite, style = AppType.CardTitle, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (r.cost > 0) {
+                        Spacer(Modifier.width(Spacing.S))
+                        Text(rupiah(r.cost), style = AppType.Value, color = LavenderPrimary)
+                    }
                 }
                 Text((if (showDate) "${fmtDate(r.date)} · " else "") + "${fmtKm(r.km)} km", style = AppType.Caption, color = TextGray)
-                if (!r.notes.isNullOrBlank()) Text(r.notes, style = AppType.Caption, color = TextGray, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                if (r.hasBreakdown) Text("Suku cadang ${rupiah(r.partsCost)} · Jasa ${rupiah(r.laborCost)}", style = AppType.Caption, color = TextGray)
+                if (!r.notes.isNullOrBlank()) Text(r.notes, style = AppType.Caption, color = TextGray, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 if (r.imagePath != null) {
-                    Spacer(Modifier.height(Spacing.S))
-                    StoredImage(r.imagePath, Modifier.size(52.dp).clip(RoundedCornerShape(8.dp)).clickable { onImage(r.imagePath) })
+                    Spacer(Modifier.height(Spacing.XS))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AttachFile, null, tint = LavenderPrimary, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(Spacing.XS))
+                        Text("Foto terlampir", style = AppType.Caption, color = LavenderPrimary)
+                    }
                 }
             }
             ItemMenu(onEdit = onEdit, onDelete = onDelete)

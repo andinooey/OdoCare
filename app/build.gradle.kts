@@ -12,8 +12,8 @@ android {
         applicationId = "com.odocare.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 17
-        versionName = "1.14.0"
+        versionCode = 18
+        versionName = "1.15.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
