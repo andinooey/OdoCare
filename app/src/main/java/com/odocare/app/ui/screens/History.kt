@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -69,13 +70,32 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
         .filter { inWindow(it.date) && pf.accepts(it.date) && (q.isEmpty() || it.title.contains(q, ignoreCase = true) || it.notes?.contains(q, ignoreCase = true) == true) }
         .let { list ->
             when (sort) {
-                HistorySort.NEWEST -> list.sortedByDescending { it.date }
-                HistorySort.OLDEST -> list.sortedBy { it.date }
+                // Hari yang sama: KM tertinggi di atas (Terbaru). Terlama dibalik supaya urutan kronologisnya konsisten.
+                HistorySort.NEWEST -> list.sortedWith(compareByDescending<ServiceRecord> { msToLocalDate(it.date) }.thenByDescending { it.km })
+                HistorySort.OLDEST -> list.sortedWith(compareBy<ServiceRecord> { msToLocalDate(it.date) }.thenBy { it.km })
                 HistorySort.COST -> list.sortedByDescending { it.cost }
                 HistorySort.KM -> list.sortedByDescending { it.km }
                 HistorySort.NAME -> list.sortedBy { it.title.lowercase() }
             }
         }
+
+    // Dari catat servis di Home: scroll ke record baru, baru setelah scroll selesai kartunya berkedip.
+    // Bila record tidak tampil (filter periode / pencarian / di luar jendela 30 hari), scroll dibatalkan dan hanya centang yang muncul.
+    val listState = rememberLazyListState()
+    val focusId = remember { vm.pendingHistoryFocus.also { vm.pendingHistoryFocus = null } }
+    val grouped = sort == HistorySort.NEWEST || sort == HistorySort.OLDEST
+    var focusHandled by remember { mutableStateOf(false) }
+    LaunchedEffect(focusId, records, shown) {
+        val id = focusId ?: return@LaunchedEffect
+        if (focusHandled) return@LaunchedEffect
+        if (records.none { it.id == id }) return@LaunchedEffect   // record belum sampai dari database; efek jalan lagi saat daftar berubah
+        val index = listIndexOf(shown, id, grouped)
+        if (index == null) { focusHandled = true; return@LaunchedEffect }   // tersaring: batal scroll, hanya centang
+        withFrameNanos { }                      // tunggu LazyColumn terpasang
+        listState.animateScrollToItem(index)    // suspend sampai scroll selesai
+        focusHandled = true
+        vm.flash(id)                            // kedipan baru mulai setelah scroll selesai
+    }
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -116,7 +136,7 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                 }
             }
             when {
-                section == 1 -> FuelHistory(fuelLogs, pf, windowStart, onLoadOlder = { loadedWindows += 1 }, onAdd = { showAddFuel = true }, onEdit = { editFuel = it }, onDelete = { vm.deleteFuel(it.id) })
+                section == 1 -> FuelHistory(fuelLogs, pf, windowStart, vm.flashId, onLoadOlder = { loadedWindows += 1 }, onAdd = { showAddFuel = true }, onEdit = { editFuel = it }, onDelete = { vm.deleteFuel(it.id) })
                 records.isEmpty() -> EmptyState(Icons.Default.History, "Belum ada riwayat servis", "Tap \"Catat servis\" pada komponen di tab Servis. Riwayatnya muncul di sini.", Modifier.padding(top = Spacing.XL))
                 shown.isEmpty() -> Column {
                     EmptyState(
@@ -134,11 +154,10 @@ fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: (
                         fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = Spacing.L, end = Spacing.L, top = Spacing.M)
                     )
                     // Urutan Terbaru / Terlama: dikelompokkan per tanggal seperti mutasi bank. Urutan lain: daftar biasa (tanggal tampil di kartu).
-                    val grouped = sort == HistorySort.NEWEST || sort == HistorySort.OLDEST
                     val card: @Composable (ServiceRecord) -> Unit = { r ->
-                        ServiceCard(r, showDate = !grouped, onClick = { detailTarget = r }, onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
+                        ServiceCard(r, showDate = !grouped, flash = vm.flashId == r.id, onClick = { detailTarget = r }, onEdit = { editTarget = r }, onDelete = { vm.deleteRecord(r.id) })
                     }
-                    LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = Spacing.XL)) {
+                    LazyColumn(Modifier.padding(horizontal = Spacing.L), state = listState, verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = Spacing.XL)) {
                         if (grouped) dayGroups(shown, { it.date }, { it.id }, card)
                         else items(shown, key = { it.id }) { card(it) }
                         if (hasOlderService) item(key = "load_older") { LoadOlderButton { loadedWindows += 1 } }
@@ -239,7 +258,7 @@ private fun ServiceDetailDialog(
 
 /** Daftar BBM kendaraan aktif, memakai filter tanggal yang sama dengan daftar servis. */
 @Composable
-private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, windowStart: LocalDate, onLoadOlder: () -> Unit, onAdd: () -> Unit, onEdit: (FuelLog) -> Unit, onDelete: (FuelLog) -> Unit) {
+private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, windowStart: LocalDate, flashId: String?, onLoadOlder: () -> Unit, onAdd: () -> Unit, onEdit: (FuelLog) -> Unit, onDelete: (FuelLog) -> Unit) {
     fun inWindow(ms: Long) = !msToLocalDate(ms).isBefore(windowStart)
     val hasOlder = all.any { !inWindow(it.date) }
     val shown = all.filter { inWindow(it.date) && pf.accepts(it.date) }.sortedWith(compareByDescending<FuelLog> { it.date }.thenByDescending { it.km })
@@ -255,7 +274,7 @@ private fun FuelHistory(all: List<FuelLog>, pf: PeriodFilter, windowStart: Local
                 fontSize = 12.sp, color = TextGray, modifier = Modifier.padding(start = Spacing.L, end = Spacing.L, top = Spacing.M)
             )
             LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.XS, bottom = 88.dp)) {
-                dayGroups(shown, { it.date }, { it.id }) { f -> FuelCard(f, onEdit = { onEdit(f) }, onDelete = { onDelete(f) }) }
+                dayGroups(shown, { it.date }, { it.id }) { f -> FuelCard(f, flash = flashId == f.id, onEdit = { onEdit(f) }, onDelete = { onDelete(f) }) }
                 if (hasOlder) item(key = "load_older") { LoadOlderButton(onLoadOlder) }
             }
         }
@@ -268,6 +287,17 @@ private fun <T> LazyListScope.dayGroups(list: List<T>, dateOf: (T) -> Long, key:
         item(key = "day_$day") { DayHeader(dateOf(rows.first())) }
         items(rows, key = key) { card(it) }
     }
+}
+
+/** Posisi item [id] di dalam LazyColumn daftar servis (memperhitungkan header tanggal bila [grouped]). null bila tidak ada di [shown]. */
+private fun listIndexOf(shown: List<ServiceRecord>, id: String, grouped: Boolean): Int? {
+    if (!grouped) return shown.indexOfFirst { it.id == id }.takeIf { it >= 0 }
+    var index = 0
+    shown.groupBy { msToLocalDate(it.date) }.forEach { (_, rows) ->
+        index++                                            // header tanggal
+        rows.forEach { if (it.id == id) return index; index++ }
+    }
+    return null
 }
 
 /** Header tanggal (tanpa total harian). */
@@ -294,8 +324,8 @@ private fun LoadOlderButton(onClick: () -> Unit) {
  * Fotonya sendiri hanya tampil di detail servis. showDate = true hanya saat daftar tidak dikelompokkan per tanggal.
  */
 @Composable
-private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Surface(onClick = onClick, color = SurfaceVariantDark, shape = CardShape, border = CardBorder) {
+private fun ServiceCard(r: ServiceRecord, showDate: Boolean, flash: Boolean, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+    Surface(onClick = onClick, color = flashingColor(SurfaceVariantDark, flash), shape = CardShape, border = CardBorder) {
         Row(Modifier.fillMaxWidth().padding(start = Spacing.M, top = Spacing.S, bottom = Spacing.S, end = Spacing.XS), verticalAlignment = Alignment.Top) {
             Box(Modifier.padding(top = Spacing.XS).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
             Spacer(Modifier.width(Spacing.M))
@@ -326,8 +356,8 @@ private fun ServiceCard(r: ServiceRecord, showDate: Boolean, onClick: () -> Unit
 
 /** Kartu transaksi BBM: liter dan harga per liter saat transaksi, KM, status tangki. */
 @Composable
-private fun FuelCard(f: FuelLog, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder) {
+private fun FuelCard(f: FuelLog, flash: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
+    Surface(color = flashingColor(SurfaceVariantDark, flash), shape = CardShape, border = CardBorder) {
         Row(Modifier.fillMaxWidth().padding(start = Spacing.M, top = Spacing.S, bottom = Spacing.S, end = Spacing.XS), verticalAlignment = Alignment.Top) {
             Box(Modifier.padding(top = Spacing.XS).size(32.dp).clip(RoundedCornerShape(8.dp)).background(PillSelected), contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalGasStation, null, tint = LavenderPrimary, modifier = Modifier.size(16.dp)) }
             Spacer(Modifier.width(Spacing.M))

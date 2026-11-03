@@ -575,6 +575,7 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     val masters by vm.masters.collectAsState()
     val km by vm.currentKm.collectAsState()
     val vehicle by vm.activeVehicle.collectAsState()
+    val flashId = vm.flashId
     var showAdd by remember { mutableStateOf(false) }
     var recordTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     var editTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
@@ -617,7 +618,7 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
                 } else {
                     LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.M, bottom = 88.dp)) {
                         items(shown, key = { it.schedule.id }) { view ->
-                            ScheduleCard(view, onRecord = { recordTarget = view.schedule }, onEdit = { editTarget = view.schedule }, onDelete = { deleteTarget = view.schedule })
+                            ScheduleCard(view, flash = flashId == view.schedule.id, onRecord = { recordTarget = view.schedule }, onEdit = { editTarget = view.schedule }, onDelete = { deleteTarget = view.schedule })
                         }
                     }
                 }
@@ -660,7 +661,7 @@ private fun InfoCol(label: String, value: String, sub: String?, modifier: Modifi
 
 /** Kartu jadwal ringkas: nama + status, progress, terakhir / berikutnya / kondisi, tombol catat. Edit & hapus di titik tiga. */
 @Composable
-private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun ScheduleCard(view: ScheduleView, flash: Boolean, onRecord: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     val s = view.schedule
     val ik = s.intervalKm?.takeIf { it > 0 }
     val im = s.intervalMonths?.takeIf { it > 0 }
@@ -672,7 +673,7 @@ private fun ScheduleCard(view: ScheduleView, onRecord: () -> Unit, onEdit: () ->
     val conditionColor = if (view.status == ServiceStatus.NORMAL) LavenderPrimary else statusColor
     val lines = conditionLines(view)
 
-    Surface(color = SurfaceVariantDark, shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
+    Surface(color = flashingColor(SurfaceVariantDark, flash), shape = CardShape, border = CardBorder, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(start = Spacing.L, top = Spacing.S, end = Spacing.XS, bottom = Spacing.M)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

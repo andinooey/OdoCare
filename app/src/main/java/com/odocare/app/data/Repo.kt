@@ -117,12 +117,14 @@ class Repo(private val ctx: Context) {
     suspend fun updateSchedule(s: MaintenanceSchedule) { sDao.update(s); prefs.edit().remove("svc_sent_${s.id}").apply() }
     suspend fun deleteSchedule(id: String) = sDao.deleteById(id)
 
-    /** Simpan servis. Odometer ikut naik bila KM servis lebih besar dari KM terakhir (tidak pernah diturunkan otomatis). */
-    suspend fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, partsCost: Long, laborCost: Long, notes: String?, imagePath: String?) = db.withTransaction {
+    /** Simpan servis. Odometer ikut naik bila KM servis lebih besar dari KM terakhir (tidak pernah diturunkan otomatis). Mengembalikan id record riwayat yang dibuat. */
+    suspend fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, partsCost: Long, laborCost: Long, notes: String?, imagePath: String?): String = db.withTransaction {
         bumpOdometer(schedule.vehicleId, km)
-        srDao.insert(ServiceRecord(vehicleId = schedule.vehicleId, scheduleId = schedule.id, title = schedule.name, km = km, date = dateMillis, cost = cost, notes = notes, imagePath = imagePath, partsCost = partsCost, laborCost = laborCost))
+        val record = ServiceRecord(vehicleId = schedule.vehicleId, scheduleId = schedule.id, title = schedule.name, km = km, date = dateMillis, cost = cost, notes = notes, imagePath = imagePath, partsCost = partsCost, laborCost = laborCost)
+        srDao.insert(record)
         sDao.update(schedule.copy(lastServiceKm = km, lastServiceDate = dateMillis))
         prefs.edit().remove("svc_sent_${schedule.id}").apply()
+        record.id
     }
     private suspend fun bumpOdometer(vehicleId: String, km: Int) {
         val current = oDao.latestKm(vehicleId)

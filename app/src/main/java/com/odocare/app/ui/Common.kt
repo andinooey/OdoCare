@@ -314,3 +314,33 @@ fun StatusFilterRow(labels: List<String>, counts: List<Int>, colors: List<Pair<C
         }
     }
 }
+
+/**
+ * Warna latar kartu yang berkedip dua kali ke [LavenderPrimary] saat [active] menjadi true.
+ * Kedipan dimulai saat kartu sudah tampil di komposisi, jadi kartu di luar layar tidak berkedip.
+ */
+@Composable
+fun flashingColor(base: Color, active: Boolean): Color {
+    val progress = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(active) {
+        if (active) repeat(2) {
+            progress.animateTo(1f, tween(220))
+            progress.animateTo(0f, tween(220))
+        }
+    }
+    return androidx.compose.ui.graphics.lerp(base, LavenderPrimary, progress.value * 0.5f)
+}
+
+/** Centang konfirmasi "tersimpan": bulat hijau dengan ikon centang, muncul sebentar di atas bottom nav. */
+@Composable
+fun SavedCheckBadge(visible: Boolean, modifier: Modifier = Modifier) {
+    AnimatedVisibility(
+        visible = visible, modifier = modifier,
+        enter = androidx.compose.animation.fadeIn(tween(150)) + androidx.compose.animation.scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy), initialScale = 0.6f),
+        exit = androidx.compose.animation.fadeOut(tween(200))
+    ) {
+        Surface(shape = CircleShape, color = Color(0xFF2E9B5F), shadowElevation = 6.dp) {
+            Icon(Icons.Default.Check, "Tersimpan", tint = Color.White, modifier = Modifier.padding(Spacing.M).size(28.dp))
+        }
+    }
+}

@@ -55,6 +55,8 @@ import com.odocare.app.ui.SurfaceDark
 import com.odocare.app.ui.TextGray
 import com.odocare.app.ui.TextWhite
 import com.odocare.app.ui.screens.*
+import com.odocare.app.ui.SavedCheckBadge
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -131,6 +133,25 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
             if (result == SnackbarResult.ActionPerformed) e.onUndo() else e.onExpire()
         }
     }
+    // Centang "tersimpan" di atas bottom nav selama ±1 detik
+    var showCheck by remember { mutableStateOf(false) }
+    var checkTick by remember { mutableStateOf(0) }
+    LaunchedEffect(checkTick) { if (checkTick > 0) { delay(1000); showCheck = false } }
+    // Event "tersimpan" dari catat servis / catat BBM
+    LaunchedEffect(Unit) {
+        vm.savedEvents.collect { e ->
+            showCheck = true; checkTick++
+            val from = nav.currentBackStackEntry?.destination?.route
+            when {
+                // Servis dari Home: pindah ke Histori; HistoryScreen scroll ke record lalu mengedipkannya
+                e.recordId != null && from == "home" -> { vm.pendingHistoryFocus = e.recordId; nav.navigateTab("history") }
+                // Servis dari tab Servis: tetap di tempat, kartu jadwal berkedip karena statusnya berubah
+                e.scheduleId != null -> vm.flash(e.scheduleId)
+                // BBM: tidak pindah layar; kartu BBM berkedip kalau sedang tampil di Histori
+                e.fuelId != null -> vm.flash(e.fuelId)
+            }
+        }
+    }
     LaunchedEffect(launchTarget) { launchTarget?.let { (t, v) -> openTarget(nav, vm, t, v); onTargetConsumed() } }
     val tabs = listOf(
         Tab("home", "Home", Icons.Default.Home),
@@ -171,8 +192,9 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
             }
         }
     ) { padding ->
+        Box(Modifier.padding(padding)) {
         NavHost(
-            navController = nav, startDestination = "home", modifier = Modifier.padding(padding),
+            navController = nav, startDestination = "home", modifier = Modifier.fillMaxSize(),
             enterTransition = { fadeIn(tween(150)) },
             exitTransition = { fadeOut(tween(90)) },
             popEnterTransition = { fadeIn(tween(150)) },
@@ -201,6 +223,8 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
             composable("master") { MasterScreen(vm, onBack = { nav.popBackStack() }) }
             composable("doctypes") { DocTypeScreen(vm, onBack = { nav.popBackStack() }) }
             composable("vehicletypes") { VehicleTypeScreen(vm, onBack = { nav.popBackStack() }) }
+        }
+        SavedCheckBadge(showCheck, Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.XL))
         }
     }
 }
