@@ -17,7 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.DocumentType
 import com.odocare.app.domain.IntervalUnit
@@ -26,8 +26,8 @@ import com.odocare.app.ui.*
 /** Master jenis dokumen: Pajak Tahunan, SIM, Asuransi, dan jenis lain yang ditambahkan sendiri. Dipakai di dropdown form Pajak & Dokumen. */
 @Composable
 fun DocTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
-    val types by vm.documentTypes.collectAsStateWithLifecycle()
-    val docs by vm.allDocuments.collectAsStateWithLifecycle()
+    val types by vm.documentTypes.collectAsState()
+    val docs by vm.allDocuments.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<DocumentType?>(null) }
     var deleteTarget by remember { mutableStateOf<DocumentType?>(null) }

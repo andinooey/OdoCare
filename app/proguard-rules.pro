@@ -6,3 +6,7 @@
 
 # Enum dibaca lewat nama (backup JSON, penanda notifikasi)
 -keepclassmembers enum com.odocare.app.** { *; }
+
+# Compose + lifecycle: jangan buang/ubah kelas lifecycle yang dicari lewat view tree
+-keep class androidx.lifecycle.** { *; }
+-dontwarn androidx.lifecycle.**

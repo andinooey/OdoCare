@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.OdometerLog
 import com.odocare.app.domain.FuelEngine
@@ -39,9 +39,9 @@ private fun tidyTitle(t: String) = t.trim().replace(WhitespaceRun, " ")
 @Composable
 fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     val ctx = LocalContext.current
-    val vehicles by vm.vehicles.collectAsStateWithLifecycle()
-    val allRecords by vm.allRecords.collectAsStateWithLifecycle()
-    val allFuel by vm.allFuel.collectAsStateWithLifecycle()
+    val vehicles by vm.vehicles.collectAsState()
+    val allRecords by vm.allRecords.collectAsState()
+    val allFuel by vm.allFuel.collectAsState()
     var vehicleFilter by remember { mutableStateOf<String?>(null) }
     val pf = remember { PeriodFilter(Period.YEAR) }
     var info by remember { mutableStateOf<String?>(null) }

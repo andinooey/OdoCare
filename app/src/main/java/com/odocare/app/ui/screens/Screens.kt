@@ -31,7 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.FuelLog
 import com.odocare.app.data.MaintenanceSchedule
@@ -67,17 +67,17 @@ fun HomeScreen(
     onNavigateToNotifications: () -> Unit, onNavigateToSettings: () -> Unit,
     onNavigateToReport: () -> Unit
 ) {
-    val vehicles by vm.vehicles.collectAsStateWithLifecycle()
-    val loaded by vm.vehiclesLoaded.collectAsStateWithLifecycle()
-    val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
-    val km by vm.currentKm.collectAsStateWithLifecycle()
-    val schedules by vm.schedules.collectAsStateWithLifecycle()
-    val documents by vm.documents.collectAsStateWithLifecycle()
-    val unreadNotifications by vm.unreadNotifications.collectAsStateWithLifecycle()
-    val lastBackup by vm.lastBackup.collectAsStateWithLifecycle()
-    val records by vm.records.collectAsStateWithLifecycle()
-    val fuelLogs by vm.fuelLogs.collectAsStateWithLifecycle()
-    val odoLogs by vm.odometerLogs.collectAsStateWithLifecycle()
+    val vehicles by vm.vehicles.collectAsState()
+    val loaded by vm.vehiclesLoaded.collectAsState()
+    val vehicle by vm.activeVehicle.collectAsState()
+    val km by vm.currentKm.collectAsState()
+    val schedules by vm.schedules.collectAsState()
+    val documents by vm.documents.collectAsState()
+    val unreadNotifications by vm.unreadNotifications.collectAsState()
+    val lastBackup by vm.lastBackup.collectAsState()
+    val records by vm.records.collectAsState()
+    val fuelLogs by vm.fuelLogs.collectAsState()
+    val odoLogs by vm.odometerLogs.collectAsState()
     var showSheet by remember { mutableStateOf(false) }
     var showAddKm by remember { mutableStateOf(false) }
     var showAddFuel by remember { mutableStateOf(false) }
@@ -526,8 +526,8 @@ private fun SummaryCard(value: String, label: String, icon: ImageVector, bgColor
 
 @Composable
 fun OdometerScreen(vm: MainViewModel, onBack: () -> Unit) {
-    val logs by vm.odometerLogs.collectAsStateWithLifecycle()
-    val km by vm.currentKm.collectAsStateWithLifecycle()
+    val logs by vm.odometerLogs.collectAsState()
+    val km by vm.currentKm.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<OdometerLog?>(null) }
     Scaffold(
@@ -571,10 +571,10 @@ private val filterLabels = listOf("Semua", "Lewat", "Segera", "Aman")
 
 @Composable
 fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
-    val schedules by vm.schedules.collectAsStateWithLifecycle()
-    val masters by vm.masters.collectAsStateWithLifecycle()
-    val km by vm.currentKm.collectAsStateWithLifecycle()
-    val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
+    val schedules by vm.schedules.collectAsState()
+    val masters by vm.masters.collectAsState()
+    val km by vm.currentKm.collectAsState()
+    val vehicle by vm.activeVehicle.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var recordTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }
     var editTarget by remember { mutableStateOf<MaintenanceSchedule?>(null) }

@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.Snapshots
 import com.odocare.app.data.Vehicle
@@ -50,14 +50,14 @@ import java.time.format.DateTimeFormatter
 fun SettingsScreen(vm: MainViewModel, onOpenMaster: () -> Unit, onOpenVehicleTypes: () -> Unit, onOpenDocTypes: () -> Unit) {
     val ctx = LocalContext.current
     val clipboard = LocalClipboardManager.current
-    val vehicles by vm.vehicles.collectAsStateWithLifecycle()
-    val active by vm.activeVehicle.collectAsStateWithLifecycle()
-    val allDocs by vm.allDocuments.collectAsStateWithLifecycle()
-    val lastBackup by vm.lastBackup.collectAsStateWithLifecycle()
+    val vehicles by vm.vehicles.collectAsState()
+    val active by vm.activeVehicle.collectAsState()
+    val allDocs by vm.allDocuments.collectAsState()
+    val lastBackup by vm.lastBackup.collectAsState()
     // Dari banner pengingat backup di Home: bagian Backup & Data langsung terbuka
     val expandBackup = remember { vm.expandBackupSection }
     LaunchedEffect(Unit) { vm.expandBackupSection = false }
-    val changes by vm.changesSinceBackup.collectAsStateWithLifecycle()
+    val changes by vm.changesSinceBackup.collectAsState()
 
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<Vehicle?>(null) }

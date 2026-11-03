@@ -31,7 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.LegalDocument
 import com.odocare.app.domain.DocStatus
@@ -54,8 +54,8 @@ private val docFilterLabels = listOf("Semua", "Lewat", "Segera", "Aman")
 /** Bagian "Pajak & Dokumen" di tab Servis: dokumen kendaraan aktif + tab status seperti Jadwal & Komponen. */
 @Composable
 fun DocumentsScreen(vm: MainViewModel, onOpenDocTypes: () -> Unit) {
-    val docs by vm.documents.collectAsStateWithLifecycle()
-    val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
+    val docs by vm.documents.collectAsState()
+    val vehicle by vm.activeVehicle.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<LegalDocument?>(null) }
     var renewTarget by remember { mutableStateOf<LegalDocument?>(null) }

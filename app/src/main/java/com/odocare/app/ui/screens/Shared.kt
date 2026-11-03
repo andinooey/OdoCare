@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,8 +67,8 @@ fun NoVehicleState(vm: MainViewModel, modifier: Modifier = Modifier, message: St
 /** Pemilih kendaraan aktif (chip). Hanya tampil bila punya lebih dari satu kendaraan; dipakai seragam di Home, Servis, dan Histori. */
 @Composable
 fun VehicleChips(vm: MainViewModel, modifier: Modifier = Modifier) {
-    val vehicles by vm.vehicles.collectAsStateWithLifecycle()
-    val active by vm.activeVehicle.collectAsStateWithLifecycle()
+    val vehicles by vm.vehicles.collectAsState()
+    val active by vm.activeVehicle.collectAsState()
     if (vehicles.size > 1) {
         Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.S)) {
             vehicles.forEach { item -> FilterChip(selected = item.id == active?.id, onClick = { vm.setActiveVehicle(item.id) }, label = { Text(item.name, fontSize = 12.sp) }) }

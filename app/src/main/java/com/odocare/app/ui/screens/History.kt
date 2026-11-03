@@ -23,7 +23,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.FuelLog
 import com.odocare.app.data.ServiceRecord
@@ -41,10 +41,10 @@ private enum class HistorySort(val label: String) {
  */
 @Composable
 fun HistoryScreen(vm: MainViewModel, onOpenReport: () -> Unit, onOpenOdometer: () -> Unit) {
-    val records by vm.records.collectAsStateWithLifecycle()
-    val fuelLogs by vm.fuelLogs.collectAsStateWithLifecycle()
-    val vehicle by vm.activeVehicle.collectAsStateWithLifecycle()
-    val km by vm.currentKm.collectAsStateWithLifecycle()
+    val records by vm.records.collectAsState()
+    val fuelLogs by vm.fuelLogs.collectAsState()
+    val vehicle by vm.activeVehicle.collectAsState()
+    val km by vm.currentKm.collectAsState()
     val pf = remember { PeriodFilter(Period.ALL) }
     // 0 = Servis, 1 = BBM. Filter tanggal (pf) dipakai bersama oleh kedua daftar.
     var section by remember { mutableStateOf(0) }

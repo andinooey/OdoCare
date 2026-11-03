@@ -18,7 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.AppNotification
 import com.odocare.app.notif.Notif
@@ -30,8 +30,8 @@ import java.time.ZoneId
 /** Riwayat semua notifikasi yang sudah muncul. Yang belum dibaca ditandai titik dan latar berbeda; ketuk untuk menandai dibaca. */
 @Composable
 fun NotificationScreen(vm: MainViewModel, onBack: () -> Unit, onOpenTarget: (AppNotification) -> Unit) {
-    val items by vm.notifications.collectAsStateWithLifecycle()
-    val unread by vm.unreadNotifications.collectAsStateWithLifecycle()
+    val items by vm.notifications.collectAsState()
+    val unread by vm.unreadNotifications.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

@@ -17,7 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.MasterCategory
 import com.odocare.app.domain.Engines
@@ -26,7 +26,7 @@ import com.odocare.app.ui.*
 /** Master kategori: dipakai untuk kendaraan baru dan dropdown tambah komponen. Tidak mengubah kendaraan yang sudah ada. */
 @Composable
 fun MasterScreen(vm: MainViewModel, onBack: () -> Unit) {
-    val masters by vm.masters.collectAsStateWithLifecycle()
+    val masters by vm.masters.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<MasterCategory?>(null) }
     var deleteTarget by remember { mutableStateOf<MasterCategory?>(null) }

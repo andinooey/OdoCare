@@ -18,7 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.odocare.app.MainViewModel
 import com.odocare.app.data.VehicleType
 import com.odocare.app.ui.*
@@ -26,8 +26,8 @@ import com.odocare.app.ui.*
 /** Master jenis kendaraan: Motor, Mobil, dan jenis lain yang ditambahkan sendiri (truk, sepeda listrik, dst). */
 @Composable
 fun VehicleTypeScreen(vm: MainViewModel, onBack: () -> Unit) {
-    val types by vm.vehicleTypes.collectAsStateWithLifecycle()
-    val vehicles by vm.vehicles.collectAsStateWithLifecycle()
+    val types by vm.vehicleTypes.collectAsState()
+    val vehicles by vm.vehicles.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<VehicleType?>(null) }
     var deleteTarget by remember { mutableStateOf<VehicleType?>(null) }
