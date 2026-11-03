@@ -7,7 +7,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -411,13 +413,14 @@ fun AddKmDialog(currentKm: Int?, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
 
 @Composable
 fun ProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 4.dp) {
+    val barColor by animateColorAsState(color, tween(400), label = "progressColor")
     // Terisi dari 0 dengan pegas saat pertama tampil dan saat nilainya berubah
     var target by remember { mutableStateOf(0f) }
     LaunchedEffect(fraction) { target = fraction }
     val shown by animateFloatAsState(target, tween(450, easing = FastOutSlowInEasing), label = "progress")
     Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(50)).background(TrackColor)) {
         // Lebar isi diubah lewat graphicsLayer: nilai animasi dibaca di fase gambar, tanpa menyusun ulang layout tiap frame
-        Box(Modifier.fillMaxSize().graphicsLayer { scaleX = shown.coerceIn(0f, 1f); transformOrigin = TransformOrigin(0f, 0.5f) }.background(color))
+        Box(Modifier.fillMaxSize().graphicsLayer { scaleX = shown.coerceIn(0f, 1f); transformOrigin = TransformOrigin(0f, 0.5f) }.background(barColor))
     }
 }
 
@@ -432,7 +435,11 @@ fun PlateView(plate: String) {
 /** Odometer: satu digit per kotak (minimal 6 digit) */
 @Composable
 fun OdometerDigits(km: Int?, large: Boolean = false) {
-    val digits = (km ?: 0).coerceAtLeast(0).toString().padStart(6, '0')
+    // Count-up: angka naik dari 0 (saat pertama tampil) atau dari nilai lama ke KM baru
+    val target = (km ?: 0).coerceAtLeast(0)
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(target) { anim.animateTo(target.toFloat(), tween(900, easing = FastOutSlowInEasing)) }
+    val digits = anim.value.toInt().coerceAtLeast(0).toString().padStart(6, '0')
     Row(horizontalArrangement = Arrangement.spacedBy(if (large) 6.dp else 4.dp)) {
         digits.forEach { c ->
             Box(Modifier.size(if (large) 30.dp else 22.dp, if (large) 44.dp else 30.dp).background(Color(0xFF0B0B0B), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {

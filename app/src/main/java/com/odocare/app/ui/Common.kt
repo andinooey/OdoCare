@@ -3,6 +3,12 @@
 package com.odocare.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -68,8 +74,10 @@ fun Modifier.pressScale(source: MutableInteractionSource, pressed: Float = 0.97f
 
 @Composable
 fun StatusBadge(text: String, colors: Pair<Color, Color>) {
-    Surface(color = colors.first, shape = RoundedCornerShape(50)) {
-        Text(text, modifier = Modifier.padding(horizontal = Spacing.S, vertical = Spacing.XS), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = colors.second)
+    val bg by animateColorAsState(colors.first, tween(350), label = "badgeBg")
+    val fg by animateColorAsState(colors.second, tween(350), label = "badgeFg")
+    Surface(color = bg, shape = RoundedCornerShape(50)) {
+        Text(text, modifier = Modifier.padding(horizontal = Spacing.S, vertical = Spacing.XS), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = fg)
     }
 }
 
@@ -124,12 +132,20 @@ fun StatusStripeCard(stripe: Color, content: @Composable ColumnScope.() -> Unit)
 }
 
 @Composable
-private fun StatusChipBase(colors: Pair<Color, Color>, icon: ImageVector, label: String) {
-    Surface(color = colors.first, shape = RoundedCornerShape(50)) {
+private fun StatusChipBase(colors: Pair<Color, Color>, icon: ImageVector, label: String, pulse: Boolean = false) {
+    val bg by animateColorAsState(colors.first, tween(350), label = "chipBg")
+    val fg by animateColorAsState(colors.second, tween(350), label = "chipFg")
+    // Denyut pelan hanya untuk status "Lewat" supaya menarik perhatian tanpa mengganggu
+    val iconAlpha = if (pulse) {
+        val t = rememberInfiniteTransition(label = "pulse")
+        val a by t.animateFloat(1f, 0.35f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulseAlpha")
+        a
+    } else 1f
+    Surface(color = bg, shape = RoundedCornerShape(50)) {
         Row(Modifier.padding(horizontal = Spacing.S, vertical = Spacing.XS), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = colors.second, modifier = Modifier.size(13.dp))
+            Icon(icon, null, tint = fg, modifier = Modifier.size(13.dp).graphicsLayer { alpha = iconAlpha })
             Spacer(Modifier.width(Spacing.XS))
-            Text(label, color = colors.second, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = fg, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -143,7 +159,7 @@ fun StatusChip(status: ServiceStatus) {
         ServiceStatus.LATE -> Icons.Default.Error
         ServiceStatus.NO_ODOMETER -> Icons.Default.Info
     }
-    StatusChipBase(serviceColor(status), icon, if (status == ServiceStatus.NO_ODOMETER) "Update KM" else status.label)
+    StatusChipBase(serviceColor(status), icon, if (status == ServiceStatus.NO_ODOMETER) "Update KM" else status.label, pulse = status == ServiceStatus.LATE)
 }
 
 /** Chip status dokumen dengan ikon yang sama seperti komponen servis. */
