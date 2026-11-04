@@ -55,8 +55,8 @@ import com.odocare.app.ui.SurfaceDark
 import com.odocare.app.ui.TextGray
 import com.odocare.app.ui.TextWhite
 import com.odocare.app.ui.screens.*
-import com.odocare.app.ui.SavedCheckBadge
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -133,22 +133,26 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
             if (result == SnackbarResult.ActionPerformed) e.onUndo() else e.onExpire()
         }
     }
-    // Centang "tersimpan" di atas bottom nav selama ±1 detik
-    var showCheck by remember { mutableStateOf(false) }
-    var checkTick by remember { mutableStateOf(0) }
-    LaunchedEffect(checkTick) { if (checkTick > 0) { delay(1000); showCheck = false } }
-    // Event "tersimpan" dari catat servis / catat BBM
+    // Event "tersimpan" dari catat servis / catat BBM: snackbar + perpindahan/denyut kartu
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         vm.savedEvents.collect { e ->
-            showCheck = true; checkTick++
             val from = nav.currentBackStackEntry?.destination?.route
             when {
-                // Servis dari Home: pindah ke Histori; HistoryScreen scroll ke record lalu mengedipkannya
-                e.recordId != null && from == "home" -> { vm.pendingHistoryFocus = e.recordId; nav.navigateTab("history") }
-                // Servis dari tab Servis: tetap di tempat, kartu jadwal berkedip karena statusnya berubah
+                // Servis dari Home: pindah ke tab Servis; ScheduleScreen scroll ke kartu jadwal lalu mendenyutkannya
+                e.scheduleId != null && from == "home" -> { vm.serviceSection = 0; vm.pendingScheduleFocus = MainViewModel.ScheduleFocus(e.scheduleId, e.km); nav.navigateTab("schedule") }
+                // Servis dari tab Servis: tetap di tempat, kartu jadwal berdenyut karena statusnya berubah
                 e.scheduleId != null -> vm.flash(e.scheduleId)
-                // BBM: tidak pindah layar; kartu BBM berkedip kalau sedang tampil di Histori
+                // BBM: tidak pindah layar; kartu BBM berdenyut kalau sedang tampil di Histori
                 e.fuelId != null -> vm.flash(e.fuelId)
+            }
+            // "Lihat riwayat" hanya untuk servis yang record-nya masuk jendela 30 hari Histori (kalau tidak, tombolnya tidak akan menyorot apa-apa)
+            val historyStart = java.time.LocalDate.now().minusDays(29)
+            val canOpenHistory = e.recordId != null && !com.odocare.app.ui.msToLocalDate(e.date).isBefore(historyStart)
+            snackbarState.currentSnackbarData?.dismiss()
+            scope.launch {
+                val result = snackbarState.showSnackbar("Tersimpan", actionLabel = if (canOpenHistory) "Lihat riwayat" else null, duration = SnackbarDuration.Short)
+                if (result == SnackbarResult.ActionPerformed && e.recordId != null) { vm.pendingHistoryFocus = e.recordId; nav.navigateTab("history") }
             }
         }
     }
@@ -224,7 +228,6 @@ private fun OdoCareRoot(vm: MainViewModel, launchTarget: Pair<String, String?>?,
             composable("doctypes") { DocTypeScreen(vm, onBack = { nav.popBackStack() }) }
             composable("vehicletypes") { VehicleTypeScreen(vm, onBack = { nav.popBackStack() }) }
         }
-        SavedCheckBadge(showCheck, Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.XL))
         }
     }
 }

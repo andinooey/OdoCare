@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -589,6 +590,24 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
     val safe = views.filter { it.status == ServiceStatus.NORMAL || it.status == ServiceStatus.NO_ODOMETER }
     val shown = when (tab) { 1 -> late; 2 -> soon; 3 -> safe; else -> views }
 
+    // Dari catat servis di Home: tunggu data jadwal terbaru sampai (urutan kartu bisa berubah), scroll ke kartunya,
+    // baru setelah scroll selesai kartunya berdenyut. Kalau kartu tidak ada di daftar, scroll dibatalkan.
+    val listState = rememberLazyListState()
+    val focus = remember { vm.pendingScheduleFocus.also { vm.pendingScheduleFocus = null } }
+    var focusHandled by remember { mutableStateOf(false) }
+    LaunchedEffect(focus, schedules) {
+        val f = focus ?: return@LaunchedEffect
+        if (focusHandled) return@LaunchedEffect
+        val updated = schedules.firstOrNull { it.id == f.scheduleId }?.lastServiceKm == f.km
+        if (!updated) return@LaunchedEffect          // update dari database belum sampai; efek jalan lagi saat daftar berubah
+        val index = shown.indexOfFirst { it.schedule.id == f.scheduleId }
+        if (index < 0) { focusHandled = true; return@LaunchedEffect }
+        withFrameNanos { }
+        listState.animateScrollToItem(index)
+        focusHandled = true
+        vm.flash(f.scheduleId)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = NoInsets,
@@ -616,7 +635,7 @@ fun ScheduleScreen(vm: MainViewModel, onOpenMaster: () -> Unit) {
                         else -> EmptyState(Icons.Default.Build, "Belum ada komponen", "Tambahkan oli, rem, ban, atau komponen lain yang ingin dipantau.", Modifier.padding(top = Spacing.XL), actionLabel = "Tambah Komponen", onAction = { showAdd = true })
                     }
                 } else {
-                    LazyColumn(Modifier.padding(horizontal = Spacing.L), verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.M, bottom = 88.dp)) {
+                    LazyColumn(Modifier.padding(horizontal = Spacing.L), state = listState, verticalArrangement = Arrangement.spacedBy(Spacing.S), contentPadding = PaddingValues(top = Spacing.M, bottom = 88.dp)) {
                         items(shown, key = { it.schedule.id }) { view ->
                             ScheduleCard(view, flash = flashId == view.schedule.id, onRecord = { recordTarget = view.schedule }, onEdit = { editTarget = view.schedule }, onDelete = { deleteTarget = view.schedule })
                         }

@@ -75,7 +75,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun recordService(schedule: MaintenanceSchedule, km: Int, dateMillis: Long, cost: Long, partsCost: Long, laborCost: Long, notes: String?, imagePath: String?) = viewModelScope.launch {
         if (km <= 0) return@launch
         val recordId = repo.recordService(schedule, km, dateMillis, cost, partsCost, laborCost, notes, imagePath)
-        savedEvents.tryEmit(SavedEvent(scheduleId = schedule.id, recordId = recordId))
+        savedEvents.tryEmit(SavedEvent(scheduleId = schedule.id, recordId = recordId, km = km, date = dateMillis))
     }
 
     // ---- Riwayat servis ----
@@ -98,7 +98,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (km <= 0 || liters <= 0 || totalPrice <= 0) return@launch
         val log = FuelLog(vehicleId = vehicle.id, date = date, km = km, liters = liters, totalPrice = totalPrice, fullTank = fullTank, literPrice = literPrice)
         repo.addFuel(log)
-        savedEvents.tryEmit(SavedEvent(fuelId = log.id))
+        savedEvents.tryEmit(SavedEvent(fuelId = log.id, km = km, date = date))
     }
     fun updateFuel(f: FuelLog) = viewModelScope.launch { repo.updateFuel(f) }
     fun deleteFuel(id: String) = viewModelScope.launch {
@@ -164,10 +164,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Event "tersimpan" (centang di MainActivity, perpindahan ke Histori, kedipan kartu) ----
     /** Dikirim setelah catatan servis/BBM masuk database. Servis: scheduleId + recordId. BBM: fuelId. */
-    class SavedEvent(val scheduleId: String? = null, val recordId: String? = null, val fuelId: String? = null)
+    class SavedEvent(val scheduleId: String? = null, val recordId: String? = null, val fuelId: String? = null, val km: Int = 0, val date: Long = 0L)
     val savedEvents = MutableSharedFlow<SavedEvent>(extraBufferCapacity = 8)
 
-    /** Id record riwayat yang harus di-scroll lalu dikedipkan di tab Histori (diisi saat catat servis dari Home). Dikonsumsi HistoryScreen sekali. */
+    /** Jadwal yang harus di-scroll lalu didenyutkan di tab Servis (diisi saat catat servis dari Home). [km] dipakai menunggu data jadwal terbaru sampai. Dikonsumsi ScheduleScreen sekali. */
+    class ScheduleFocus(val scheduleId: String, val km: Int)
+    var pendingScheduleFocus: ScheduleFocus? = null
+
+    /** Id record riwayat yang harus di-scroll (diisi saat user tap "Lihat riwayat" di snackbar) lalu dikedipkan di tab Histori (diisi saat catat servis dari Home). Dikonsumsi HistoryScreen sekali. */
     var pendingHistoryFocus: String? = null
 
     /** Id kartu (jadwal, record, atau BBM) yang sedang berkedip. Hilang sendiri, jadi kartu yang baru tampil belakangan tidak ikut berkedip. */
@@ -177,7 +181,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun flash(id: String?) {
         flashJob?.cancel()
         flashId = id
-        if (id != null) flashJob = viewModelScope.launch { kotlinx.coroutines.delay(1600); if (flashId == id) flashId = null }
+        if (id != null) flashJob = viewModelScope.launch { kotlinx.coroutines.delay(2200); if (flashId == id) flashId = null }
     }
 
     // ---- Snackbar Urungkan (ditampilkan di MainActivity) ----
