@@ -64,8 +64,8 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
     // Kategori digabung tanpa beda huruf besar-kecil dan spasi; yang ditampilkan ejaan yang paling sering dipakai
     val perCategory = records.groupBy { tidyTitle(it.title).lowercase() }.map { (_, l) ->
         val label = l.groupingBy { tidyTitle(it.title) }.eachCount().maxByOrNull { it.value }?.key ?: l.first().title
-        label to l.sumOf { it.cost }
-    }.sortedByDescending { it.second }
+        CategoryCost(label, l.sumOf { it.cost }, l.size, l.maxOfOrNull { it.date })
+    }.sortedByDescending { it.total }
     val perVehicle = records.groupBy { it.vehicleId }.mapValues { (_, l) -> l.sumOf { it.cost } }.toList().sortedByDescending { it.second }
     val costedCount = records.count { it.cost > 0 }
     val avgCost = if (costedCount > 0) total / costedCount else null
@@ -201,7 +201,8 @@ fun ReportScreen(vm: MainViewModel, onBack: () -> Unit) {
                     Spacer(Modifier.height(Spacing.L))
                     SectionHeader("Biaya per Kategori")
                     Spacer(Modifier.height(Spacing.XS))
-                    perCategory.forEach { (name, v) -> PercentBar(name, v, total) }
+                    if (total > 0) CategoryPieSection(perCategory)
+                    else perCategory.forEach { PercentBar(it.name, it.total, total) }
 
                     if (perVehicle.size > 1) {
                         Spacer(Modifier.height(Spacing.M))
